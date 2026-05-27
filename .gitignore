@@ -46,3 +46,4 @@ supabase/.env
 
 # TypeScript
 *.tsbuildinfo
+node_modules/
