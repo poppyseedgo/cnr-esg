@@ -141,6 +141,14 @@ function getVariantForPath(pathname: string): Variant {
 
 // ============================================================================
 // 배지 규칙
+//
+// 동작:
+//   - before:  시작일까지 D-N (회색) / D-1 → "내일 시작" / D-0 → "오늘 시작" (라임)
+//   - active:  종료일까지 D-N
+//     · award:    일반 active → "진행중" (라임)
+//     · commerce: 일반 active → "D-N" (회색)
+//     · 공통:     D-1 → "내일 마감" / D-0 → "오늘 마감" (라임)
+//   - closed:  award → "시상완료" / commerce → "종료" (회색)
 // ============================================================================
 
 type ActivityKind = 'award' | 'commerce';
@@ -152,16 +160,20 @@ interface BadgeInfo {
   isActive: boolean; // active(라임) 인지 neutral(회색) 인지
 }
 
-function calcDayDiff(endIso: string | undefined): number | null {
-  if (!endIso) return null;
-  const end = new Date(endIso);
+/**
+ * KST 자정 기준 일수 차이 (target - now).
+ * 양수 = target이 미래, 0 = 오늘, 음수 = 과거
+ */
+function calcDayDiff(targetIso: string | undefined): number | null {
+  if (!targetIso) return null;
+  const target = new Date(targetIso);
   const now = new Date();
   const kstOffset = 9 * 60 * 60 * 1000;
-  const endKst = new Date(end.getTime() + kstOffset);
+  const targetKst = new Date(target.getTime() + kstOffset);
   const nowKst = new Date(now.getTime() + kstOffset);
-  const endDay = Math.floor(endKst.getTime() / (1000 * 60 * 60 * 24));
+  const targetDay = Math.floor(targetKst.getTime() / (1000 * 60 * 60 * 24));
   const nowDay = Math.floor(nowKst.getTime() / (1000 * 60 * 60 * 24));
-  return endDay - nowDay;
+  return targetDay - nowDay;
 }
 
 function getBadge(
@@ -170,6 +182,7 @@ function getBadge(
   kind: ActivityKind,
   tokens: VariantTokens
 ): BadgeInfo {
+  // 1) 종료 상태
   if (status === 'closed') {
     return {
       text: kind === 'award' ? '시상완료' : '종료',
@@ -178,23 +191,41 @@ function getBadge(
       isActive: false,
     };
   }
+
+  // 2) 시작 전 - 시작일 기준 D-day
   if (status === 'before') {
-    return { text: '준비중', bg: tokens.badgeNeutral, show: true, isActive: false };
+    const dStart = calcDayDiff(period?.starts_at_utc);
+    if (dStart === null) {
+      return { text: '준비중', bg: tokens.badgeNeutral, show: true, isActive: false };
+    }
+    if (dStart <= 0) {
+      // 시작일이 오늘 (곧 시작)
+      return { text: '오늘 시작', bg: tokens.badgeActive, show: true, isActive: true };
+    }
+    if (dStart === 1) {
+      return { text: '내일 시작', bg: tokens.badgeActive, show: true, isActive: true };
+    }
+    // D-2 이상: 회색 카운트
+    return { text: `D-${dStart}`, bg: tokens.badgeNeutral, show: true, isActive: false };
   }
-  const dDay = calcDayDiff(period?.ends_at_utc);
-  if (dDay === null) {
+
+  // 3) 진행 중 - 종료일 기준 D-day
+  const dEnd = calcDayDiff(period?.ends_at_utc);
+  if (dEnd === null) {
+    // 기간 정보 없음 → 단순 진행중
     return { text: '진행중', bg: tokens.badgeActive, show: true, isActive: true };
   }
-  if (dDay <= 0) {
+  if (dEnd <= 0) {
     return { text: '오늘 마감', bg: tokens.badgeActive, show: true, isActive: true };
   }
-  if (dDay === 1) {
+  if (dEnd === 1) {
     return { text: '내일 마감', bg: tokens.badgeActive, show: true, isActive: true };
   }
+  // D-2 이상
   if (kind === 'award') {
     return { text: '진행중', bg: tokens.badgeActive, show: true, isActive: true };
   }
-  return { text: `D-${dDay}`, bg: tokens.badgeNeutral, show: true, isActive: false };
+  return { text: `D-${dEnd}`, bg: tokens.badgeNeutral, show: true, isActive: false };
 }
 
 // ============================================================================
@@ -431,7 +462,7 @@ function DesktopMenu({
   isAdmin,
 }: DesktopMenuProps) {
   return (
-    <nav style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+    <nav style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <NavMenuItem to="/posts/zero-waste" label="제로 웨이스트" badge={zeroWasteBadge} tokens={tokens} />
       <NavMenuItem to="/posts/wise-life" label="슬기로운 사회생활" badge={wiseLifeBadge} tokens={tokens} />
       <NavMenuItem to="/bazaar" label="ESG 바자회" badge={bazaarBadge} tokens={tokens} />
