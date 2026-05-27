@@ -278,11 +278,11 @@ function AwardMenuItem({
         textDecoration: 'none',
         color: C.text,
         fontSize: 16,
-        fontWeight: 500,
+        fontWeight: isActive ? 600 : 400,
         lineHeight: 1.25,
         whiteSpace: 'nowrap',
         background: isActive ? C.hover : 'transparent',
-        transition: 'background 0.15s',
+        transition: 'background 0.15s, font-weight 0.15s',
       })}
     >
       {label}
@@ -305,7 +305,7 @@ function AwardMenuItem({
   );
 }
 
-// 일반 메뉴: px16 py8, text 15px Medium, 배지 없음
+// 일반 메뉴: px16 py8, text 15px, 배지 없음
 function PlainMenuItem({ to, label }: { to: string; label: string }) {
   return (
     <NavLink
@@ -319,11 +319,11 @@ function PlainMenuItem({ to, label }: { to: string; label: string }) {
         textDecoration: 'none',
         color: C.text,
         fontSize: 15,
-        fontWeight: 500,
+        fontWeight: isActive ? 600 : 400,
         lineHeight: 1.25,
         whiteSpace: 'nowrap',
         background: isActive ? C.hover : 'transparent',
-        transition: 'background 0.15s',
+        transition: 'background 0.15s, font-weight 0.15s',
       })}
     >
       {label}
@@ -634,7 +634,7 @@ const mobileLinkStyle: React.CSSProperties = {
   color: C.text,
   textDecoration: 'none',
   fontSize: 15,
-  fontWeight: 500,
+  fontWeight: 400,
   borderRadius: 8,
 };
 
