@@ -35,9 +35,15 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
 
+// 이메일 본문의 액션 버튼이 가리킬 도메인.
+// 환경변수에서만 받음. 누락 시 명시적 에러 (잘못된 도메인으로 발송 방지).
+const APP_BASE_URL = Deno.env.get('APP_BASE_URL');
+if (!APP_BASE_URL) {
+  console.error('[process-email-outbox] APP_BASE_URL 환경변수 미설정. supabase secrets set APP_BASE_URL=https://your-domain 필요');
+}
+
 const FROM_EMAIL = 'C&R ESG <space@cnrres.com>';
 const REPLY_TO = 'space@cnrres.com';
-const APP_BASE_URL = 'https://esg.cnrres.com'; // 추후 실제 도메인으로 교체
 
 const BATCH_SIZE = 50;
 const MAX_RETRY = 3;
