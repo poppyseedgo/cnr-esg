@@ -30,6 +30,13 @@ a {
   color: inherit;
 }
 
+h1 {
+  font-weight: 600;
+  font-size: 36px;
+  line-height: 1.25;
+  margin: 0 0 16px;
+}
+
 #root {
   min-height: 100vh;
 }
