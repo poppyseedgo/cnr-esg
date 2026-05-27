@@ -815,9 +815,15 @@ function DonationListItem({ donation }: { donation: EsgDonationRow }) {
   };
   const m = map[donation.payment_status];
 
+  // paid → 인증서 페이지 직행 (3뎁스: 마이페이지 → 카드 → 인증서)
+  // 그 외 → 기부 상세 페이지 (입금 안내/취소 안내 등)
+  const linkTo = donation.payment_status === 'paid'
+    ? `/donate/${donation.id}/certificate`
+    : `/donate/${donation.id}`;
+
   return (
     <Link
-      to={`/donate/${donation.id}`}
+      to={linkTo}
       style={{
         background: '#fff',
         borderRadius: 8,
@@ -860,7 +866,14 @@ function DonationListItem({ donation }: { donation: EsgDonationRow }) {
           </div>
         )}
         {donation.payment_status === 'paid' && (
-          <span style={{ fontSize: 11, color: '#16a34a', fontWeight: 600 }}>📜 인증서 보기 →</span>
+          <span style={{ fontSize: 11, color: '#16a34a', fontWeight: 600 }}>
+            📜 인증서 →
+          </span>
+        )}
+        {donation.payment_status === 'pending' && !isExpired && (
+          <span style={{ fontSize: 11, color: '#92400e', fontWeight: 600 }}>
+            💳 입금 안내 →
+          </span>
         )}
       </div>
 

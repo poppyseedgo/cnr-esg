@@ -12,6 +12,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { loadCertificate, loadDonation } from '@/lib/donations';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import type {
   EsgDonationCertificateRow,
   EsgDonationRow,
@@ -19,6 +20,7 @@ import type {
 
 export function DonationCertificatePage() {
   const { id } = useParams();
+  const { currentUser } = useCurrentUser();
   const [certificate, setCertificate] = useState<EsgDonationCertificateRow | null>(null);
   const [donation, setDonation] = useState<EsgDonationRow | null>(null);
   const [loading, setLoading] = useState(true);
@@ -129,10 +131,18 @@ export function DonationCertificatePage() {
             <div style={{ margin: '40px 0', padding: '24px', background: '#f0fdf4', borderRadius: 12 }}>
               <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>기부자</div>
               <div style={{ fontSize: 28, fontWeight: 700, color: '#166534', marginBottom: 4 }}>
-                {certificate.donor_name}
+                {/* 3단계 fallback: 인증서 스냅샷 → donation 스냅샷 → currentUser live */}
+                {certificate.donor_name
+                  || donation.user_name_snapshot
+                  || currentUser?.name
+                  || '기부자'}
               </div>
-              {certificate.donor_dept && (
-                <div style={{ fontSize: 13, color: '#666' }}>{certificate.donor_dept}</div>
+              {(certificate.donor_dept || donation.user_dept_snapshot || currentUser?.dept) && (
+                <div style={{ fontSize: 13, color: '#666' }}>
+                  {certificate.donor_dept
+                    || donation.user_dept_snapshot
+                    || currentUser?.dept}
+                </div>
               )}
             </div>
 
