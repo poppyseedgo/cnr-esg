@@ -15,6 +15,7 @@ import { useEventPhase } from '@/hooks/useEventPhase';
 import {
   loadAuctions,
   subscribeAuctions,
+  onAuctionChanged,
   getAuctionTimeLeft,
   AUCTION_STATUS_LABELS,
   AUCTION_STATUS_COLORS,
@@ -50,12 +51,18 @@ export function AuctionPage() {
     void reload();
   }, []);
 
-  // Realtime
+  // Realtime + 같은 탭 즉시 신호
   useEffect(() => {
-    const cleanup = subscribeAuctions(() => {
+    const cleanupRT = subscribeAuctions(() => {
       void reload();
     });
-    return cleanup;
+    const cleanupEvent = onAuctionChanged(() => {
+      void reload();
+    });
+    return () => {
+      cleanupRT();
+      cleanupEvent();
+    };
   }, []);
 
   // 카운트다운 갱신 (1초)

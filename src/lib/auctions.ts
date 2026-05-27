@@ -273,12 +273,46 @@ export async function placeBid(
   if (!result.success) {
     throw new Error(humanizeBidError(result));
   }
+
+  // 입찰 성공 시 같은 탭 즉시 신호 (Realtime 도착 전 갱신 보장)
+  notifyAuctionChanged(auctionId);
+
   return result;
 }
 
 // ============================================================================
 // Realtime
 // ============================================================================
+
+/**
+ * 입찰 변경 즉시 신호 (window event).
+ *
+ * Realtime은 1~수초 지연 가능 (네트워크/서버 부하). UI는 즉시 반영되어야 함.
+ * 같은 탭 내 다른 컴포넌트에서 즉시 갱신하려면 이 이벤트 활용.
+ *
+ * 사용:
+ *   - placeBid 성공 후 자동 호출 (이미 위에서 처리)
+ *   - 어드민 finalize/cancel 등 수동 호출 가능
+ */
+const AUCTION_CHANGED_EVENT = 'esg:auction-changed';
+
+export function notifyAuctionChanged(auctionId?: string): void {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(
+      new CustomEvent(AUCTION_CHANGED_EVENT, { detail: { auctionId } })
+    );
+  }
+}
+
+export function onAuctionChanged(callback: (auctionId?: string) => void): () => void {
+  if (typeof window === 'undefined') return () => {};
+  const handler = (e: Event) => {
+    const detail = (e as CustomEvent).detail as { auctionId?: string };
+    callback(detail?.auctionId);
+  };
+  window.addEventListener(AUCTION_CHANGED_EVENT, handler);
+  return () => window.removeEventListener(AUCTION_CHANGED_EVENT, handler);
+}
 
 /**
  * 단일 경매 Realtime (현재가, 최고 입찰자 등 즉시 반영).

@@ -20,6 +20,7 @@ import {
   placeBid,
   subscribeAuction,
   subscribeBids,
+  onAuctionChanged,
   getAuctionTimeLeft,
   getMinimumBid,
   buildAnonymousNumberMap,
@@ -98,17 +99,24 @@ export function AuctionDetailPage() {
   }, [auctionId]);
 
   // Realtime
+  // Realtime + 같은 탭 즉시 신호
   useEffect(() => {
     if (!auctionId) return;
-    const cleanupAuction = subscribeAuction(auctionId, () => {
+    const refresh = () => {
       void reloadAuction();
-    });
-    const cleanupBids = subscribeBids(auctionId, () => {
       void reloadBids();
+    };
+    // 1) Supabase Realtime - 다른 탭/사용자 입찰 동기화 (수초 지연 가능)
+    const cleanupAuction = subscribeAuction(auctionId, refresh);
+    const cleanupBids = subscribeBids(auctionId, refresh);
+    // 2) window event - 같은 탭 본인 입찰 즉시 반영
+    const cleanupEvent = onAuctionChanged((changedId) => {
+      if (!changedId || changedId === auctionId) refresh();
     });
     return () => {
       cleanupAuction();
       cleanupBids();
+      cleanupEvent();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auctionId]);
@@ -199,7 +207,26 @@ export function AuctionDetailPage() {
         type: 'success',
         text: `🎉 ${result.bid_amount?.toLocaleString()}원으로 ${isAnonymous ? '익명 ' : ''}입찰했습니다!`,
       });
-      // Realtime이 갱신하지만 즉시 반영 위해 한번 더
+
+      // 옵티미스틱 업데이트 - RPC 응답값으로 즉시 화면 갱신
+      // (Realtime + reload 도착 전이라도 사용자는 즉시 확인 가능)
+      if (currentUser && result.new_current_price && result.bid_count) {
+        setAuction((prev) =>
+          prev
+            ? {
+                ...prev,
+                current_price: result.new_current_price!,
+                bid_count: result.bid_count!,
+                current_bidder_id: currentUser.id,
+                current_bidder_email: currentUser.email,
+                current_bidder_name_snapshot: currentUser.name,
+                last_bid_at: new Date().toISOString(),
+              }
+            : prev
+        );
+      }
+
+      // 확실한 동기화 위해 reload (Realtime이 이미 호출했을 수도 있음 - 중복은 무해)
       void reloadAuction();
       void reloadBids();
       // 다음 입찰가로 초기화
