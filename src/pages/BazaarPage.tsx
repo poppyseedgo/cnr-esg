@@ -108,14 +108,25 @@ export function BazaarPage() {
             marginTop: 24,
             display: 'grid',
             gap: 16,
-            gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+            // 4컬럼 (데스크탑) → 3컬럼 (태블릿) → 2컬럼 (모바일)
+            gridTemplateColumns: 'repeat(2, 1fr)',
           }}
+          className="bazaar-grid"
         >
           {products.map((p) => (
             <ProductCard key={p.id} product={p} />
           ))}
         </div>
       )}
+      {/* 반응형 그리드: 768px+ 3컬럼, 1024px+ 4컬럼 */}
+      <style>{`
+        @media (min-width: 768px) {
+          .bazaar-grid { grid-template-columns: repeat(3, 1fr) !important; }
+        }
+        @media (min-width: 1024px) {
+          .bazaar-grid { grid-template-columns: repeat(4, 1fr) !important; }
+        }
+      `}</style>
     </div>
   );
 }
@@ -127,8 +138,9 @@ function BazaarSkeleton() {
         marginTop: 24,
         display: 'grid',
         gap: 16,
-        gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+        gridTemplateColumns: 'repeat(2, 1fr)',
       }}
+      className="bazaar-grid"
     >
       {[1, 2, 3, 4].map((i) => (
         <div
