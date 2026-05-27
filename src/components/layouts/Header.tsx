@@ -189,9 +189,10 @@ export function Header() {
     >
       <div
         style={{
-          maxWidth: 1400,
+          maxWidth: 1920,
+          width: '100%',
           margin: '0 auto',
-          padding: isMobile ? '0 16px' : '0 24px',
+          padding: isMobile ? '0 16px' : '0 40px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
