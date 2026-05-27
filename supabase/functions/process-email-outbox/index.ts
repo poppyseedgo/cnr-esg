@@ -1,0 +1,415 @@
+// ============================================================================
+// process-email-outbox — 이메일 outbox 처리 Edge Function
+//
+// 트리거: pg_cron 1분마다 호출
+// 동작:
+//   1. esg_email_outbox에서 pending/failed (next_retry_at <= now()) 50건 조회
+//   2. 템플릿별 HTML 생성
+//   3. Resend API로 발송
+//   4. 결과에 따라 status 업데이트:
+//      - 성공: 'sent' + sent_at=now()
+//      - 실패: retry_count++. 3회 미만이면 'failed' + exponential backoff,
+//             3회 도달 시 'dead'
+//
+// 환경 변수:
+//   - SUPABASE_URL          (자동)
+//   - SUPABASE_SERVICE_ROLE_KEY (자동) — DB UPDATE용
+//   - RESEND_API_KEY        (수동 설정 필요)
+//
+// 배포:
+//   supabase functions deploy process-email-outbox \
+//     --project-ref jjzcqpbwkkujttwxksvy --no-verify-jwt
+//
+//   ⚠️ --no-verify-jwt 필수 (cron이 ANON_KEY로 호출)
+// ============================================================================
+
+// @deno-types="https://deno.land/std@0.224.0/types.d.ts"
+
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.0';
+
+// ============================================================================
+// 환경 설정
+// ============================================================================
+
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
+
+const FROM_EMAIL = 'C&R ESG <space@cnrres.com>';
+const REPLY_TO = 'space@cnrres.com';
+const APP_BASE_URL = 'https://esg.cnrres.com'; // 추후 실제 도메인으로 교체
+
+const BATCH_SIZE = 50;
+const MAX_RETRY = 3;
+
+const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+
+// ============================================================================
+// 타입
+// ============================================================================
+
+interface OutboxRow {
+  id: string;
+  idempotency_key: string;
+  to_email: string;
+  to_name: string | null;
+  subject: string;
+  template_key: string;
+  template_data: Record<string, unknown>;
+  status: string;
+  retry_count: number;
+}
+
+// ============================================================================
+// 진입점
+// ============================================================================
+
+Deno.serve(async (_req: Request) => {
+  try {
+    // 처리할 메일 조회 (pending + failed-with-time-elapsed)
+    const { data: rows, error: queryErr } = await supabase
+      .from('esg_email_outbox')
+      .select('*')
+      .in('status', ['pending', 'failed'])
+      .lte('next_retry_at', new Date().toISOString())
+      .order('next_retry_at', { ascending: true })
+      .limit(BATCH_SIZE);
+
+    if (queryErr) throw queryErr;
+    const items = (rows ?? []) as OutboxRow[];
+
+    if (items.length === 0) {
+      return new Response(JSON.stringify({ processed: 0, message: 'no pending emails' }), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // 순차 발송 (Resend rate limit 보호)
+    const results = { sent: 0, failed: 0, dead: 0 };
+    for (const item of items) {
+      try {
+        await sendOne(item);
+        results.sent += 1;
+      } catch (e) {
+        const isDead = await markFailedOrDead(item, e);
+        if (isDead) results.dead += 1;
+        else results.failed += 1;
+      }
+    }
+
+    return new Response(
+      JSON.stringify({ processed: items.length, ...results }),
+      { headers: { 'Content-Type': 'application/json' } }
+    );
+  } catch (e) {
+    console.error('[process-email-outbox] fatal:', e);
+    return new Response(
+      JSON.stringify({ error: (e as Error).message ?? 'unknown' }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+});
+
+// ============================================================================
+// 발송 1건
+// ============================================================================
+
+async function sendOne(item: OutboxRow): Promise<void> {
+  const html = buildEmailHtml(item.template_key, item.template_data);
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: FROM_EMAIL,
+      to: [item.to_email],
+      reply_to: REPLY_TO,
+      subject: item.subject,
+      html,
+    }),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Resend ${res.status}: ${errText.slice(0, 500)}`);
+  }
+
+  // 성공 → sent
+  const { error: upErr } = await supabase
+    .from('esg_email_outbox')
+    .update({ status: 'sent', sent_at: new Date().toISOString(), last_error: null })
+    .eq('id', item.id);
+  if (upErr) console.error('[outbox update sent]', upErr);
+}
+
+// ============================================================================
+// 실패 처리
+// ============================================================================
+
+async function markFailedOrDead(item: OutboxRow, err: unknown): Promise<boolean> {
+  const errMsg = (err instanceof Error ? err.message : String(err)).slice(0, 500);
+  const nextRetry = item.retry_count + 1;
+  const isDead = nextRetry >= MAX_RETRY;
+
+  // exponential backoff: 5min * 2^retry_count (5분, 10분, 20분)
+  const backoffMin = 5 * Math.pow(2, item.retry_count);
+  const nextRetryAt = new Date(Date.now() + backoffMin * 60 * 1000).toISOString();
+
+  await supabase
+    .from('esg_email_outbox')
+    .update({
+      status: isDead ? 'dead' : 'failed',
+      retry_count: nextRetry,
+      last_error: errMsg,
+      next_retry_at: nextRetryAt,
+    })
+    .eq('id', item.id);
+
+  return isDead;
+}
+
+// ============================================================================
+// 템플릿 HTML 생성
+// ============================================================================
+
+function buildEmailHtml(templateKey: string, data: Record<string, unknown>): string {
+  switch (templateKey) {
+    case 'bazaar_order_created':
+      return tmplBazaarOrderCreated(data);
+    case 'bazaar_order_paid':
+      return tmplBazaarOrderPaid(data);
+    case 'bazaar_payment_reminder':
+      return tmplBazaarPaymentReminder(data);
+    case 'bazaar_order_expired':
+      return tmplBazaarOrderExpired(data);
+    case 'bazaar_order_cancelled':
+      return tmplBazaarOrderCancelled(data);
+    case 'auction_won':
+      return tmplAuctionWon(data);
+    case 'auction_cancelled':
+      return tmplAuctionCancelled(data);
+    case 'post_hidden':
+      return tmplPostHidden(data);
+    default:
+      return wrap(`<p>알 수 없는 템플릿: ${escapeHtml(templateKey)}</p>`);
+  }
+}
+
+// ============================================================================
+// 공통 헬퍼
+// ============================================================================
+
+function escapeHtml(s: unknown): string {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function formatKst(utcIso: unknown): string {
+  if (!utcIso) return '-';
+  const d = new Date(String(utcIso));
+  const kst = new Date(d.getTime() + 9 * 60 * 60 * 1000);
+  const y = kst.getUTCFullYear();
+  const m = String(kst.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(kst.getUTCDate()).padStart(2, '0');
+  const h = String(kst.getUTCHours()).padStart(2, '0');
+  const min = String(kst.getUTCMinutes()).padStart(2, '0');
+  return `${y}-${m}-${day} ${h}:${min}`;
+}
+
+function formatAmount(n: unknown): string {
+  return Number(n ?? 0).toLocaleString();
+}
+
+// 공통 wrapper - 헤더/푸터
+function wrap(bodyHtml: string): string {
+  return `<!DOCTYPE html>
+<html lang="ko">
+<head><meta charset="UTF-8"><title>C&amp;R ESG</title></head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#333;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:24px 0;">
+  <tr><td align="center">
+    <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.05);">
+      <tr><td style="background:#1a1a1a;padding:24px;text-align:center;color:#fff;">
+        <div style="font-size:22px;font-weight:700;">🌳 C&amp;R ESG Event</div>
+        <div style="font-size:12px;color:#aaa;margin-top:4px;">C&amp;R Research 29주년 ESG 이벤트</div>
+      </td></tr>
+      <tr><td style="padding:32px 28px;line-height:1.7;font-size:14px;color:#333;">${bodyHtml}</td></tr>
+      <tr><td style="background:#f9fafb;padding:20px 28px;font-size:11px;color:#888;text-align:center;border-top:1px solid #eee;">
+        <div>이 메일은 C&amp;R ESG 이벤트 알림입니다.</div>
+        <div style="margin-top:4px;">문의: space@cnrres.com</div>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>`;
+}
+
+// 액션 버튼
+function button(text: string, href: string, color = '#1a1a1a'): string {
+  return `<div style="text-align:center;margin:24px 0;">
+    <a href="${escapeHtml(href)}" style="display:inline-block;padding:12px 28px;background:${color};color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;">${escapeHtml(text)}</a>
+  </div>`;
+}
+
+// 정보 박스 (계좌, 주문 정보 등)
+function infoBox(rows: Array<[string, string]>): string {
+  const html = rows
+    .map(
+      ([k, v]) =>
+        `<tr><td style="padding:6px 0;color:#888;width:90px;">${escapeHtml(k)}</td><td style="padding:6px 0;color:#222;font-weight:600;">${v}</td></tr>`
+    )
+    .join('');
+  return `<table cellpadding="0" cellspacing="0" style="width:100%;background:#f9fafb;border-radius:8px;padding:14px 18px;margin:16px 0;">${html}</table>`;
+}
+
+// 강조 박스 (안내, 경고)
+function alertBox(content: string, color: 'warning' | 'success' | 'danger' | 'info' = 'info'): string {
+  const colors = {
+    warning: { bg: '#fef3c7', border: '#fde68a', text: '#92400e' },
+    success: { bg: '#dcfce7', border: '#bbf7d0', text: '#166534' },
+    danger: { bg: '#fee2e2', border: '#fecaca', text: '#991b1b' },
+    info: { bg: '#f0f9ff', border: '#bae6fd', text: '#0c4a6e' },
+  };
+  const c = colors[color];
+  return `<div style="padding:12px 16px;background:${c.bg};border:1px solid ${c.border};color:${c.text};border-radius:8px;margin:16px 0;font-size:13px;line-height:1.6;">${content}</div>`;
+}
+
+// ============================================================================
+// 템플릿 8개
+// ============================================================================
+
+// 공통 - 입금 안내 박스 (계좌 정보 + 입금자명 + 기한)
+function paymentGuideBlock(data: Record<string, unknown>): string {
+  const bank = (data.bank_info ?? {}) as Record<string, unknown>;
+  return `
+${infoBox([
+  ['은행', escapeHtml(bank.bank ?? '-')],
+  ['계좌번호', escapeHtml(bank.account ?? '-')],
+  ['예금주', escapeHtml(bank.holder ?? '-')],
+  ['입금자명', escapeHtml(data.payer_name ?? data.user_name ?? '-')],
+  ['금액', `${formatAmount(data.total_amount)}원`],
+  ['입금 기한', `${formatKst(data.expires_at)} (KST)`],
+])}
+${bank.memo ? `<p style="font-size:12px;color:#888;margin-top:8px;">${escapeHtml(bank.memo)}</p>` : ''}
+`;
+}
+
+// 1. 바자회 주문 생성
+function tmplBazaarOrderCreated(data: Record<string, unknown>): string {
+  return wrap(`
+<h2 style="margin:0 0 12px;font-size:18px;color:#222;">🛍 바자회 주문이 접수되었습니다</h2>
+<p>${escapeHtml(data.user_name)}님, 주문해 주셔서 감사합니다.</p>
+${alertBox('아래 계좌로 <strong>입금자명 일치</strong>하여 송금해 주세요.<br>오늘 23:59까지 입금이 확인되지 않으면 주문이 자동 취소됩니다.', 'warning')}
+${paymentGuideBlock(data)}
+${infoBox([['주문번호', escapeHtml(data.order_number)]])}
+${button('주문 상세 보기', `${APP_BASE_URL}/orders/${data.order_number}`)}
+<p style="font-size:12px;color:#888;">입금 후 자동으로 확인되며, 관리자 확인 후 메일로 알려드립니다.</p>
+`);
+}
+
+// 2. 바자회 결제 완료
+function tmplBazaarOrderPaid(data: Record<string, unknown>): string {
+  const isBazaar = data.order_type === 'bazaar';
+  return wrap(`
+<h2 style="margin:0 0 12px;font-size:18px;color:#222;">✅ 결제가 확인되었습니다</h2>
+<p>${escapeHtml(data.user_name)}님, 입금이 정상 확인되었습니다.</p>
+${alertBox('💚 C&R ESG 이벤트에 참여해 주셔서 감사합니다.<br>모금된 금액은 사내 ESG 활동에 사용됩니다.', 'success')}
+${infoBox([
+  ['주문번호', escapeHtml(data.order_number)],
+  ['상품 종류', isBazaar ? '🛍 바자회' : '🔨 경매'],
+  ['결제 금액', `${formatAmount(data.total_amount)}원`],
+  ['입금자명', escapeHtml(data.payer_name ?? '-')],
+  ['확인 일시', `${formatKst(data.paid_at)} (KST)`],
+])}
+${button('주문 상세 보기', `${APP_BASE_URL}/orders/${data.order_number}`)}
+`);
+}
+
+// 3. 바자회 입금 리마인더 (21:00 KST)
+function tmplBazaarPaymentReminder(data: Record<string, unknown>): string {
+  const isBazaar = data.order_type === 'bazaar';
+  return wrap(`
+<h2 style="margin:0 0 12px;font-size:18px;color:#222;">⏰ 입금 안내 (오늘 23:59 만료)</h2>
+<p>${escapeHtml(data.user_name)}님, ${isBazaar ? '바자회' : '경매 낙찰'} 주문의 입금이 아직 확인되지 않았습니다.</p>
+${alertBox('<strong>오늘 23:59(KST)까지 미입금 시 주문이 자동 취소됩니다.</strong><br>취소되면 ' + (isBazaar ? '재고가 다른 분에게 돌아가며 다시 구매할 수 있습니다.' : '낙찰 권한이 소멸됩니다.'), 'warning')}
+${paymentGuideBlock(data)}
+${infoBox([['주문번호', escapeHtml(data.order_number)]])}
+${button('지금 입금 안내 다시 보기', `${APP_BASE_URL}/orders/${data.order_number}`, '#dc2626')}
+`);
+}
+
+// 4. 바자회 만료 (입금 기한 초과)
+function tmplBazaarOrderExpired(data: Record<string, unknown>): string {
+  const isBazaar = data.order_type === 'bazaar';
+  return wrap(`
+<h2 style="margin:0 0 12px;font-size:18px;color:#222;">⌛ 입금 기한 초과로 주문이 취소되었습니다</h2>
+<p>${escapeHtml(data.user_name)}님, 안타깝게도 입금 기한 내에 입금이 확인되지 않아 주문이 자동 취소되었습니다.</p>
+${infoBox([
+  ['주문번호', escapeHtml(data.order_number)],
+  ['주문 종류', isBazaar ? '🛍 바자회' : '🔨 경매'],
+  ['금액', `${formatAmount(data.total_amount)}원`],
+])}
+${isBazaar
+  ? alertBox('💡 바자회 상품은 다시 구매하실 수 있습니다. 재고가 자동 복원되었습니다.', 'info') + button('바자회로 돌아가기', `${APP_BASE_URL}/bazaar`)
+  : alertBox('💡 안타깝게도 낙찰 권한이 소멸되었습니다. 다른 경매에도 참여해 보세요.', 'info') + button('경매로 돌아가기', `${APP_BASE_URL}/auction`)
+}
+`);
+}
+
+// 5. 바자회 강제 취소 (어드민)
+function tmplBazaarOrderCancelled(data: Record<string, unknown>): string {
+  return wrap(`
+<h2 style="margin:0 0 12px;font-size:18px;color:#222;">🚫 주문이 취소되었습니다</h2>
+<p>${escapeHtml(data.user_name)}님, 관리자에 의해 주문이 취소되었습니다.</p>
+${infoBox([
+  ['주문번호', escapeHtml(data.order_number)],
+  ['금액', `${formatAmount(data.total_amount)}원`],
+  ['취소 사유', escapeHtml(data.cancelled_reason ?? '(사유 미기재)')],
+])}
+${alertBox('자세한 사항은 아래 문의 이메일로 연락 주세요.', 'info')}
+`);
+}
+
+// 6. 경매 낙찰
+function tmplAuctionWon(data: Record<string, unknown>): string {
+  return wrap(`
+<h2 style="margin:0 0 12px;font-size:18px;color:#222;">🎉 경매 낙찰을 축하합니다!</h2>
+<p>${escapeHtml(data.user_name)}님, 경매에서 최고가로 낙찰되셨습니다.</p>
+${alertBox('🏆 낙찰 주문이 자동 생성되었습니다. 아래 계좌로 <strong>오늘 23:59(KST)까지</strong> 입금해 주세요.', 'success')}
+${paymentGuideBlock(data)}
+${infoBox([['주문번호', escapeHtml(data.order_number)]])}
+${button('낙찰 상세 보기', `${APP_BASE_URL}/orders/${data.order_number}`, '#10b981')}
+`);
+}
+
+// 7. 경매 강제 취소
+function tmplAuctionCancelled(data: Record<string, unknown>): string {
+  return wrap(`
+<h2 style="margin:0 0 12px;font-size:18px;color:#222;">🚫 경매가 취소되었습니다</h2>
+<p>${escapeHtml(data.user_name)}님, 참여하신 경매가 관리자에 의해 취소되었습니다.</p>
+${infoBox([
+  ['경매 상품', escapeHtml(data.product_name)],
+])}
+${alertBox('💡 입찰하신 금액은 청구되지 않습니다. 다른 경매에도 참여해 보세요.', 'info')}
+${button('경매로 돌아가기', `${APP_BASE_URL}/auction`)}
+`);
+}
+
+// 8. 게시글 숨김
+function tmplPostHidden(data: Record<string, unknown>): string {
+  return wrap(`
+<h2 style="margin:0 0 12px;font-size:18px;color:#222;">📝 작성하신 게시글이 숨김 처리되었습니다</h2>
+<p>${escapeHtml(data.user_name)}님, 작성하신 게시글이 관리자에 의해 숨김 처리되었음을 알려드립니다.</p>
+${infoBox([
+  ['제목', escapeHtml(data.title)],
+])}
+${alertBox('이의가 있으시면 아래 문의 이메일로 연락 주시면 검토 후 답변드리겠습니다.<br>(공익적 토론을 위한 다양한 의견은 환영합니다.)', 'info')}
+`);
+}

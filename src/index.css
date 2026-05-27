@@ -1,0 +1,35 @@
+/* ============================================================================
+   cnr-esg — 최소 글로벌 CSS (placeholder)
+   실제 디자인은 Phase 6에서 피그마 기반으로 교체.
+   ============================================================================ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Pretendard', 'Noto Sans KR',
+    system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #1a1a1a;
+  background: #fafafa;
+}
+
+button {
+  font-family: inherit;
+}
+
+a {
+  color: inherit;
+}
+
+#root {
+  min-height: 100vh;
+}
