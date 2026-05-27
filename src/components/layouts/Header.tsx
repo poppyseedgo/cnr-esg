@@ -67,7 +67,7 @@ const VARIANTS: Record<Variant, VariantTokens> = {
     badgeActiveText: '#000000',
     badgeNeutral: '#BDBDBD',
     badgeNeutralText: '#000000',
-    hoverBg: '#98F7B6',
+    hoverBg: '#6DED73',
     hoverText: '#000000',
     adminText: '#BEFF9B',
     adminBg: 'transparent',
@@ -86,7 +86,7 @@ const VARIANTS: Record<Variant, VariantTokens> = {
     badgeActiveText: '#000000',
     badgeNeutral: '#BDBDBD',
     badgeNeutralText: '#000000',
-    hoverBg: '#98F7B6',
+    hoverBg: '#6DED73',
     hoverText: '#000000',
     adminText: '#28C75B',
     adminBg: 'transparent',
@@ -105,7 +105,7 @@ const VARIANTS: Record<Variant, VariantTokens> = {
     badgeActiveText: '#FFFFFF',     // green variant는 텍스트 흰색
     badgeNeutral: '#BDBDBD',
     badgeNeutralText: '#FFFFFF',
-    hoverBg: '#98F7B6',
+    hoverBg: '#6DED73',
     hoverText: '#000000',
     adminText: '#000000',
     adminBg: '#BEFF9B',             // ⭐ 어드민 메뉴에 라임 배경 (활성 표시)
