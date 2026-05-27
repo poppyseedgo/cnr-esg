@@ -19,7 +19,7 @@ export function AppLayout() {
     >
       <Header />
       <main style={{ flex: 1, padding: '0 20px' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 0' }}>
+        <div style={{ maxWidth: 1360, margin: '0 auto', padding: '24px 0' }}>
           <Outlet />
         </div>
       </main>

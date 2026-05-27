@@ -27,7 +27,7 @@ export function Footer() {
     >
       <div
         style={{
-          maxWidth: 1200,
+          maxWidth: 1360,
           margin: '0 auto',
           display: 'flex',
           flexDirection: 'column',
