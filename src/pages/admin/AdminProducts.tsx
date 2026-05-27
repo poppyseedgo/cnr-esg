@@ -6,10 +6,10 @@
 
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { loadAllProducts, createProduct } from '@/lib/adminProducts';
+import { loadAllProducts } from '@/lib/adminProducts';
 import { subscribeProducts, getAvailableStock } from '@/lib/products';
-import { ThumbnailUploader, DetailImagesUploader } from '@/components/ImageUploader';
 import { ProductEditForm } from '@/components/admin/ProductEditForm';
+import { CreateProductForm } from '@/components/admin/CreateProductForm';
 import type { EsgProductRow, EsgProductStatus } from '@/types/esg';
 
 const STATUS_LABELS: Record<EsgProductStatus, string> = {
@@ -83,13 +83,25 @@ export function AdminProducts() {
       </p>
 
       {creating && (
-        <CreateProductForm
-          onCancel={() => setCreating(false)}
-          onSuccess={() => {
-            setCreating(false);
-            void reload();
+        <div
+          style={{
+            background: '#fff',
+            borderRadius: 12,
+            padding: 20,
+            marginBottom: 16,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+            border: '2px solid #0ea5e9',
           }}
-        />
+        >
+          <h3 style={{ margin: '0 0 16px', fontSize: 16, color: '#0ea5e9' }}>➕ 새 상품 등록</h3>
+          <CreateProductForm
+            onCancel={() => setCreating(false)}
+            onSuccess={() => {
+              setCreating(false);
+              void reload();
+            }}
+          />
+        </div>
       )}
 
       {products.length === 0 ? (
@@ -107,104 +119,6 @@ export function AdminProducts() {
           ))}
         </div>
       )}
-    </div>
-  );
-}
-
-// ============================================================================
-// 새 상품 등록 폼
-// ============================================================================
-
-function CreateProductForm({ onCancel, onSuccess }: { onCancel: () => void; onSuccess: () => void }) {
-  const [tempId] = useState(() => `new-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [price, setPrice] = useState(10000);
-  const [stock, setStock] = useState(10);
-  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
-  const [detailImages, setDetailImages] = useState<string[]>([]);
-  const [status, setStatus] = useState<EsgProductStatus>('on_sale');
-  const [sortOrder, setSortOrder] = useState(0);
-  const [saving, setSaving] = useState(false);
-
-  const save = async () => {
-    if (!name.trim()) {
-      alert('상품명을 입력해주세요.');
-      return;
-    }
-    setSaving(true);
-    try {
-      await createProduct({
-        name,
-        description: description || null,
-        price,
-        stock,
-        thumbnail_url: thumbnailUrl,
-        detail_images: detailImages,
-        status,
-        sort_order: sortOrder,
-      });
-      onSuccess();
-    } catch (e) {
-      alert(e instanceof Error ? e.message : '등록 실패');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div
-      style={{
-        background: '#fff',
-        borderRadius: 12,
-        padding: 20,
-        marginBottom: 16,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-        border: '2px solid #0ea5e9',
-      }}
-    >
-      <h3 style={{ margin: '0 0 16px', fontSize: 16, color: '#0ea5e9' }}>➕ 새 상품 등록</h3>
-
-      <Field label="상품명 *">
-        <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="예: 🌱 친환경 텀블러" disabled={saving} style={inputStyle} />
-      </Field>
-      <Field label="설명">
-        <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="상품 설명" disabled={saving} rows={3} style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit' }} />
-      </Field>
-      <Field label="썸네일">
-        <ThumbnailUploader kind="bazaar" ownerId={tempId} value={thumbnailUrl} onChange={setThumbnailUrl} disabled={saving} />
-      </Field>
-      <Field label="상세 이미지">
-        <DetailImagesUploader kind="bazaar" ownerId={tempId} values={detailImages} onChange={setDetailImages} maxCount={5} disabled={saving} />
-      </Field>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, marginTop: 12 }}>
-        <Field label="가격 (원) *">
-          <input type="number" value={price} onChange={(e) => setPrice(Number(e.target.value) || 0)} disabled={saving} step={1000} min={0} style={inputStyle} />
-        </Field>
-        <Field label="재고 (개) *">
-          <input type="number" value={stock} onChange={(e) => setStock(Number(e.target.value) || 0)} disabled={saving} step={1} min={0} style={inputStyle} />
-        </Field>
-        <Field label="상태">
-          <select value={status} onChange={(e) => setStatus(e.target.value as EsgProductStatus)} disabled={saving} style={inputStyle}>
-            <option value="on_sale">판매 중</option>
-            <option value="sold_out">품절</option>
-            <option value="hidden">숨김</option>
-          </select>
-        </Field>
-        <Field label="정렬 순서">
-          <input type="number" value={sortOrder} onChange={(e) => setSortOrder(Number(e.target.value) || 0)} disabled={saving} step={1} style={inputStyle} />
-        </Field>
-      </div>
-
-      <div style={{ display: 'flex', gap: 6, marginTop: 16 }}>
-        <button type="button" onClick={save} disabled={saving} style={{ flex: 1, padding: '10px 12px', background: saving ? '#ccc' : '#0ea5e9', color: '#fff', border: 'none', borderRadius: 6, cursor: saving ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600 }}>
-          {saving ? '등록 중…' : '상품 등록'}
-        </button>
-        <button type="button" onClick={onCancel} disabled={saving} style={{ padding: '10px 16px', background: '#fff', border: '1px solid #ddd', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
-          취소
-        </button>
-      </div>
     </div>
   );
 }
@@ -306,15 +220,6 @@ function ProductAdminCard({ product, onChange }: { product: EsgProductRow; onCha
 // 공통 UI
 // ============================================================================
 
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  padding: '8px 10px',
-  border: '1px solid #ddd',
-  borderRadius: 4,
-  fontSize: 13,
-  boxSizing: 'border-box',
-};
-
 const emptyStyle: React.CSSProperties = {
   background: '#fff',
   borderRadius: 12,
@@ -322,12 +227,3 @@ const emptyStyle: React.CSSProperties = {
   textAlign: 'center',
   border: '1px dashed #ddd',
 };
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 10 }}>
-      <span style={{ fontSize: 12, color: '#666', fontWeight: 600 }}>{label}</span>
-      {children}
-    </label>
-  );
-}

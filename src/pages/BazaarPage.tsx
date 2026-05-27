@@ -9,18 +9,23 @@
 
 import { useEffect, useState } from 'react';
 import { useEventPhase } from '@/hooks/useEventPhase';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { loadProducts, subscribeProducts } from '@/lib/products';
 import { formatKSTDate } from '@/utils/time';
 import { ProductCard } from '@/components/ProductCard';
+import { FormModal } from '@/components/FormModal';
+import { CreateProductForm } from '@/components/admin/CreateProductForm';
 import type { EsgProductRow } from '@/types/esg';
 
 export function BazaarPage() {
   const { getActivity } = useEventPhase();
   const { period, status } = getActivity('bazaar');
+  const { isAdmin } = useCurrentUser();
 
   const [products, setProducts] = useState<EsgProductRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const reload = async () => {
     try {
@@ -50,8 +55,47 @@ export function BazaarPage() {
 
   return (
     <div>
-      <h1>🛍 ESG 온라인 바자회</h1>
-      <p style={{ color: '#666' }}>굿즈 판매 수익금 전부 생명의 숲에 기부됩니다.</p>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h1 style={{ margin: 0 }}>🛍 ESG 온라인 바자회</h1>
+          <p style={{ color: '#666', margin: '4px 0 0' }}>굿즈 판매 수익금 전부 생명의 숲에 기부됩니다.</p>
+        </div>
+        {isAdmin && (
+          <button
+            type="button"
+            onClick={() => setCreateOpen(true)}
+            style={{
+              padding: '10px 16px',
+              background: '#0ea5e9',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 8,
+              cursor: 'pointer',
+              fontSize: 13,
+              fontWeight: 600,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            ➕ 새 상품 등록
+          </button>
+        )}
+      </div>
+
+      {/* 새 상품 등록 모달 (어드민만) */}
+      <FormModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        title="➕ 새 상품 등록"
+        maxWidth={720}
+      >
+        <CreateProductForm
+          onCancel={() => setCreateOpen(false)}
+          onSuccess={() => {
+            setCreateOpen(false);
+            void reload();
+          }}
+        />
+      </FormModal>
 
       {/* 상태 안내 */}
       {period && (

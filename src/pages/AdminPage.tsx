@@ -18,7 +18,7 @@ const adminTabs = [
 
 export function AdminPage() {
   return (
-    <div>
+    <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%' }}>
       <div
         style={{
           display: 'flex',

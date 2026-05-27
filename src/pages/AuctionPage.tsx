@@ -12,6 +12,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useEventPhase } from '@/hooks/useEventPhase';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import {
   loadAuctions,
   subscribeAuctions,
@@ -22,16 +23,20 @@ import {
 } from '@/lib/auctions';
 import { formatTimeLeft } from '@/lib/orders';
 import { formatKSTDate, formatKSTFull } from '@/utils/time';
+import { FormModal } from '@/components/FormModal';
+import { CreateAuctionForm } from '@/components/admin/CreateAuctionForm';
 import type { EsgAuctionRow } from '@/types/esg';
 
 export function AuctionPage() {
   const { getActivity } = useEventPhase();
   const { period, status } = getActivity('auction');
+  const { isAdmin } = useCurrentUser();
 
   const [auctions, setAuctions] = useState<EsgAuctionRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [, setTick] = useState(0);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const reload = async () => {
     try {
@@ -73,8 +78,46 @@ export function AuctionPage() {
 
   return (
     <div>
-      <h1>🔨 ESG 온라인 경매</h1>
-      <p style={{ color: '#666' }}>실시간 비딩으로 한정 굿즈를 낙찰받으세요.</p>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h1 style={{ margin: 0 }}>🔨 ESG 온라인 경매</h1>
+          <p style={{ color: '#666', margin: '4px 0 0' }}>실시간 비딩으로 한정 굿즈를 낙찰받으세요.</p>
+        </div>
+        {isAdmin && (
+          <button
+            type="button"
+            onClick={() => setCreateOpen(true)}
+            style={{
+              padding: '10px 16px',
+              background: '#0ea5e9',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 8,
+              cursor: 'pointer',
+              fontSize: 13,
+              fontWeight: 600,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            ➕ 새 경매 등록
+          </button>
+        )}
+      </div>
+
+      <FormModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        title="➕ 새 경매 등록"
+        maxWidth={720}
+      >
+        <CreateAuctionForm
+          onCancel={() => setCreateOpen(false)}
+          onSuccess={() => {
+            setCreateOpen(false);
+            void reload();
+          }}
+        />
+      </FormModal>
 
       {/* 상태 안내 */}
       {period && (

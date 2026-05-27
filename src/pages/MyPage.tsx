@@ -44,7 +44,7 @@ const tabs = [
 export function MyPage() {
   const { currentUser } = useCurrentUser();
   return (
-    <div>
+    <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%' }}>
       <h1>👤 마이페이지</h1>
       <p style={{ color: '#666' }}>
         {currentUser?.name}님 ({currentUser?.email})
