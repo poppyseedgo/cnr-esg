@@ -270,7 +270,6 @@ export function Header() {
         color: T.text,
         fontFamily: FONT_PRETENDARD,
         padding: '12px 0',
-        borderBottom: variant === 'light' ? '1px solid #E5E7EB' : 'none',
         transition: 'background 0.2s, color 0.2s',
       }}
     >
@@ -382,7 +381,9 @@ export function Header() {
 // 로고 (현재는 1개 SVG. light variant에서도 동일 사용)
 // ============================================================================
 
-function Logo({ filter, textColor: _t, variant: _v }: { filter: string; textColor: string; variant: Variant }) {
+function Logo({ filter, textColor: _t, variant }: { filter: string; textColor: string; variant: Variant }) {
+  // variant별 로고: light는 검정 텍스트 로고, dark/green은 흰 텍스트 로고
+  const logoSrc = variant === 'light' ? '/logo-light.svg' : '/logo.svg';
   return (
     <Link
       to="/"
@@ -395,7 +396,7 @@ function Logo({ filter, textColor: _t, variant: _v }: { filter: string; textColo
       aria-label="C&R ESG 홈"
     >
       <img
-        src="/logo.svg"
+        src={logoSrc}
         alt="C&R ESG"
         style={{
           width: 160,
@@ -441,17 +442,60 @@ function DesktopMenu({
   );
 }
 
+/**
+ * 메뉴 배지를 렌더링하는 헬퍼.
+ * NavMenuItem과 MobileLink 양쪽에서 재사용.
+ */
+function renderBadge(badge: BadgeInfo | undefined, tokens: VariantTokens) {
+  if (!badge?.show) return null;
+  return (
+    <span
+      style={{
+        background: badge.bg,
+        color: badge.isActive ? tokens.badgeActiveText : tokens.badgeNeutralText,
+        padding: '2px 8px',
+        borderRadius: 999,
+        fontSize: 10,
+        fontWeight: 500,
+        lineHeight: 1.25,
+      }}
+    >
+      {badge.text}
+    </span>
+  );
+}
+
+/**
+ * 배지 유무에 따라 padding 자동 결정:
+ *   - 배지 없음:        8px 16px       (대칭)
+ *   - 오른쪽 배지만:    8px 12px 8px 16px
+ *   - 왼쪽 배지만:      8px 16px 8px 12px
+ *   - 양쪽 배지:        8px 12px       (양쪽 좁게)
+ */
+function getMenuPadding(hasLeft: boolean, hasRight: boolean): string {
+  if (hasLeft && hasRight) return '8px 12px';
+  if (hasRight) return '8px 12px 8px 16px';
+  if (hasLeft) return '8px 16px 8px 12px';
+  return '8px 16px';
+}
+
 function NavMenuItem({
   to,
   label,
-  badge,
+  badge,        // 우측 배지 (기본)
+  badgeLeft,    // 좌측 배지 (옵션)
   tokens,
 }: {
   to: string;
   label: string;
   badge?: BadgeInfo;
+  badgeLeft?: BadgeInfo;
   tokens: VariantTokens;
 }) {
+  const hasRight = badge?.show ?? false;
+  const hasLeft = badgeLeft?.show ?? false;
+  const padding = getMenuPadding(hasLeft, hasRight);
+
   return (
     <NavLink
       to={to}
@@ -460,7 +504,7 @@ function NavMenuItem({
         alignItems: 'center',
         justifyContent: 'center',
         gap: 8,
-        padding: '8px 12px 8px 16px',
+        padding,
         borderRadius: 100,
         textDecoration: 'none',
         color: isActive ? tokens.hoverText : tokens.text,
@@ -472,24 +516,9 @@ function NavMenuItem({
         transition: 'background 0.15s, color 0.15s, font-weight 0.15s',
       })}
     >
+      {renderBadge(badgeLeft, tokens)}
       {label}
-      {badge?.show && (
-        <span
-          style={{
-            background: badge.bg,
-            color: badge.isActive
-              ? tokens.badgeActiveText
-              : tokens.badgeNeutralText,
-            padding: '2px 8px',
-            borderRadius: 999,
-            fontSize: 10,
-            fontWeight: 500,
-            lineHeight: 1.25,
-          }}
-        >
-          {badge.text}
-        </span>
-      )}
+      {renderBadge(badge, tokens)}
     </NavLink>
   );
 }
@@ -505,7 +534,7 @@ function AdminMenuItem({ tokens }: { tokens: VariantTokens }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '8px 12px 8px 16px',
+          padding: '8px 16px',
           borderRadius: useFilledStyle ? 99 : 100,
           textDecoration: 'none',
           color: showActiveBg && useFilledStyle ? '#000000' : (isActive ? tokens.hoverText : tokens.adminText),
@@ -813,12 +842,14 @@ function MobileLink({
   to,
   label,
   badge,
+  badgeLeft,
   onClick,
   tokens,
 }: {
   to: string;
   label: string;
   badge?: BadgeInfo;
+  badgeLeft?: BadgeInfo;
   onClick: () => void;
   tokens: VariantTokens;
 }) {
@@ -838,22 +869,9 @@ function MobileLink({
         borderRadius: 8,
       }}
     >
+      {renderBadge(badgeLeft, tokens)}
       {label}
-      {badge?.show && (
-        <span
-          style={{
-            background: badge.bg,
-            color: badge.isActive ? tokens.badgeActiveText : tokens.badgeNeutralText,
-            padding: '2px 8px',
-            borderRadius: 999,
-            fontSize: 10,
-            fontWeight: 500,
-            lineHeight: 1.25,
-          }}
-        >
-          {badge.text}
-        </span>
-      )}
+      {renderBadge(badge, tokens)}
     </Link>
   );
 }
