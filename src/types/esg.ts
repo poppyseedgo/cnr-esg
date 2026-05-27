@@ -858,3 +858,47 @@ export interface MarkDonationPaidResult {
   certificate_number?: string;
   current_status?: string;
 }
+
+// ============================================================================
+// 인앱 알림 (Phase 2)
+// ============================================================================
+
+export type EsgNotificationType =
+  | 'bazaar_order_created'
+  | 'bazaar_order_paid'
+  | 'bazaar_payment_reminder'
+  | 'bazaar_order_expired'
+  | 'bazaar_order_cancelled'
+  | 'auction_bid_placed'
+  | 'auction_outbid'
+  | 'auction_won'
+  | 'auction_cancelled'
+  | 'auction_ending_soon'
+  | 'donation_created'
+  | 'donation_paid'
+  | 'wishlist_back_in_stock'
+  | 'post_hidden'
+  | 'post_new_comment';
+
+export interface EsgNotificationRow {
+  id: string;
+  user_id: string;
+  user_email: string;
+
+  type: EsgNotificationType;
+  title: string;
+  body: string | null;
+  icon: string | null;
+  link: string | null;
+
+  related_order_id: string | null;
+  related_auction_id: string | null;
+  related_product_id: string | null;
+  related_donation_id: string | null;
+  related_post_id: string | null;
+
+  is_read: boolean;
+  read_at: string | null;
+
+  created_at: string;
+}

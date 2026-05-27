@@ -59,6 +59,7 @@ import { AdminOrders } from '@/pages/admin/AdminOrders';
 import { AdminPosts } from '@/pages/admin/AdminPosts';
 import { AdminEmails } from '@/pages/admin/AdminEmails';
 import { AdminDonations } from '@/pages/admin/AdminDonations';
+import { NotificationsPage } from '@/pages/NotificationsPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 
 // ============================================================================
@@ -118,6 +119,14 @@ const router = createBrowserRouter([
         element: (
           <RequireAuth>
             <DonationCertificatePage />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: '/notifications',
+        element: (
+          <RequireAuth>
+            <NotificationsPage />
           </RequireAuth>
         ),
       },

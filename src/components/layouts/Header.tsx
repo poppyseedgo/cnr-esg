@@ -30,6 +30,12 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEventPhase } from '@/hooks/useEventPhase';
 import { signInWithMicrosoft } from '@/lib/auth';
 import { getCartCount, subscribeMyCart, onCartChanged } from '@/lib/cart';
+import {
+  getUnreadCount,
+  subscribeMyNotifications,
+  onNotificationChanged,
+} from '@/lib/notifications';
+import { NotificationDropdown } from '@/components/NotificationDropdown';
 import type { EsgActivityStatus, EsgActivityPeriod } from '@/types/esg';
 
 // ============================================================================
@@ -132,7 +138,8 @@ function getVariantForPath(pathname: string): Variant {
     pathname.startsWith('/checkout') ||
     pathname.startsWith('/orders') ||
     pathname.startsWith('/donate') ||
-    pathname.startsWith('/mypage')
+    pathname.startsWith('/mypage') ||
+    pathname.startsWith('/notifications')
   ) {
     return 'light';
   }
@@ -338,7 +345,7 @@ export function Header() {
         {/* 우측: 아이콘 + 아바타 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, justifySelf: 'end' }}>
           {currentUser && <CartIcon cartCount={cartCount} tokens={T} />}
-          {currentUser && <NotificationIconPlaceholder color={T.iconColor} />}
+          {currentUser && <NotificationBell color={T.iconColor} userId={currentUser.id} cartBadgeBg={T.cartBadgeBg} cartBadgeText={T.cartBadgeText} />}
           {currentUser ? (
             <UserAvatar
               currentUser={currentUser}
@@ -639,27 +646,97 @@ function CartIcon({ cartCount, tokens }: { cartCount: number; tokens: VariantTok
   );
 }
 
-function NotificationIconPlaceholder({ color }: { color: string }) {
+function NotificationBell({
+  color,
+  userId,
+  cartBadgeBg,
+  cartBadgeText,
+}: {
+  color: string;
+  userId: string;
+  cartBadgeBg: string;
+  cartBadgeText: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [unread, setUnread] = useState(0);
+
+  // 미읽 카운트 로드 + Realtime 구독
+  useEffect(() => {
+    const refresh = () => {
+      getUnreadCount()
+        .then(setUnread)
+        .catch((e) => console.error('[NotificationBell] count error:', e));
+    };
+    refresh();
+    const cleanupRT = subscribeMyNotifications(userId, refresh);
+    const cleanupEv = onNotificationChanged(refresh);
+    return () => {
+      cleanupRT();
+      cleanupEv();
+    };
+  }, [userId]);
+
+  // 외부 클릭 시 닫기
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('[data-notif-bell]')) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
   return (
-    <div
-      aria-label="알림 (준비중)"
-      title="알림 기능 준비중"
-      style={{
-        position: 'relative',
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: 20,
-        height: 20,
-        color,
-        opacity: 0.5,
-        cursor: 'not-allowed',
-        flexShrink: 0,
-      }}
-    >
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z" />
-      </svg>
+    <div data-notif-bell style={{ position: 'relative', flexShrink: 0 }}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-label={`알림 ${unread}개`}
+        style={{
+          position: 'relative',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: 20,
+          height: 20,
+          color,
+          background: 'transparent',
+          border: 'none',
+          cursor: 'pointer',
+          padding: 0,
+        }}
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z" />
+        </svg>
+        {unread > 0 && (
+          <span
+            style={{
+              position: 'absolute',
+              top: -6,
+              right: -6,
+              minWidth: 16,
+              height: 16,
+              padding: '0 4px',
+              borderRadius: 8,
+              background: cartBadgeBg,
+              color: cartBadgeText,
+              fontSize: 10,
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxSizing: 'border-box',
+              lineHeight: 1,
+            }}
+          >
+            {unread > 99 ? '99+' : unread}
+          </span>
+        )}
+      </button>
+
+      <NotificationDropdown open={open} onClose={() => setOpen(false)} />
     </div>
   );
 }
