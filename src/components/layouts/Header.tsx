@@ -1,30 +1,31 @@
 // ============================================================================
-// Header — Figma node 896:337 정확 반영
+// Header — 3가지 variant 자동 분기
 //
-// 사양 (Figma 신규):
-//   - py 12px (사용자 요청)
-//   - max-w 1400px, gap(로고↔메뉴) 156px, 메뉴 사이 gap 2px
-//   - 모든 메뉴 텍스트 15px Regular
-//   - 어드민 메뉴: text #BEFF9B + SemiBold
-//   - 진행중 배지: px8 py2, rounded 999, 10px Medium
+// Figma:
+//   - dark   (node 896:337) - 홈, 어워드 페이지 (검정 배경)
+//   - light  (node 898:400) - 바자회, 경매, 기부 (흰 배경)
+//   - green  (node 898:440) - 어드민 페이지 (다크 그린 #00422C)
 //
-// 동적 배지 규칙:
-//   어워드 (zero_waste / wise_life):
-//     - before        → "준비중" (회색)
-//     - active + D>2일 → "진행중" (라임)
-//     - active + D=1   → "내일 마감" (라임)
-//     - active + D=0   → "오늘 마감" (라임)
-//     - closed         → "시상완료" (회색)
-//   상거래 (bazaar / auction):
-//     - before        → "준비중" (회색)
-//     - active + D>2일 → "D-N" (회색)
-//     - active + D=1   → "내일 마감" (라임)
-//     - active + D=0   → "오늘 마감" (라임)
-//     - closed         → "종료" (회색)
+// 자동 분기 규칙 (URL 기반):
+//   /             → dark
+//   /posts/*      → dark
+//   /bazaar/*     → light
+//   /auction/*    → light
+//   /cart         → light
+//   /checkout     → light
+//   /orders/*     → light
+//   /donate/*     → light
+//   /mypage/*     → light (사용자 영역)
+//   /admin/*      → green (어드민 영역)
+//   default       → dark
+//
+// 동적 배지 (15개 메뉴 공통):
+//   어워드: 진행중 / 내일 마감 / 오늘 마감 / 시상완료 / 준비중
+//   상거래: D-N / 내일 마감 / 오늘 마감 / 종료 / 준비중
 // ============================================================================
 
 import { useEffect, useState } from 'react';
-import { Link, NavLink } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEventPhase } from '@/hooks/useEventPhase';
 import { signInWithMicrosoft } from '@/lib/auth';
@@ -32,23 +33,111 @@ import { getCartCount, subscribeMyCart, onCartChanged } from '@/lib/cart';
 import type { EsgActivityStatus, EsgActivityPeriod } from '@/types/esg';
 
 // ============================================================================
-// 디자인 토큰
+// Variant 정의
 // ============================================================================
 
-const C = {
-  bg: '#000000',
-  text: '#FFFFFF',
-  badgeActive: '#98F7B6',    // 라임 (진행중/임박)
-  badgeNeutral: '#BDBDBD',   // 회색 (D-N, 종료, 준비중)
-  badgeText: '#000000',
-  adminText: '#BEFF9B',
-  hoverBg: 'rgb(109, 237, 115)',
-  hoverText: '#000000',
-  cartBadge: '#EF4444',      // 빨강 (장바구니 카운트)
-  divider: '#374151',
+type Variant = 'dark' | 'light' | 'green';
+
+interface VariantTokens {
+  bg: string;
+  text: string;
+  textSub: string;          // 비활성 메뉴 또는 muted 텍스트
+  badgeActive: string;      // 진행중/임박 배지 배경
+  badgeActiveText: string;
+  badgeNeutral: string;     // D-N/종료/준비중 배지 배경
+  badgeNeutralText: string;
+  hoverBg: string;          // active 메뉴 배경
+  hoverText: string;        // active 메뉴 텍스트
+  adminText: string;        // 어드민 메뉴 텍스트
+  adminBg: string;          // 어드민 메뉴 배경 (green variant만 사용)
+  adminBgActive: string;    // 어드민 active 시 배경
+  adminFontWeight: 600 | 700;
+  cartBadgeBg: string;
+  cartBadgeText: string;
+  iconColor: string;
+}
+
+const VARIANTS: Record<Variant, VariantTokens> = {
+  // [ DARK ] - 홈, 어워드
+  dark: {
+    bg: '#000000',
+    text: '#FFFFFF',
+    textSub: '#9CA3AF',
+    badgeActive: '#98F7B6',
+    badgeActiveText: '#000000',
+    badgeNeutral: '#BDBDBD',
+    badgeNeutralText: '#000000',
+    hoverBg: '#98F7B6',
+    hoverText: '#000000',
+    adminText: '#BEFF9B',
+    adminBg: 'transparent',
+    adminBgActive: '#BEFF9B',
+    adminFontWeight: 600,
+    cartBadgeBg: '#EF4444',
+    cartBadgeText: '#FFFFFF',
+    iconColor: '#FFFFFF',
+  },
+  // [ LIGHT ] - 바자회, 경매, 기부
+  light: {
+    bg: '#FFFFFF',
+    text: '#000000',
+    textSub: '#6B7280',
+    badgeActive: '#98F7B6',
+    badgeActiveText: '#000000',
+    badgeNeutral: '#BDBDBD',
+    badgeNeutralText: '#000000',
+    hoverBg: '#98F7B6',
+    hoverText: '#000000',
+    adminText: '#28C75B',
+    adminBg: 'transparent',
+    adminBgActive: '#28C75B',
+    adminFontWeight: 700,
+    cartBadgeBg: '#EF4444',
+    cartBadgeText: '#FFFFFF',
+    iconColor: '#000000',
+  },
+  // [ GREEN ] - 어드민
+  green: {
+    bg: '#00422C',
+    text: '#FFFFFF',
+    textSub: '#9CA3AF',
+    badgeActive: '#98F7B6',
+    badgeActiveText: '#FFFFFF',     // green variant는 텍스트 흰색
+    badgeNeutral: '#BDBDBD',
+    badgeNeutralText: '#FFFFFF',
+    hoverBg: '#98F7B6',
+    hoverText: '#000000',
+    adminText: '#000000',
+    adminBg: '#BEFF9B',             // ⭐ 어드민 메뉴에 라임 배경 (활성 표시)
+    adminBgActive: '#BEFF9B',
+    adminFontWeight: 700,
+    cartBadgeBg: '#EF4444',
+    cartBadgeText: '#FFFFFF',
+    iconColor: '#FFFFFF',
+  },
 };
 
 const FONT_PRETENDARD = "'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+
+// ============================================================================
+// URL → variant 자동 매핑
+// ============================================================================
+
+function getVariantForPath(pathname: string): Variant {
+  if (pathname.startsWith('/admin')) return 'green';
+  if (
+    pathname.startsWith('/bazaar') ||
+    pathname.startsWith('/auction') ||
+    pathname.startsWith('/cart') ||
+    pathname.startsWith('/checkout') ||
+    pathname.startsWith('/orders') ||
+    pathname.startsWith('/donate') ||
+    pathname.startsWith('/mypage')
+  ) {
+    return 'light';
+  }
+  return 'dark';
+}
 
 // ============================================================================
 // 배지 규칙
@@ -59,19 +148,14 @@ type ActivityKind = 'award' | 'commerce';
 interface BadgeInfo {
   text: string;
   bg: string;
-  color: string;
   show: boolean;
+  isActive: boolean; // active(라임) 인지 neutral(회색) 인지
 }
 
-/**
- * D-day 계산: 양수면 남은 일수, 0이면 오늘, 음수면 종료
- * KST 기준 자정 차이로 계산 (시각 무관하게 "며칠 남았는가")
- */
 function calcDayDiff(endIso: string | undefined): number | null {
   if (!endIso) return null;
   const end = new Date(endIso);
   const now = new Date();
-  // KST 자정 기준 (UTC+9)
   const kstOffset = 9 * 60 * 60 * 1000;
   const endKst = new Date(end.getTime() + kstOffset);
   const nowKst = new Date(now.getTime() + kstOffset);
@@ -83,40 +167,34 @@ function calcDayDiff(endIso: string | undefined): number | null {
 function getBadge(
   status: EsgActivityStatus,
   period: EsgActivityPeriod | undefined,
-  kind: ActivityKind
+  kind: ActivityKind,
+  tokens: VariantTokens
 ): BadgeInfo {
-  // 종료
   if (status === 'closed') {
     return {
       text: kind === 'award' ? '시상완료' : '종료',
-      bg: C.badgeNeutral,
-      color: C.badgeText,
+      bg: tokens.badgeNeutral,
       show: true,
+      isActive: false,
     };
   }
-  // 시작 전
   if (status === 'before') {
-    return { text: '준비중', bg: C.badgeNeutral, color: C.badgeText, show: true };
+    return { text: '준비중', bg: tokens.badgeNeutral, show: true, isActive: false };
   }
-  // active - D-day 계산
   const dDay = calcDayDiff(period?.ends_at_utc);
   if (dDay === null) {
-    // 기간 정보 없음 → 단순 active 표시
-    return kind === 'award'
-      ? { text: '진행중', bg: C.badgeActive, color: C.badgeText, show: true }
-      : { text: '진행중', bg: C.badgeActive, color: C.badgeText, show: true };
+    return { text: '진행중', bg: tokens.badgeActive, show: true, isActive: true };
   }
   if (dDay <= 0) {
-    return { text: '오늘 마감', bg: C.badgeActive, color: C.badgeText, show: true };
+    return { text: '오늘 마감', bg: tokens.badgeActive, show: true, isActive: true };
   }
   if (dDay === 1) {
-    return { text: '내일 마감', bg: C.badgeActive, color: C.badgeText, show: true };
+    return { text: '내일 마감', bg: tokens.badgeActive, show: true, isActive: true };
   }
-  // D-2 이상
   if (kind === 'award') {
-    return { text: '진행중', bg: C.badgeActive, color: C.badgeText, show: true };
+    return { text: '진행중', bg: tokens.badgeActive, show: true, isActive: true };
   }
-  return { text: `D-${dDay}`, bg: C.badgeNeutral, color: C.badgeText, show: true };
+  return { text: `D-${dDay}`, bg: tokens.badgeNeutral, show: true, isActive: false };
 }
 
 // ============================================================================
@@ -126,9 +204,14 @@ function getBadge(
 export function Header() {
   const { currentUser, signOut, isAdmin } = useCurrentUser();
   const { getActivity } = useEventPhase();
+  const location = useLocation();
   const [cartCount, setCartCount] = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+
+  // URL → variant 자동 선택
+  const variant = getVariantForPath(location.pathname);
+  const T = VARIANTS[variant];
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 1024);
@@ -157,16 +240,15 @@ export function Header() {
     };
   }, [currentUser?.id]);
 
-  // 활동별 배지 계산
   const zeroWaste = getActivity('zero_waste');
   const wiseLife = getActivity('wise_life');
   const bazaar = getActivity('bazaar');
   const auction = getActivity('auction');
 
-  const zeroWasteBadge = getBadge(zeroWaste.status, zeroWaste.period, 'award');
-  const wiseLifeBadge = getBadge(wiseLife.status, wiseLife.period, 'award');
-  const bazaarBadge = getBadge(bazaar.status, bazaar.period, 'commerce');
-  const auctionBadge = getBadge(auction.status, auction.period, 'commerce');
+  const zeroWasteBadge = getBadge(zeroWaste.status, zeroWaste.period, 'award', T);
+  const wiseLifeBadge = getBadge(wiseLife.status, wiseLife.period, 'award', T);
+  const bazaarBadge = getBadge(bazaar.status, bazaar.period, 'commerce', T);
+  const auctionBadge = getBadge(auction.status, auction.period, 'commerce', T);
 
   const handleLogin = () => {
     signInWithMicrosoft().catch((e) => {
@@ -175,16 +257,21 @@ export function Header() {
     });
   };
 
+  // light variant는 검정 로고, dark/green은 흰 로고
+  const logoFilter = variant === 'light' ? 'none' : 'none'; // logo.svg는 컬러 SVG라 invert 불필요. 디자인 시 별도 흑백 로고 필요시 확장
+
   return (
     <header
       style={{
         position: 'sticky',
         top: 0,
         zIndex: 100,
-        background: C.bg,
-        color: C.text,
+        background: T.bg,
+        color: T.text,
         fontFamily: FONT_PRETENDARD,
         padding: '12px 0',
+        borderBottom: variant === 'light' ? '1px solid #E5E7EB' : 'none',
+        transition: 'background 0.2s, color 0.2s',
       }}
     >
       <div
@@ -199,15 +286,16 @@ export function Header() {
           gap: 16,
         }}
       >
-        {/* 좌측: 로고 (좌측 정렬) */}
+        {/* 좌측: 로고 */}
         <div style={{ display: 'flex', alignItems: 'center', justifySelf: 'start' }}>
-          <Logo />
+          <Logo filter={logoFilter} textColor={T.text} variant={variant} />
         </div>
 
-        {/* 중앙: 메뉴 (데스크탑만, 정중앙) */}
+        {/* 중앙: 메뉴 (데스크탑만) */}
         {!isMobile && (
           <div style={{ display: 'flex', alignItems: 'center', justifySelf: 'center' }}>
             <DesktopMenu
+              tokens={T}
               zeroWasteBadge={zeroWasteBadge}
               wiseLifeBadge={wiseLifeBadge}
               bazaarBadge={bazaarBadge}
@@ -217,16 +305,17 @@ export function Header() {
           </div>
         )}
 
-        {/* 우측: 아이콘 + 아바타 (우측 정렬) */}
+        {/* 우측: 아이콘 + 아바타 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, justifySelf: 'end' }}>
-          {currentUser && <CartIcon cartCount={cartCount} />}
-          {currentUser && <NotificationIconPlaceholder />}
+          {currentUser && <CartIcon cartCount={cartCount} tokens={T} />}
+          {currentUser && <NotificationIconPlaceholder color={T.iconColor} />}
           {currentUser ? (
             <UserAvatar
               currentUser={currentUser}
               isAdmin={isAdmin}
               onSignOut={() => signOut().catch(console.error)}
               isMobile={isMobile}
+              tokens={T}
             />
           ) : (
             <button
@@ -234,8 +323,8 @@ export function Header() {
               onClick={handleLogin}
               style={{
                 padding: '8px 16px',
-                background: C.badgeActive,
-                color: C.badgeText,
+                background: T.badgeActive,
+                color: T.badgeActiveText === '#FFFFFF' ? '#000000' : T.badgeActiveText,
                 border: 'none',
                 borderRadius: 100,
                 cursor: 'pointer',
@@ -258,7 +347,7 @@ export function Header() {
                 height: 32,
                 background: 'transparent',
                 border: 'none',
-                color: C.text,
+                color: T.text,
                 cursor: 'pointer',
                 fontSize: 22,
                 padding: 0,
@@ -275,6 +364,8 @@ export function Header() {
 
       {isMobile && mobileOpen && (
         <MobileMenu
+          tokens={T}
+          variant={variant}
           zeroWasteBadge={zeroWasteBadge}
           wiseLifeBadge={wiseLifeBadge}
           bazaarBadge={bazaarBadge}
@@ -288,10 +379,10 @@ export function Header() {
 }
 
 // ============================================================================
-// 로고 (160x40 SVG, 텍스트 포함 통합)
+// 로고 (현재는 1개 SVG. light variant에서도 동일 사용)
 // ============================================================================
 
-function Logo() {
+function Logo({ filter, textColor: _t, variant: _v }: { filter: string; textColor: string; variant: Variant }) {
   return (
     <Link
       to="/"
@@ -310,6 +401,7 @@ function Logo() {
           width: 160,
           height: 40,
           display: 'block',
+          filter,
         }}
       />
     </Link>
@@ -317,10 +409,11 @@ function Logo() {
 }
 
 // ============================================================================
-// 데스크탑 메뉴 (gap 2px)
+// 데스크탑 메뉴
 // ============================================================================
 
 interface DesktopMenuProps {
+  tokens: VariantTokens;
   zeroWasteBadge: BadgeInfo;
   wiseLifeBadge: BadgeInfo;
   bazaarBadge: BadgeInfo;
@@ -329,6 +422,7 @@ interface DesktopMenuProps {
 }
 
 function DesktopMenu({
+  tokens,
   zeroWasteBadge,
   wiseLifeBadge,
   bazaarBadge,
@@ -337,25 +431,26 @@ function DesktopMenu({
 }: DesktopMenuProps) {
   return (
     <nav style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-      <NavMenuItem to="/posts/zero-waste" label="제로 웨이스트" badge={zeroWasteBadge} />
-      <NavMenuItem to="/posts/wise-life" label="슬기로운 사회생활" badge={wiseLifeBadge} />
-      <NavMenuItem to="/bazaar" label="ESG 바자회" badge={bazaarBadge} />
-      <NavMenuItem to="/auction" label="ESG 경매" badge={auctionBadge} />
-      <NavMenuItem to="/donate" label="기부하기" />
-      {isAdmin && <AdminMenuItem />}
+      <NavMenuItem to="/posts/zero-waste" label="제로 웨이스트" badge={zeroWasteBadge} tokens={tokens} />
+      <NavMenuItem to="/posts/wise-life" label="슬기로운 사회생활" badge={wiseLifeBadge} tokens={tokens} />
+      <NavMenuItem to="/bazaar" label="ESG 바자회" badge={bazaarBadge} tokens={tokens} />
+      <NavMenuItem to="/auction" label="ESG 경매" badge={auctionBadge} tokens={tokens} />
+      <NavMenuItem to="/donate" label="기부하기" tokens={tokens} />
+      {isAdmin && <AdminMenuItem tokens={tokens} />}
     </nav>
   );
 }
 
-// 통합 메뉴 아이템 (px16 py8, 15px Regular, 배지는 옵션)
 function NavMenuItem({
   to,
   label,
   badge,
+  tokens,
 }: {
   to: string;
   label: string;
   badge?: BadgeInfo;
+  tokens: VariantTokens;
 }) {
   return (
     <NavLink
@@ -365,15 +460,15 @@ function NavMenuItem({
         alignItems: 'center',
         justifyContent: 'center',
         gap: 8,
-        padding: '8px 16px',
+        padding: '8px 12px 8px 16px',
         borderRadius: 100,
         textDecoration: 'none',
-        color: isActive ? C.hoverText : C.text,
+        color: isActive ? tokens.hoverText : tokens.text,
         fontSize: 15,
         fontWeight: isActive ? 500 : 400,
         lineHeight: 1.25,
         whiteSpace: 'nowrap',
-        background: isActive ? C.hoverBg : 'transparent',
+        background: isActive ? tokens.hoverBg : 'transparent',
         transition: 'background 0.15s, color 0.15s, font-weight 0.15s',
       })}
     >
@@ -382,7 +477,9 @@ function NavMenuItem({
         <span
           style={{
             background: badge.bg,
-            color: badge.color,
+            color: badge.isActive
+              ? tokens.badgeActiveText
+              : tokens.badgeNeutralText,
             padding: '2px 8px',
             borderRadius: 999,
             fontSize: 10,
@@ -397,26 +494,33 @@ function NavMenuItem({
   );
 }
 
-// 어드민 메뉴 (color #BEFF9B SemiBold)
-function AdminMenuItem() {
+function AdminMenuItem({ tokens }: { tokens: VariantTokens }) {
   return (
     <NavLink
       to="/admin"
-      style={({ isActive }) => ({
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '8px 16px',
-        borderRadius: 100,
-        textDecoration: 'none',
-        color: isActive ? C.hoverText : C.adminText,
-        fontSize: 15,
-        fontWeight: 600,
-        lineHeight: 1.25,
-        whiteSpace: 'nowrap',
-        background: isActive ? C.hoverBg : 'transparent',
-        transition: 'background 0.15s, color 0.15s',
-      })}
+      style={({ isActive }) => {
+        const useFilledStyle = tokens.adminBg !== 'transparent'; // green variant
+        const showActiveBg = isActive || useFilledStyle;
+        return {
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '8px 12px 8px 16px',
+          borderRadius: useFilledStyle ? 99 : 100,
+          textDecoration: 'none',
+          color: showActiveBg && useFilledStyle ? '#000000' : (isActive ? tokens.hoverText : tokens.adminText),
+          fontSize: 15,
+          fontWeight: tokens.adminFontWeight,
+          lineHeight: 1.25,
+          whiteSpace: 'nowrap',
+          background: useFilledStyle
+            ? tokens.adminBg
+            : isActive
+            ? tokens.hoverBg
+            : 'transparent',
+          transition: 'background 0.15s, color 0.15s',
+        };
+      }}
     >
       어드민
     </NavLink>
@@ -427,7 +531,7 @@ function AdminMenuItem() {
 // 우측 아이콘
 // ============================================================================
 
-function CartIcon({ cartCount }: { cartCount: number }) {
+function CartIcon({ cartCount, tokens }: { cartCount: number; tokens: VariantTokens }) {
   return (
     <Link
       to="/cart"
@@ -438,7 +542,7 @@ function CartIcon({ cartCount }: { cartCount: number }) {
         justifyContent: 'center',
         width: 24,
         height: 24,
-        color: C.text,
+        color: tokens.iconColor,
         textDecoration: 'none',
         flexShrink: 0,
       }}
@@ -457,8 +561,8 @@ function CartIcon({ cartCount }: { cartCount: number }) {
             height: 16,
             padding: '0 4px',
             borderRadius: 8,
-            background: C.cartBadge,
-            color: '#FFFFFF',
+            background: tokens.cartBadgeBg,
+            color: tokens.cartBadgeText,
             fontSize: 10,
             fontWeight: 700,
             display: 'flex',
@@ -475,7 +579,7 @@ function CartIcon({ cartCount }: { cartCount: number }) {
   );
 }
 
-function NotificationIconPlaceholder() {
+function NotificationIconPlaceholder({ color }: { color: string }) {
   return (
     <div
       aria-label="알림 (준비중)"
@@ -487,7 +591,7 @@ function NotificationIconPlaceholder() {
         justifyContent: 'center',
         width: 20,
         height: 20,
-        color: C.text,
+        color,
         opacity: 0.5,
         cursor: 'not-allowed',
         flexShrink: 0,
@@ -505,11 +609,13 @@ function UserAvatar({
   isAdmin,
   onSignOut,
   isMobile,
+  tokens,
 }: {
   currentUser: { name: string; avatar_url: string | null };
   isAdmin: boolean;
   onSignOut: () => void;
   isMobile: boolean;
+  tokens: VariantTokens;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -536,8 +642,8 @@ function UserAvatar({
           borderRadius: '50%',
           background: currentUser.avatar_url
             ? `url(${currentUser.avatar_url}) center/cover`
-            : C.badgeActive,
-          color: C.badgeText,
+            : tokens.badgeActive,
+          color: '#000000',
           border: 'none',
           cursor: 'pointer',
           fontSize: 14,
@@ -640,6 +746,8 @@ const dropdownItemStyle: React.CSSProperties = {
 // ============================================================================
 
 function MobileMenu({
+  tokens,
+  variant,
   zeroWasteBadge,
   wiseLifeBadge,
   bazaarBadge,
@@ -647,6 +755,8 @@ function MobileMenu({
   isAdmin,
   onClose,
 }: {
+  tokens: VariantTokens;
+  variant: Variant;
   zeroWasteBadge: BadgeInfo;
   wiseLifeBadge: BadgeInfo;
   bazaarBadge: BadgeInfo;
@@ -654,11 +764,12 @@ function MobileMenu({
   isAdmin: boolean;
   onClose: () => void;
 }) {
+  const divider = variant === 'light' ? '#E5E7EB' : '#374151';
   return (
     <nav
       style={{
-        background: C.bg,
-        borderTop: `1px solid ${C.divider}`,
+        background: tokens.bg,
+        borderTop: `1px solid ${divider}`,
         padding: '8px 16px 16px',
         display: 'flex',
         flexDirection: 'column',
@@ -666,20 +777,27 @@ function MobileMenu({
         fontFamily: FONT_PRETENDARD,
       }}
     >
-      <MobileLink to="/posts/zero-waste" label="제로 웨이스트" badge={zeroWasteBadge} onClick={onClose} />
-      <MobileLink to="/posts/wise-life" label="슬기로운 사회생활" badge={wiseLifeBadge} onClick={onClose} />
-      <MobileLink to="/bazaar" label="ESG 바자회" badge={bazaarBadge} onClick={onClose} />
-      <MobileLink to="/auction" label="ESG 경매" badge={auctionBadge} onClick={onClose} />
-      <MobileLink to="/donate" label="기부하기" onClick={onClose} />
+      <MobileLink to="/posts/zero-waste" label="제로 웨이스트" badge={zeroWasteBadge} onClick={onClose} tokens={tokens} />
+      <MobileLink to="/posts/wise-life" label="슬기로운 사회생활" badge={wiseLifeBadge} onClick={onClose} tokens={tokens} />
+      <MobileLink to="/bazaar" label="ESG 바자회" badge={bazaarBadge} onClick={onClose} tokens={tokens} />
+      <MobileLink to="/auction" label="ESG 경매" badge={auctionBadge} onClick={onClose} tokens={tokens} />
+      <MobileLink to="/donate" label="기부하기" onClick={onClose} tokens={tokens} />
       {isAdmin && (
         <Link
           to="/admin"
           onClick={onClose}
           style={{
-            ...mobileLinkStyle,
-            color: C.adminText,
-            fontWeight: 600,
-            borderTop: `1px solid ${C.divider}`,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '14px 16px',
+            color: tokens.adminBg !== 'transparent' ? '#000000' : tokens.adminText,
+            background: tokens.adminBg !== 'transparent' ? tokens.adminBg : 'transparent',
+            textDecoration: 'none',
+            fontSize: 15,
+            fontWeight: tokens.adminFontWeight,
+            borderRadius: 8,
+            borderTop: `1px solid ${divider}`,
             marginTop: 8,
             paddingTop: 16,
           }}
@@ -691,37 +809,41 @@ function MobileMenu({
   );
 }
 
-const mobileLinkStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 8,
-  padding: '14px 16px',
-  color: C.text,
-  textDecoration: 'none',
-  fontSize: 15,
-  fontWeight: 400,
-  borderRadius: 8,
-};
-
 function MobileLink({
   to,
   label,
   badge,
   onClick,
+  tokens,
 }: {
   to: string;
   label: string;
   badge?: BadgeInfo;
   onClick: () => void;
+  tokens: VariantTokens;
 }) {
   return (
-    <Link to={to} onClick={onClick} style={mobileLinkStyle}>
+    <Link
+      to={to}
+      onClick={onClick}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '14px 16px',
+        color: tokens.text,
+        textDecoration: 'none',
+        fontSize: 15,
+        fontWeight: 400,
+        borderRadius: 8,
+      }}
+    >
       {label}
       {badge?.show && (
         <span
           style={{
             background: badge.bg,
-            color: badge.color,
+            color: badge.isActive ? tokens.badgeActiveText : tokens.badgeNeutralText,
             padding: '2px 8px',
             borderRadius: 999,
             fontSize: 10,
