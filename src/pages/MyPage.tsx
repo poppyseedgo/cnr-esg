@@ -29,6 +29,8 @@ import {
   type MyBidAuction,
 } from '@/lib/auctions';
 import { formatKSTFull } from '@/utils/time';
+import { loadMyDonations, getDonationTimeLeft, subscribeMyDonations } from '@/lib/donations';
+import type { EsgDonationRow } from '@/types/esg';
 
 const tabs = [
   { to: '/mypage/pending', label: '결제대기' },
@@ -36,6 +38,7 @@ const tabs = [
   { to: '/mypage/bidding', label: '경매참여' },
   { to: '/mypage/auction-won', label: '경매 낙찰' },
   { to: '/mypage/wishlist', label: '찜한상품' },
+  { to: '/mypage/donations', label: '💚 기부내역' },
 ];
 
 export function MyPage() {
@@ -695,6 +698,177 @@ function BidAuctionCard({ myBid }: { myBid: MyBidAuction }) {
           </div>
         </div>
       </div>
+    </Link>
+  );
+}
+
+// ============================================================================
+// 내 기부 내역
+// ============================================================================
+
+export function MyPageDonations() {
+  const { currentUser } = useCurrentUser();
+  const [donations, setDonations] = useState<EsgDonationRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [, setTick] = useState(0);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    const reload = async () => {
+      try {
+        setError(null);
+        const data = await loadMyDonations(currentUser.id);
+        setDonations(data);
+      } catch (e) {
+        console.error('[MyPageDonations]', e);
+        setError(e instanceof Error ? e.message : '불러오기 실패');
+      } finally {
+        setLoading(false);
+      }
+    };
+    void reload();
+    const cleanup = subscribeMyDonations(currentUser.id, () => {
+      void reload();
+    });
+    return cleanup;
+  }, [currentUser?.id]);
+
+  // 카운트다운 (pending 항목용)
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  if (loading) {
+    return <div style={{ padding: 32, textAlign: 'center', color: '#888' }}>불러오는 중…</div>;
+  }
+  if (error) {
+    return <div style={{ padding: 16, background: '#fee2e2', color: '#991b1b', borderRadius: 8 }}>⚠️ {error}</div>;
+  }
+  if (donations.length === 0) {
+    return (
+      <div style={{ background: '#fff', borderRadius: 12, padding: 48, textAlign: 'center', border: '1px dashed #ddd' }}>
+        <div style={{ fontSize: 48, marginBottom: 12, opacity: 0.5 }}>💚</div>
+        <p style={{ margin: '0 0 16px', color: '#666' }}>아직 기부 내역이 없습니다.</p>
+        <Link
+          to="/donate"
+          style={{
+            display: 'inline-block',
+            padding: '8px 16px',
+            background: '#16a34a',
+            color: '#fff',
+            borderRadius: 6,
+            textDecoration: 'none',
+            fontSize: 13,
+            fontWeight: 600,
+          }}
+        >
+          💚 첫 기부하기
+        </Link>
+      </div>
+    );
+  }
+
+  const paidTotal = donations
+    .filter((d) => d.payment_status === 'paid')
+    .reduce((s, d) => s + d.amount, 0);
+
+  return (
+    <div>
+      {paidTotal > 0 && (
+        <div
+          style={{
+            background: '#f0fdf4',
+            border: '1px solid #bbf7d0',
+            borderRadius: 8,
+            padding: 16,
+            marginBottom: 16,
+            textAlign: 'center',
+          }}
+        >
+          <div style={{ fontSize: 12, color: '#166534', marginBottom: 4 }}>💚 총 기부 금액</div>
+          <div style={{ fontSize: 24, fontWeight: 700, color: '#16a34a' }}>
+            {paidTotal.toLocaleString()}원
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {donations.map((d) => (
+          <DonationListItem key={d.id} donation={d} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DonationListItem({ donation }: { donation: EsgDonationRow }) {
+  const timeLeftMs = donation.payment_status === 'pending' ? getDonationTimeLeft(donation.expires_at) : 0;
+  const isExpired = timeLeftMs <= 0 && donation.payment_status === 'pending';
+
+  const map: Record<string, { label: string; bg: string; color: string }> = {
+    pending: { label: isExpired ? '⌛ 만료' : '⏰ 입금 대기', bg: '#fef3c7', color: '#92400e' },
+    paid: { label: '✅ 완료', bg: '#dcfce7', color: '#166534' },
+    expired: { label: '⌛ 만료', bg: '#f0f0f0', color: '#666' },
+    cancelled: { label: '🚫 취소', bg: '#fee2e2', color: '#991b1b' },
+  };
+  const m = map[donation.payment_status];
+
+  return (
+    <Link
+      to={`/donate/${donation.id}`}
+      style={{
+        background: '#fff',
+        borderRadius: 8,
+        padding: 14,
+        boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+        border: '1px solid #eee',
+        textDecoration: 'none',
+        color: 'inherit',
+        display: 'block',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+        <span
+          style={{
+            padding: '2px 8px',
+            background: m.bg,
+            color: m.color,
+            borderRadius: 4,
+            fontSize: 11,
+            fontWeight: 700,
+          }}
+        >
+          {m.label}
+        </span>
+        <span style={{ fontSize: 11, color: '#888', fontFamily: 'monospace' }}>
+          {donation.donation_number}
+        </span>
+        <span style={{ fontSize: 11, color: '#aaa', marginLeft: 'auto' }}>
+          {formatKSTFull(donation.created_at)}
+        </span>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ fontSize: 18, fontWeight: 700, color: '#16a34a', flex: 1 }}>
+          {donation.amount.toLocaleString()}원
+        </div>
+        {donation.payment_status === 'pending' && !isExpired && (
+          <div style={{ fontSize: 11, color: '#dc2626' }}>
+            ⏰ {formatTimeLeft(timeLeftMs)}
+          </div>
+        )}
+        {donation.payment_status === 'paid' && (
+          <span style={{ fontSize: 11, color: '#16a34a', fontWeight: 600 }}>📜 인증서 보기 →</span>
+        )}
+      </div>
+
+      {donation.message && (
+        <div style={{ fontSize: 11, color: '#888', marginTop: 6 }}>
+          💬 {donation.message.slice(0, 80)}{donation.message.length > 80 ? '…' : ''}
+        </div>
+      )}
     </Link>
   );
 }

@@ -199,6 +199,10 @@ function buildEmailHtml(templateKey: string, data: Record<string, unknown>): str
       return tmplAuctionCancelled(data);
     case 'post_hidden':
       return tmplPostHidden(data);
+    case 'donation_created':
+      return tmplDonationCreated(data);
+    case 'donation_paid':
+      return tmplDonationPaid(data);
     default:
       return wrap(`<p>알 수 없는 템플릿: ${escapeHtml(templateKey)}</p>`);
   }
@@ -417,5 +421,47 @@ ${infoBox([
   ['제목', escapeHtml(data.title)],
 ])}
 ${alertBox('이의가 있으시면 아래 문의 이메일로 연락 주시면 검토 후 답변드리겠습니다.<br>(공익적 토론을 위한 다양한 의견은 환영합니다.)', 'info')}
+`);
+}
+
+// 9. 기부 신청 (입금 안내)
+function tmplDonationCreated(data: Record<string, unknown>): string {
+  const bank = (data.bank_info ?? {}) as Record<string, unknown>;
+  return wrap(`
+<h2 style="margin:0 0 12px;font-size:18px;color:#222;">💚 기부 신청이 접수되었습니다</h2>
+<p>${escapeHtml(data.user_name)}님, 따뜻한 마음을 나눠주셔서 감사합니다.</p>
+${alertBox('아래 계좌로 <strong>입금자명 일치</strong>하여 송금해 주세요.<br>오늘 23:59까지 입금이 확인되지 않으면 자동 취소됩니다.', 'warning')}
+${infoBox([
+  ['은행', escapeHtml(bank.bank ?? '-')],
+  ['계좌번호', escapeHtml(bank.account ?? '-')],
+  ['예금주', escapeHtml(bank.holder ?? '-')],
+  ['입금자명', escapeHtml(data.payer_name ?? data.user_name ?? '-')],
+  ['기부 금액', `${formatAmount(data.amount)}원`],
+  ['입금 기한', `${formatKst(data.expires_at)} (KST)`],
+])}
+${infoBox([['기부 번호', escapeHtml(data.donation_number)]])}
+${data.message ? `<div style="margin:16px 0;padding:14px;background:#f0fdf4;border-left:3px solid #16a34a;font-size:13px;color:#166534;line-height:1.7;"><strong>응원 메시지</strong><br>${escapeHtml(data.message)}</div>` : ''}
+${button('기부 상세 보기', `${APP_BASE_URL}/donate/${data.donation_id}`, '#16a34a')}
+<p style="font-size:12px;color:#888;">관리자 확인 후 자동으로 인증서가 발급되며, 이메일로 다시 안내드립니다.</p>
+`);
+}
+
+// 10. 기부 입금 확인 (인증서 발급)
+function tmplDonationPaid(data: Record<string, unknown>): string {
+  return wrap(`
+<h2 style="margin:0 0 12px;font-size:18px;color:#222;">🎉 기부가 확인되었습니다</h2>
+<p>${escapeHtml(data.user_name)}님, 따뜻한 마음에 진심으로 감사드립니다.</p>
+${alertBox('💚 기부 인증서가 발급되었습니다. 아래 버튼을 눌러 확인 및 다운로드하실 수 있습니다.', 'success')}
+${infoBox([
+  ['기부 번호', escapeHtml(data.donation_number)],
+  ['인증서 번호', escapeHtml(data.certificate_number)],
+  ['기부 금액', `${formatAmount(data.amount)}원`],
+  ['확인 일시', `${formatKst(data.paid_at)} (KST)`],
+])}
+${button('📜 인증서 보기 / 다운로드', `${APP_BASE_URL}/donate/${data.donation_id}/certificate`, '#16a34a')}
+<p style="font-size:13px;color:#444;line-height:1.7;margin-top:24px;">
+모금된 금액은 사내 ESG 활동과 공익 기부에 사용됩니다.<br>
+보내주신 마음이 더 큰 변화로 이어질 수 있도록 소중히 사용하겠습니다.
+</p>
 `);
 }

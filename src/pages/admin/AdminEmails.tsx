@@ -49,6 +49,8 @@ const TEMPLATE_LABELS: Record<EsgEmailTemplateKey, string> = {
   auction_won: '🎉 경매 낙찰',
   auction_cancelled: '🚫 경매 취소',
   post_hidden: '🙈 게시글 숨김',
+  donation_created: '💚 기부 신청',
+  donation_paid: '🎉 기부 확인 (인증서)',
 };
 
 export function AdminEmails() {

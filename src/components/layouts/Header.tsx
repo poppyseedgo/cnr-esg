@@ -123,6 +123,12 @@ export function Header() {
             >
               경매
             </NavLink>
+            <NavLink
+              to="/donate"
+              style={({ isActive }) => (isActive ? activeNavItemStyle : navItemStyle)}
+            >
+              💚 기부하기
+            </NavLink>
             {currentUser && (
               <NavLink
                 to="/mypage"

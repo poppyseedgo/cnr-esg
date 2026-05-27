@@ -482,7 +482,9 @@ export type EsgEmailTemplateKey =
   | 'bazaar_order_cancelled'
   | 'auction_won'
   | 'auction_cancelled'
-  | 'post_hidden';
+  | 'post_hidden'
+  | 'donation_created'
+  | 'donation_paid';
 
 export interface EsgEmailOutboxRow {
   id: string;
@@ -708,6 +710,31 @@ export interface Database {
         Args: Record<string, never>;
         Returns: string;
       };
+      create_donation: {
+        Args: {
+          p_amount: number;
+          p_payer_name: string | null;
+          p_message: string | null;
+          p_is_anonymous: boolean;
+        };
+        Returns: CreateDonationResult;
+      };
+      mark_donation_paid: {
+        Args: {
+          p_donation_id: string;
+          p_payer_name: string | null;
+          p_admin_memo: string | null;
+        };
+        Returns: MarkDonationPaidResult;
+      };
+      cancel_donation: {
+        Args: { p_donation_id: string; p_reason: string | null };
+        Returns: RpcResult;
+      };
+      expire_pending_donations: {
+        Args: Record<string, never>;
+        Returns: number;
+      };
     };
     Enums: {
       [_ in never]: never;
@@ -749,4 +776,85 @@ export interface CurrentUser {
   role: 'USER' | 'ADMIN';
   is_active: boolean;
   avatar_url: string | null;
+}
+
+// ============================================================================
+// 기부 (Donation)
+// ============================================================================
+
+export type EsgDonationStatus = 'pending' | 'paid' | 'expired' | 'cancelled';
+
+export interface EsgDonationRow {
+  id: string;
+  donation_number: string;
+  user_id: string | null;
+  user_email: string;
+  user_name_snapshot: string;
+  user_dept_snapshot: string | null;
+  is_anonymous: boolean;
+  amount: number;
+  payer_name: string | null;
+  message: string | null;
+  payment_status: EsgDonationStatus;
+  expires_at: string;
+  paid_at: string | null;
+  cancelled_at: string | null;
+  cancelled_reason: string | null;
+  admin_memo: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** esg_donations_public view (익명 마스킹) */
+export interface EsgDonationPublicRow {
+  id: string;
+  donation_number: string;
+  user_id: string | null;
+  user_name: string;
+  user_dept: string | null;
+  is_anonymous: boolean;
+  amount: number;
+  message: string | null;
+  payment_status: 'paid';
+  paid_at: string;
+  created_at: string;
+}
+
+export interface EsgDonationCertificateRow {
+  id: string;
+  donation_id: string;
+  certificate_number: string;
+  donor_name: string;
+  donor_dept: string | null;
+  amount: number;
+  message: string | null;
+  paid_at: string;
+  issued_at: string;
+}
+
+/** create_donation 응답 */
+export interface CreateDonationResult {
+  success: boolean;
+  error?: string;
+  min?: number;
+  max?: number;
+  donation_id?: string;
+  donation_number?: string;
+  amount?: number;
+  expires_at?: string;
+  bank_info?: {
+    bank: string;
+    account: string;
+    holder: string;
+    memo?: string;
+  };
+}
+
+/** mark_donation_paid 응답 */
+export interface MarkDonationPaidResult {
+  success: boolean;
+  error?: string;
+  donation_id?: string;
+  certificate_number?: string;
+  current_status?: string;
 }

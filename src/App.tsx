@@ -38,6 +38,9 @@ import { AuctionDetailPage } from '@/pages/AuctionDetailPage';
 import { CartPage } from '@/pages/CartPage';
 import { CheckoutPage } from '@/pages/CheckoutPage';
 import { OrderDetailPage } from '@/pages/OrderDetailPage';
+import { DonatePage } from '@/pages/DonatePage';
+import { DonateOrderPage } from '@/pages/DonateOrderPage';
+import { DonationCertificatePage } from '@/pages/DonationCertificatePage';
 import {
   MyPage,
   MyPagePending,
@@ -45,6 +48,7 @@ import {
   MyPageBidding,
   MyPageAuctionWon,
   MyPageWishlist,
+  MyPageDonations,
 } from '@/pages/MyPage';
 import { AdminPage } from '@/pages/AdminPage';
 import { AdminDashboard } from '@/pages/admin/AdminDashboard';
@@ -54,6 +58,7 @@ import { AdminProducts } from '@/pages/admin/AdminProducts';
 import { AdminOrders } from '@/pages/admin/AdminOrders';
 import { AdminPosts } from '@/pages/admin/AdminPosts';
 import { AdminEmails } from '@/pages/admin/AdminEmails';
+import { AdminDonations } from '@/pages/admin/AdminDonations';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 
 // ============================================================================
@@ -73,6 +78,7 @@ const router = createBrowserRouter([
       { path: '/bazaar/:productId', element: <BazaarProductPage /> },
       { path: '/auction', element: <AuctionPage /> },
       { path: '/auction/:auctionId', element: <AuctionDetailPage /> },
+      { path: '/donate', element: <DonatePage /> },
 
       // 로그인 필수
       {
@@ -100,6 +106,22 @@ const router = createBrowserRouter([
         ),
       },
       {
+        path: '/donate/:id',
+        element: (
+          <RequireAuth>
+            <DonateOrderPage />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: '/donate/:id/certificate',
+        element: (
+          <RequireAuth>
+            <DonationCertificatePage />
+          </RequireAuth>
+        ),
+      },
+      {
         path: '/mypage',
         element: (
           <RequireAuth>
@@ -113,6 +135,7 @@ const router = createBrowserRouter([
           { path: 'bidding', element: <MyPageBidding /> },
           { path: 'auction-won', element: <MyPageAuctionWon /> },
           { path: 'wishlist', element: <MyPageWishlist /> },
+          { path: 'donations', element: <MyPageDonations /> },
         ],
       },
 
@@ -131,6 +154,7 @@ const router = createBrowserRouter([
           { path: 'products', element: <AdminProducts /> },
           { path: 'auctions', element: <AdminAuctions /> },
           { path: 'orders', element: <AdminOrders /> },
+          { path: 'donations', element: <AdminDonations /> },
           { path: 'settings', element: <AdminSettings /> },
           { path: 'emails', element: <AdminEmails /> },
         ],
