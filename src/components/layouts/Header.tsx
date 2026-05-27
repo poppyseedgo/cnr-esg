@@ -193,16 +193,20 @@ export function Header() {
           width: '100%',
           margin: '0 auto',
           padding: isMobile ? '0 16px' : '0 40px',
-          display: 'flex',
+          display: 'grid',
+          gridTemplateColumns: isMobile ? 'auto 1fr' : '1fr auto 1fr',
           alignItems: 'center',
-          justifyContent: 'space-between',
           gap: 16,
         }}
       >
-        {/* 좌측: 로고 + 메뉴 (gap 156px) */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 0 : 156 }}>
+        {/* 좌측: 로고 (좌측 정렬) */}
+        <div style={{ display: 'flex', alignItems: 'center', justifySelf: 'start' }}>
           <Logo />
-          {!isMobile && (
+        </div>
+
+        {/* 중앙: 메뉴 (데스크탑만, 정중앙) */}
+        {!isMobile && (
+          <div style={{ display: 'flex', alignItems: 'center', justifySelf: 'center' }}>
             <DesktopMenu
               zeroWasteBadge={zeroWasteBadge}
               wiseLifeBadge={wiseLifeBadge}
@@ -210,11 +214,11 @@ export function Header() {
               auctionBadge={auctionBadge}
               isAdmin={isAdmin}
             />
-          )}
-        </div>
+          </div>
+        )}
 
-        {/* 우측: 아이콘 + 아바타 */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        {/* 우측: 아이콘 + 아바타 (우측 정렬) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, justifySelf: 'end' }}>
           {currentUser && <CartIcon cartCount={cartCount} />}
           {currentUser && <NotificationIconPlaceholder />}
           {currentUser ? (
