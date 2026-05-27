@@ -107,7 +107,7 @@ export function Header() {
         background: C.bg,
         color: C.text,
         fontFamily: FONT_PRETENDARD,
-        padding: '20px 0',
+        padding: '12px 0',
       }}
     >
       <div
@@ -276,13 +276,13 @@ function AwardMenuItem({
         padding: '8px 8px 8px 16px',
         borderRadius: 100,
         textDecoration: 'none',
-        color: C.text,
+        color: isActive ? '#000000' : C.text,
         fontSize: 16,
-        fontWeight: isActive ? 600 : 400,
+        fontWeight: isActive ? 500 : 400,
         lineHeight: 1.25,
         whiteSpace: 'nowrap',
-        background: isActive ? C.hover : 'transparent',
-        transition: 'background 0.15s, font-weight 0.15s',
+        background: isActive ? 'rgb(109, 237, 115)' : 'transparent',
+        transition: 'background 0.15s, color 0.15s, font-weight 0.15s',
       })}
     >
       {label}
@@ -317,13 +317,13 @@ function PlainMenuItem({ to, label }: { to: string; label: string }) {
         padding: '8px 16px',
         borderRadius: 100,
         textDecoration: 'none',
-        color: C.text,
+        color: isActive ? '#000000' : C.text,
         fontSize: 15,
-        fontWeight: isActive ? 600 : 400,
+        fontWeight: isActive ? 500 : 400,
         lineHeight: 1.25,
         whiteSpace: 'nowrap',
-        background: isActive ? C.hover : 'transparent',
-        transition: 'background 0.15s, font-weight 0.15s',
+        background: isActive ? 'rgb(109, 237, 115)' : 'transparent',
+        transition: 'background 0.15s, color 0.15s, font-weight 0.15s',
       })}
     >
       {label}
