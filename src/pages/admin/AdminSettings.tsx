@@ -19,6 +19,8 @@ import {
   kstInputToUtcIso,
   utcIsoToKstInput,
 } from '@/lib/settings';
+import { MarkdownEditor } from '@/components/MarkdownEditor';
+import { MarkdownRenderer } from '@/components/MarkdownRenderer';
 import type {
   EsgSettingsValueMap,
   EsgActivityKey,
@@ -95,6 +97,9 @@ export function AdminSettings() {
 
       {/* 4. 모금 목표 */}
       <DonationGoalSection settings={settings} onChange={reload} />
+
+      {/* 5. 상품 수령 안내 */}
+      <DeliveryInfoSection settings={settings} onChange={reload} />
     </div>
   );
 }
@@ -612,6 +617,131 @@ function DonationGoalSection({
                 borderRadius: 4,
                 cursor: 'pointer',
                 fontSize: 12,
+              }}
+            >
+              취소
+            </button>
+          </div>
+        </div>
+      )}
+    </SectionCard>
+  );
+}
+
+// ============================================================================
+// 5. 상품 수령 안내 (markdown)
+// ============================================================================
+
+function DeliveryInfoSection({
+  settings,
+  onChange,
+}: {
+  settings: Partial<EsgSettingsValueMap>;
+  onChange: () => void;
+}) {
+  const current = settings.delivery_info ?? '';
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState(current);
+  const [saving, setSaving] = useState(false);
+
+  const beginEdit = () => {
+    setForm(current);
+    setEditing(true);
+  };
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await updateSetting('delivery_info', form);
+      onChange();
+      setEditing(false);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '저장 실패');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <SectionCard
+      title="📦 상품 수령 안내"
+      description="바자회/경매 상품 상세 페이지의 '상품수령' 탭에 표시되는 공통 안내 (마크다운)"
+    >
+      {!editing ? (
+        <>
+          <div
+            style={{
+              padding: 14,
+              background: '#fafafa',
+              borderRadius: 8,
+              minHeight: 80,
+              marginBottom: 12,
+            }}
+          >
+            {current.trim() ? (
+              <MarkdownRenderer content={current} />
+            ) : (
+              <div style={{ color: '#bbb', fontSize: 13 }}>(등록된 안내가 없습니다)</div>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={beginEdit}
+            style={{
+              padding: '8px 16px',
+              background: '#0ea5e9',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 6,
+              cursor: 'pointer',
+              fontSize: 13,
+              fontWeight: 600,
+            }}
+          >
+            ✏️ 편집
+          </button>
+        </>
+      ) : (
+        <div>
+          <MarkdownEditor
+            value={form}
+            onChange={setForm}
+            uploaderKind="bazaar"
+            uploaderOwnerId="delivery-info"
+            disabled={saving}
+            minHeight={240}
+            placeholder="상품 수령 안내를 작성해주세요. 마크다운 지원."
+          />
+          <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
+            <button
+              type="button"
+              onClick={save}
+              disabled={saving}
+              style={{
+                flex: 1,
+                padding: '10px 12px',
+                background: saving ? '#ccc' : '#10b981',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 6,
+                cursor: saving ? 'not-allowed' : 'pointer',
+                fontSize: 13,
+                fontWeight: 600,
+              }}
+            >
+              {saving ? '저장 중…' : '저장'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditing(false)}
+              disabled={saving}
+              style={{
+                padding: '10px 16px',
+                background: '#fff',
+                border: '1px solid #ddd',
+                borderRadius: 6,
+                cursor: 'pointer',
+                fontSize: 13,
               }}
             >
               취소

@@ -12,6 +12,7 @@
 import { useState } from 'react';
 import { createProduct } from '@/lib/adminProducts';
 import { ThumbnailUploader, DetailImagesUploader } from '@/components/ImageUploader';
+import { MarkdownEditor } from '@/components/MarkdownEditor';
 import type { EsgProductStatus } from '@/types/esg';
 
 interface CreateProductFormProps {
@@ -61,8 +62,16 @@ export function CreateProductForm({ onCancel, onSuccess }: CreateProductFormProp
       <Field label="상품명 *">
         <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="예: 🌱 친환경 텀블러" disabled={saving} style={inputStyle} />
       </Field>
-      <Field label="설명">
-        <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="상품 설명" disabled={saving} rows={3} style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit' }} />
+      <Field label="상세 설명 (마크다운)">
+        <MarkdownEditor
+          value={description}
+          onChange={setDescription}
+          uploaderKind="bazaar"
+          uploaderOwnerId={tempId}
+          disabled={saving}
+          minHeight={200}
+          placeholder="상품의 상세 설명을 입력하세요. 마크다운 문법 지원."
+        />
       </Field>
       <Field label="썸네일">
         <ThumbnailUploader kind="bazaar" ownerId={tempId} value={thumbnailUrl} onChange={setThumbnailUrl} disabled={saving} />

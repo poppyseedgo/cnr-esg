@@ -147,6 +147,8 @@ export interface EsgSettingsValueMap {
    * 시작·종료 시각을 한 곳에서 관리. SSOT. 어드민이 변경 가능.
    */
   activity_periods: EsgActivityPeriods;
+  /** 바자회/경매 상품 상세 페이지의 "상품 수령" 탭에 표시되는 공통 안내 (markdown) */
+  delivery_info: string;
 }
 
 export type EsgSettingsKey = keyof EsgSettingsValueMap;
@@ -878,7 +880,9 @@ export type EsgNotificationType =
   | 'donation_paid'
   | 'wishlist_back_in_stock'
   | 'post_hidden'
-  | 'post_new_comment';
+  | 'post_new_comment'
+  | 'product_qa_new'
+  | 'product_qa_answered';
 
 export interface EsgNotificationRow {
   id: string;
@@ -901,4 +905,33 @@ export interface EsgNotificationRow {
   read_at: string | null;
 
   created_at: string;
+}
+
+// ============================================================================
+// 상품 Q&A (Phase 2 후속)
+// ============================================================================
+
+export interface EsgProductQuestionRow {
+  id: string;
+  product_type: 'bazaar' | 'auction';
+  product_id: string;
+  user_id: string;
+  user_email: string;
+  user_name_snapshot: string;
+  body: string;
+  status: 'open' | 'answered' | 'hidden';
+  is_private: boolean;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface EsgProductQuestionAnswerRow {
+  id: string;
+  question_id: string;
+  admin_id: string;
+  admin_email: string;
+  admin_name_snapshot: string;
+  body: string;
+  created_at: string;
+  updated_at: string | null;
 }

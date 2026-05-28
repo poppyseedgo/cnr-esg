@@ -17,6 +17,7 @@ import {
 } from '@/lib/adminAuctions';
 import { kstInputToUtcIso, utcIsoToKstInput } from '@/lib/settings';
 import { ThumbnailUploader, DetailImagesUploader } from '@/components/ImageUploader';
+import { MarkdownEditor } from '@/components/MarkdownEditor';
 import type { EsgAuctionRow, EsgAuctionStatus } from '@/types/esg';
 
 interface AuctionEditFormProps {
@@ -165,13 +166,15 @@ export function AuctionEditForm({
           style={inputStyle}
         />
       </Field>
-      <Field label="설명">
-        <textarea
+      <Field label="상세 설명 (마크다운)">
+        <MarkdownEditor
           value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          onChange={setDescription}
+          uploaderKind="auction"
+          uploaderOwnerId={auction.id}
           disabled={busy}
-          rows={3}
-          style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit' }}
+          minHeight={200}
+          placeholder="경매 상품의 상세 설명을 입력하세요. 마크다운 문법 지원."
         />
       </Field>
       <Field label="썸네일">

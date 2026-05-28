@@ -13,6 +13,7 @@ import { useState } from 'react';
 import { updateProduct, deleteProduct } from '@/lib/adminProducts';
 import { getAvailableStock } from '@/lib/products';
 import { ThumbnailUploader, DetailImagesUploader } from '@/components/ImageUploader';
+import { MarkdownEditor } from '@/components/MarkdownEditor';
 import type { EsgProductRow, EsgProductStatus } from '@/types/esg';
 
 interface ProductEditFormProps {
@@ -118,13 +119,15 @@ export function ProductEditForm({
           style={inputStyle}
         />
       </Field>
-      <Field label="설명">
-        <textarea
+      <Field label="상세 설명 (마크다운)">
+        <MarkdownEditor
           value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          onChange={setDescription}
+          uploaderKind="bazaar"
+          uploaderOwnerId={product.id}
           disabled={busy}
-          rows={3}
-          style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit' }}
+          minHeight={200}
+          placeholder="상품의 상세 설명을 입력하세요. 마크다운 문법 지원."
         />
       </Field>
       <Field label="썸네일">

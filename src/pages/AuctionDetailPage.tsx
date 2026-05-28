@@ -33,6 +33,7 @@ import { formatKSTFull } from '@/utils/time';
 import { signInWithMicrosoft } from '@/lib/auth';
 import { Avatar } from '@/components/Avatar';
 import { AuctionEditForm } from '@/components/admin/AuctionEditForm';
+import { ProductDetailTabs } from '@/components/ProductDetailTabs';
 import type { EsgAuctionRow } from '@/types/esg';
 
 export function AuctionDetailPage() {
@@ -598,151 +599,129 @@ export function AuctionDetailPage() {
             </div>
           )}
 
-          {/* 설명 */}
-          {auction.description && (
-            <div
-              style={{
-                fontSize: 14,
-                lineHeight: 1.7,
-                color: '#444',
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word',
-                paddingTop: 8,
-                borderTop: '1px solid #f0f0f0',
-              }}
-            >
-              {auction.description}
-            </div>
-          )}
+          {/* 설명은 하단 탭 영역에서 마크다운으로 표시 */}
         </div>
       </div>
 
-      {/* 입찰 이력 */}
-      <section
-        style={{
-          marginTop: 24,
-          background: '#fff',
-          borderRadius: 12,
-          padding: 24,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-        }}
-      >
-        <h2 style={{ margin: '0 0 16px', fontSize: 16 }}>
-          📜 입찰 이력 <span style={{ color: '#888', fontWeight: 400 }}>({bids.length})</span>
-        </h2>
-        {bids.length === 0 ? (
-          <div style={{ padding: 24, textAlign: 'center', color: '#bbb', fontSize: 13 }}>
-            아직 입찰이 없습니다. 첫 입찰자가 되어보세요!
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {bids.map((b, idx) => {
-              const isMe = b.is_self;
-              const isCurrentTop = idx === 0;
-              const isAnon = b.is_anonymous;
-              const showAnonymous = isAnon && !isMe;
+      {/* 하단 탭 영역 (입찰내역 / 상세설명 / 상품수령 / Q&A) */}
+      <ProductDetailTabs
+        productType="auction"
+        productId={auction.id}
+        description={auction.description}
+        bidsContent={
+          bids.length === 0 ? (
+            <div style={{ padding: 24, textAlign: 'center', color: '#bbb', fontSize: 13 }}>
+              아직 입찰이 없습니다. 첫 입찰자가 되어보세요!
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {bids.map((b, idx) => {
+                const isMe = b.is_self;
+                const isCurrentTop = idx === 0;
+                const isAnon = b.is_anonymous;
+                const showAnonymous = isAnon && !isMe;
 
-              // 표시 이름 결정
-              let displayName: string;
-              if (showAnonymous) {
-                const num = b.anonymous_handle ? anonymousNumberMap.get(b.anonymous_handle) : undefined;
-                displayName = `익명 #${num ?? '?'}`;
-              } else {
-                displayName = b.profile?.name ?? b.user_name_snapshot ?? '(이름 없음)';
-              }
+                let displayName: string;
+                if (showAnonymous) {
+                  const num = b.anonymous_handle ? anonymousNumberMap.get(b.anonymous_handle) : undefined;
+                  displayName = `익명 #${num ?? '?'}`;
+                } else {
+                  displayName = b.profile?.name ?? b.user_name_snapshot ?? '(이름 없음)';
+                }
 
-              return (
-                <div
-                  key={b.id}
-                  style={{
-                    display: 'flex',
-                    gap: 12,
-                    padding: '12px 0',
-                    borderTop: idx === 0 ? 'none' : '1px solid #f5f5f5',
-                    alignItems: 'center',
-                    background: isCurrentTop ? 'linear-gradient(to right, #fefce8 0%, transparent 50%)' : undefined,
-                    borderRadius: isCurrentTop ? 6 : 0,
-                    marginLeft: isCurrentTop ? -8 : 0,
-                    paddingLeft: isCurrentTop ? 8 : 0,
-                  }}
-                >
-                  <Avatar
-                    name={displayName}
-                    avatarUrl={showAnonymous ? null : b.profile?.avatar_url}
-                    size={36}
-                    isMe={isMe}
-                    anonymous={showAnonymous}
-                  />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        flexWrap: 'wrap',
-                        fontSize: 13,
-                      }}
-                    >
-                      {isCurrentTop && (
-                        <span
-                          style={{
-                            padding: '1px 6px',
-                            background: '#fef3c7',
-                            color: '#92400e',
-                            borderRadius: 4,
-                            fontSize: 10,
-                            fontWeight: 700,
-                          }}
-                        >
-                          🏆 TOP
-                        </span>
-                      )}
-                      <strong style={{ color: isMe ? '#0ea5e9' : '#222' }}>
-                        {displayName}
-                      </strong>
-                      {isMe && isAnon && (
-                        <span
-                          style={{
-                            padding: '1px 6px',
-                            background: '#e0f2fe',
-                            color: '#0c4a6e',
-                            borderRadius: 4,
-                            fontSize: 10,
-                            fontWeight: 600,
-                          }}
-                        >
-                          본인 · 익명
-                        </span>
-                      )}
-                      {isMe && !isAnon && (
-                        <span style={{ fontWeight: 400, color: '#0ea5e9', fontSize: 11 }}>
-                          (본인)
-                        </span>
-                      )}
-                      {!showAnonymous && !isMe && b.profile?.dept && (
-                        <span style={{ color: '#888', fontSize: 12 }}>· {b.profile.dept}</span>
-                      )}
-                    </div>
-                    <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>
-                      {formatKSTFull(b.created_at)}
-                    </div>
-                  </div>
-                  <span
+                return (
+                  <div
+                    key={b.id}
                     style={{
-                      fontSize: 16,
-                      fontWeight: 700,
-                      color: isCurrentTop ? '#10b981' : '#444',
-                      whiteSpace: 'nowrap',
+                      display: 'flex',
+                      gap: 12,
+                      padding: '12px 0',
+                      borderTop: idx === 0 ? 'none' : '1px solid #f5f5f5',
+                      alignItems: 'center',
+                      background: isCurrentTop ? 'linear-gradient(to right, #fefce8 0%, transparent 50%)' : undefined,
+                      borderRadius: isCurrentTop ? 6 : 0,
+                      marginLeft: isCurrentTop ? -8 : 0,
+                      paddingLeft: isCurrentTop ? 8 : 0,
                     }}
                   >
-                    {b.bid_amount.toLocaleString()}원
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </section>
+                    <Avatar
+                      name={displayName}
+                      avatarUrl={showAnonymous ? null : b.profile?.avatar_url}
+                      size={36}
+                      isMe={isMe}
+                      anonymous={showAnonymous}
+                    />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          flexWrap: 'wrap',
+                          fontSize: 13,
+                        }}
+                      >
+                        {isCurrentTop && (
+                          <span
+                            style={{
+                              padding: '1px 6px',
+                              background: '#fef3c7',
+                              color: '#92400e',
+                              borderRadius: 4,
+                              fontSize: 10,
+                              fontWeight: 700,
+                            }}
+                          >
+                            🏆 TOP
+                          </span>
+                        )}
+                        <strong style={{ color: isMe ? '#0ea5e9' : '#222' }}>
+                          {displayName}
+                        </strong>
+                        {isMe && isAnon && (
+                          <span
+                            style={{
+                              padding: '1px 6px',
+                              background: '#e0f2fe',
+                              color: '#0c4a6e',
+                              borderRadius: 4,
+                              fontSize: 10,
+                              fontWeight: 600,
+                            }}
+                          >
+                            본인 · 익명
+                          </span>
+                        )}
+                        {isMe && !isAnon && (
+                          <span style={{ fontWeight: 400, color: '#0ea5e9', fontSize: 11 }}>
+                            (본인)
+                          </span>
+                        )}
+                        {!showAnonymous && !isMe && b.profile?.dept && (
+                          <span style={{ color: '#888', fontSize: 12 }}>· {b.profile.dept}</span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>
+                        {formatKSTFull(b.created_at)}
+                      </div>
+                    </div>
+                    <span
+                      style={{
+                        fontSize: 16,
+                        fontWeight: 700,
+                        color: isCurrentTop ? '#10b981' : '#444',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {b.bid_amount.toLocaleString()}원
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )
+        }
+      />
 
       {/* 액션 */}
       <div style={{ marginTop: 24, textAlign: 'center' }}>

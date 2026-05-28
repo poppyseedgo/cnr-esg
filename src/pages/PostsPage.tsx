@@ -12,12 +12,13 @@
 // ============================================================================
 
 import { useEffect, useMemo, useState, useCallback, createContext, useContext } from 'react';
-import { useNavigate, useParams, NavLink } from 'react-router-dom';
+import { useParams, NavLink } from 'react-router-dom';
 import { useEventPhase } from '@/hooks/useEventPhase';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { loadPosts, subscribePostsChanges } from '@/lib/posts';
 import { formatKSTDate, formatKSTFull } from '@/utils/time';
 import { PostFormModal } from '@/components/PostFormModal';
+import { PostDetailModal } from '@/components/PostDetailModal';
 import { signInWithMicrosoft } from '@/lib/auth';
 import type {
   EsgActivityKey,
@@ -177,6 +178,8 @@ function CategoryContent({ meta }: { meta: CategoryMeta }) {
   const [firstLoading, setFirstLoading] = useState(!cached);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  /** 모달로 열 게시글 ID (게시글 카드 클릭 시 set) */
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
 
   // 작성 가능 여부 (프론트 가드)
   // - 어드민은 기간/posts_enabled와 무관하게 항상 작성 가능
@@ -295,8 +298,24 @@ function CategoryContent({ meta }: { meta: CategoryMeta }) {
       ) : posts.length === 0 ? (
         <EmptyState canCreate={canCreate} onCreate={() => setShowForm(true)} />
       ) : (
-        <PostGrid posts={posts} currentUserId={currentUser?.id ?? null} isAdmin={isAdmin} />
+        <PostGrid
+          posts={posts}
+          currentUserId={currentUser?.id ?? null}
+          isAdmin={isAdmin}
+          onPostClick={(id) => setSelectedPostId(id)}
+        />
       )}
+
+      {/* 게시글 상세 모달 */}
+      <PostDetailModal
+        postId={selectedPostId ?? ''}
+        open={!!selectedPostId}
+        onClose={() => setSelectedPostId(null)}
+        onDeleted={() => {
+          setSelectedPostId(null);
+          void reload();
+        }}
+      />
 
       {/* 작성 모달 */}
       {showForm && currentUser && (
@@ -386,12 +405,13 @@ function PostGrid({
   posts,
   currentUserId,
   isAdmin,
+  onPostClick,
 }: {
   posts: EsgPostWithImagesRow[];
   currentUserId: string | null;
   isAdmin: boolean;
+  onPostClick: (id: string) => void;
 }) {
-  const navigate = useNavigate();
   return (
     <div
       style={{
@@ -406,7 +426,7 @@ function PostGrid({
           post={p}
           isMine={!!currentUserId && p.user_id === currentUserId}
           isAdmin={isAdmin}
-          onClick={() => navigate(`/posts/detail/${p.id}`)}
+          onClick={() => onPostClick(p.id)}
         />
       ))}
     </div>

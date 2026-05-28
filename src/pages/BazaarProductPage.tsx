@@ -22,6 +22,7 @@ import {
 import { addToCart } from '@/lib/cart';
 import { signInWithMicrosoft } from '@/lib/auth';
 import { ProductEditForm } from '@/components/admin/ProductEditForm';
+import { ProductDetailTabs } from '@/components/ProductDetailTabs';
 import type { EsgProductRow } from '@/types/esg';
 
 export function BazaarProductPage() {
@@ -305,20 +306,7 @@ export function BazaarProductPage() {
             )}
           </div>
 
-          {/* 설명 */}
-          {product.description && (
-            <div
-              style={{
-                fontSize: 14,
-                lineHeight: 1.7,
-                color: '#444',
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word',
-              }}
-            >
-              {product.description}
-            </div>
-          )}
+          {/* 설명은 하단 탭 영역에서 마크다운으로 표시 */}
 
           {/* 수량 선택 */}
           {canPurchase && (
@@ -464,6 +452,13 @@ export function BazaarProductPage() {
           )}
         </div>
       </div>
+
+      {/* 하단 탭 영역 */}
+      <ProductDetailTabs
+        productType="bazaar"
+        productId={product.id}
+        description={product.description}
+      />
     </article>
   );
 }
