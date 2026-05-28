@@ -19,17 +19,25 @@
                  - 제로웨이스트 봉투 placeholder→SVG, 패딩/캡션 정정
    ============================================================================ */
 
-/* ── 풀블리드 컨테이너 ───────────────────────────────────────── */
+/* ── 풀블리드 컨테이너 ───────────────────────────────────────
+   부모 구조: <main padding:0 20px> > <div max-width:1360; margin:0 auto; padding:24px 0> > HomeHero
+   문제였던 점: 100vw + translateX 는 부모(<main>)의 좌우 padding 20px 안쪽을 기준 삼아
+                양옆에 20px씩 흰 띠가 남았음.
+   근본 해결: margin-inline: calc(50% - 50vw)
+     - 50% = 부모 콘텐츠 박스(=padding 안쪽) 절반
+     - 50vw = 뷰포트 절반
+     - 둘의 차 = 부모 좌(우) 끝에서 뷰포트 좌(우) 끝까지 거리(음수)
+     → 좌우 모두 음수 margin으로 당겨 부모 padding·max-width·중앙정렬을 한 번에 상쇄,
+       어떤 화면폭(1920 포함)에서도 뷰포트 양끝에 정확히 밀착. translateX 트릭 불필요. */
 .esg-hero {
-  width: 100vw;
-  position: relative;
-  left: 50%;
-  transform: translateX(-50%);
-  margin-top: -24px;                 /* AppLayout 래퍼 상단 padding(24) 상쇄 → 헤더 밀착 */
+  width: auto;                       /* margin calc로 폭 결정 (100vw 고정 안 함) */
+  margin-left: calc(50% - 50vw);     /* 부모 좌측 padding/중앙정렬 상쇄 → 뷰포트 좌끝 */
+  margin-right: calc(50% - 50vw);    /* 우측 동일 → 뷰포트 우끝 */
+  margin-top: -24px;                 /* 래퍼 상단 padding(24) 상쇄 → 헤더 밀착 */
   margin-bottom: 24px;
 }
 .esg-hero__inner {
-  max-width: 1920px;
+  max-width: 1920px;                 /* 1920 초과 시 중앙 정렬, 양옆은 페이지 배경 */
   margin: 0 auto;
 }
 
