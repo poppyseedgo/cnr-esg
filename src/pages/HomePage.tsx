@@ -1,18 +1,21 @@
 // ============================================================================
 // HomePage — 메인 홈 화면
 //
-// 5개 활동이 각자 다른 기간을 가지므로:
-//   - 메인 카운트다운: "가장 빨리 변하는" 다음 마일스톤 (다음에 열리거나 닫히는 활동)
-//   - 5개 활동 카드: 각자 상태 + 카운트다운 표시
+// 구성:
+//   - HomeHero  : 풀블리드 포스터 그리드 (Figma 914:1700) — 구 이모지 Hero 대체
+//   - 모금 현황  : 실시간 모금 진행률
+//   - 활동 카드  : 각 활동 상태/기간 (※ 포스터 그리드와 내비 중복 → 정리 예정)
 //
-// 페이즈 archived면 전체 readonly 모드.
+// 2026-05-28 변경: 구 이모지 Hero + 메인 카운트다운 제거(신규 Figma 디자인에 없음),
+//                  HomeHero 로 교체. 카운트다운 복원/이전 필요 시 별도 요청.
 // ============================================================================
 
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { loadDonationStats } from '@/lib/api';
 import { useEventPhase } from '@/hooks/useEventPhase';
-import { getCountdown, parseUTC, formatKSTDate } from '@/utils/time';
+import { formatKSTDate } from '@/utils/time'; // ← [정리] getCountdown/parseUTC 제거(카운트다운 삭제)
+import { HomeHero } from '@/components/home/HomeHero'; // ← [신규] 풀블리드 포스터 그리드
 import type {
   EsgActivityKey,
   EsgActivityPeriod,
@@ -36,10 +39,8 @@ const ACTIVITY_META: ActivityMeta[] = [
 ];
 
 export function HomePage() {
-  const { phase, getActivity, activityPeriods, loading: phaseLoading, settings } =
-    useEventPhase();
+  const { getActivity, settings } = useEventPhase(); // ← [정리] phase/activityPeriods/phaseLoading 제거(카운트다운 삭제)
   const [stats, setStats] = useState<EsgDonationStatsRow | null>(null);
-  const [, setNow] = useState(() => new Date());
 
   // 모금 현황 로드
   useEffect(() => {
@@ -54,16 +55,6 @@ export function HomePage() {
     };
   }, []);
 
-  // 1초마다 카운트다운 갱신
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(id);
-  }, []);
-
-  // 메인 카운트다운: 가장 가까운 다음 변경 시점 찾기
-  // (시작 전 활동의 starts_at OR 진행 중 활동의 ends_at 중 가장 빠른 것)
-  const nextMilestone = findNextMilestone(activityPeriods);
-
   // 모금 진행률
   const goal = settings.donation_goal ?? 5_000_000;
   const raised = stats?.total_raised ?? 0;
@@ -71,41 +62,8 @@ export function HomePage() {
 
   return (
     <div>
-      {/* Hero */}
-      <section
-        style={{
-          // ========================================================
-          // 배경: hero-bg.jpg + 흰색 그라데이션 오버레이 (가독성)
-          // 이미지 교체: public/hero-bg.jpg 파일만 바꾸면 됨
-          // 비활성화: 아래 background 라인을 background: '#fff'로 교체
-          // ========================================================
-          background:
-            "linear-gradient(to bottom, rgba(255,255,255,0.65), rgba(255,255,255,0.92)), url('/hero-bg.jpg') center / cover no-repeat",
-          borderRadius: 16,
-          padding: '48px 32px',
-          textAlign: 'center',
-          marginBottom: 24,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-        }}
-      >
-        <div style={{ fontSize: 56, marginBottom: 12 }}>🌱</div>
-        <h1 style={{ margin: '0 0 8px', fontSize: 28, fontWeight: 800 }}>
-          C&R 29주년 ESG 이벤트
-        </h1>
-        <p style={{ color: '#666', fontSize: 15, margin: '0 0 24px' }}>
-          ESG 어워드 · 바자회 · 경매 · 굿즈 수익금 전부 생명의 숲 기부
-        </p>
+      <HomeHero /> {/* ← [신규] 풀블리드 포스터 그리드 (구 이모지 Hero + 카운트다운 대체) */}
 
-        {phaseLoading ? (
-          <p style={{ color: '#999' }}>로딩 중…</p>
-        ) : nextMilestone ? (
-          <MainCountdown milestone={nextMilestone} />
-        ) : phase === 'archived' ? (
-          <div style={{ color: '#999' }}>이벤트가 종료되었습니다.</div>
-        ) : (
-          <div style={{ color: '#999' }}>모든 활동이 종료되었습니다.</div>
-        )}
-      </section>
 
       {/* 모금 현황 */}
       <section
@@ -193,88 +151,6 @@ export function HomePage() {
           })}
         </div>
       </section>
-    </div>
-  );
-}
-
-// ============================================================================
-// 메인 카운트다운: 가장 가까운 다음 마일스톤
-// ============================================================================
-
-interface Milestone {
-  activityKey: EsgActivityKey;
-  label: string;
-  target: string; // UTC ISO
-  kind: 'starts' | 'ends';
-}
-
-function findNextMilestone(periods: Record<string, EsgActivityPeriod | undefined>): Milestone | null {
-  const now = Date.now();
-  const candidates: Milestone[] = [];
-
-  for (const meta of ACTIVITY_META) {
-    const period = periods[meta.key];
-    if (!period) continue;
-    const startMs = parseUTC(period.starts_at_utc).getTime();
-    const endMs = parseUTC(period.ends_at_utc).getTime();
-    if (startMs > now) {
-      candidates.push({
-        activityKey: meta.key,
-        label: `${period.label} 시작까지`,
-        target: period.starts_at_utc,
-        kind: 'starts',
-      });
-    } else if (endMs > now) {
-      candidates.push({
-        activityKey: meta.key,
-        label: `${period.label} 종료까지`,
-        target: period.ends_at_utc,
-        kind: 'ends',
-      });
-    }
-  }
-
-  if (candidates.length === 0) return null;
-
-  // 가장 가까운 시점
-  candidates.sort(
-    (a, b) => parseUTC(a.target).getTime() - parseUTC(b.target).getTime()
-  );
-  return candidates[0] ?? null;
-}
-
-function MainCountdown({ milestone }: { milestone: Milestone }) {
-  const cd = getCountdown(milestone.target);
-  return (
-    <div style={{ display: 'inline-block' }}>
-      <div style={{ fontSize: 13, color: '#666', marginBottom: 8 }}>
-        {milestone.label}
-      </div>
-      <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-        <TimeBlock value={cd.days} unit="일" />
-        <TimeBlock value={cd.hours} unit="시간" />
-        <TimeBlock value={cd.minutes} unit="분" />
-        <TimeBlock value={cd.seconds} unit="초" />
-      </div>
-    </div>
-  );
-}
-
-function TimeBlock({ value, unit }: { value: number; unit: string }) {
-  return (
-    <div
-      style={{
-        background: '#1a1a1a',
-        color: '#fff',
-        borderRadius: 8,
-        padding: '12px 14px',
-        minWidth: 64,
-      }}
-    >
-      <div style={{ fontSize: 22, fontWeight: 700 }}>
-        {String(value).padStart(2, '0')}
-      </div>
-      <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>{unit}</div>
     </div>
   );
 }

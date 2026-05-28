@@ -15,6 +15,7 @@ export function AppLayout() {
         display: 'flex',
         flexDirection: 'column',
         background: '#fafafa',
+        overflowX: 'clip', // ← [풀블리드] 100vw 그리드의 가로 스크롤 방지. clip은 스크롤 컨테이너를 안 만들어 sticky 헤더 영향 없음 (hidden 금지)
       }}
     >
       <Header />
