@@ -108,7 +108,7 @@ a.esg-hero__tile { cursor: pointer; }
   padding: 5cqw 5cqw 8.333cqw;       /* pt24 px24 pb40 */
 }
 .esg-hero__brand-logo {              /* C&R RESEARCH 영문 로고 SVG (394×63) */
-  width: 62.5cqw;                    /* 300/480 (Figma 로고 그룹폭) */
+  width: 80cqw;                    /* 300/480 (Figma 로고 그룹폭) */
   height: auto;
   display: block;
 }
