@@ -40,12 +40,10 @@ export function HomeHero() {
           <div className="esg-hero__tile esg-hero__brand">
             <div className="esg-hero__fg">
               <img className="esg-hero__brand-logo" src="/home/cnr-research.svg" alt="C&amp;R RESEARCH" />
-              <div>
-                <p className="esg-hero__brand-ko">사람의 건강을 지원하는 나의 사명</p>
-                <p className="esg-hero__brand-ko">지구의 건강을 지키는 우리의 실천</p>
+              <div className="esg-hero__brand-slogan">
+                <div className="esg-hero__brand-ko">사람의 건강을<br />지원하는 나의 사명</div>
+                <div className="esg-hero__brand-ko">지구의 건강을<br />지키는 우리의 실천</div>
               </div>
-              {/* 하단 클로버 그래픽 임시 삭제 (2026-05-28) — 빈 슬롯으로 3등분 균형 유지 */}
-              <span aria-hidden="true" />
             </div>
           </div>
 
