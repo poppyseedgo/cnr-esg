@@ -19,9 +19,12 @@
 //   /admin/*      → green (어드민 영역)
 //   default       → dark
 //
-// 동적 배지 (15개 메뉴 공통):
-//   어워드: 진행중 / 내일 마감 / 오늘 마감 / 시상완료 / 준비중
-//   상거래: D-N / 내일 마감 / 오늘 마감 / 종료 / 준비중
+// 동적 배지 (설계안 B — 2026-05-28 D-N 의미 모호성 제거):
+//   - D-N 표기는 '시작까지' 의미로만 사용 (before 전용)        // ← [설계안 B]
+//   - active = 항상 라임(진행중), before/closed = 회색 → 색으로 상태 즉시 구분  // ← [설계안 B]
+//   before: D-N / 내일 시작 / 오늘 시작
+//   active: 진행중 / 내일 마감 / 오늘 마감       // ← [award/commerce 구분 제거]
+//   closed: 시상완료(award) / 종료(commerce)
 // ============================================================================
 
 import { useEffect, useState } from 'react';
@@ -108,9 +111,9 @@ const VARIANTS: Record<Variant, VariantTokens> = {
     text: '#FFFFFF',
     textSub: '#9CA3AF',
     badgeActive: '#98F7B6',
-    badgeActiveText: '#FFFFFF',     // green variant는 텍스트 흰색
+    badgeActiveText: '#000000',     // ← [검정 통일] green도 라임 배경엔 검정 텍스트 (가독성/3-variant 일관성)
     badgeNeutral: '#BDBDBD',
-    badgeNeutralText: '#FFFFFF',
+    badgeNeutralText: '#000000',    // ← [검정 통일] green도 회색 배경엔 검정 텍스트
     hoverBg: '#6DED73',
     hoverText: '#000000',
     adminText: '#000000',
@@ -147,14 +150,15 @@ function getVariantForPath(pathname: string): Variant {
 }
 
 // ============================================================================
-// 배지 규칙
+// 배지 규칙 (설계안 B — 2026-05-28)
 //
-// 동작:
-//   - before:  시작일까지 D-N (회색) / D-1 → "내일 시작" / D-0 → "오늘 시작" (라임)
-//   - active:  종료일까지 D-N
-//     · award:    일반 active → "진행중" (라임)
-//     · commerce: 일반 active → "D-N" (회색)
-//     · 공통:     D-1 → "내일 마감" / D-0 → "오늘 마감" (라임)
+// 핵심 원칙:
+//   - D-N 표기는 '시작까지' 의미로만 사용 (before 전용) → 시작/마감 모호성 제거  // ← [설계안 B]
+//   - active = 항상 라임, before/closed = 회색 → 배지 색만 봐도 진행중 식별 가능  // ← [설계안 B]
+//
+// 동작 (award/commerce 공통, closed 텍스트만 분기):
+//   - before:  D≥2 → "D-N" (회색) / D=1 → "내일 시작" / D≤0 → "오늘 시작" (라임)
+//   - active:  D≥2 → "진행중" (라임) / D=1 → "내일 마감" / D≤0 → "오늘 마감" (라임)  // ← [B: commerce도 진행중]
 //   - closed:  award → "시상완료" / commerce → "종료" (회색)
 // ============================================================================
 
@@ -216,7 +220,7 @@ function getBadge(
     return { text: `D-${dStart}`, bg: tokens.badgeNeutral, show: true, isActive: false };
   }
 
-  // 3) 진행 중 - 종료일 기준 D-day
+  // 3) 진행 중 - 종료일 기준 D-day (설계안 B: D-N은 before 전용, active는 항상 라임)
   const dEnd = calcDayDiff(period?.ends_at_utc);
   if (dEnd === null) {
     // 기간 정보 없음 → 단순 진행중
@@ -228,11 +232,8 @@ function getBadge(
   if (dEnd === 1) {
     return { text: '내일 마감', bg: tokens.badgeActive, show: true, isActive: true };
   }
-  // D-2 이상
-  if (kind === 'award') {
-    return { text: '진행중', bg: tokens.badgeActive, show: true, isActive: true };
-  }
-  return { text: `D-${dEnd}`, bg: tokens.badgeNeutral, show: true, isActive: false };
+  // D-2 이상: award/commerce 구분 없이 "진행중" 라임 (D-N 표기는 before 전용으로 일원화)  // ← [설계안 B]
+  return { text: '진행중', bg: tokens.badgeActive, show: true, isActive: true }; // ← [B: 기존 commerce D-N 회색 제거]
 }
 
 // ============================================================================
@@ -361,7 +362,7 @@ export function Header() {
               style={{
                 padding: '8px 16px',
                 background: T.badgeActive,
-                color: T.badgeActiveText === '#FFFFFF' ? '#000000' : T.badgeActiveText,
+                color: T.badgeActiveText, // ← [fallback 제거] 토큰이 검정으로 통일되어 임시방편 불필요
                 border: 'none',
                 borderRadius: 100,
                 cursor: 'pointer',
