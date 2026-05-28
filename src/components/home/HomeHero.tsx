@@ -1,24 +1,23 @@
 // ============================================================================
-// HomeHero — 홈 풀블리드 포스터 그리드 (Figma node 914:1700)
+// HomeHero — 홈 풀블리드 포스터 그리드 (Figma node 914:1700, 실측 1:1)
 //
-// 구조: 8개 타일 (사진 4 + 포스터 4) 체커보드 배치, 4열(>=1000px) / 2열(<1000px)
-//   Row1: [사진] [브랜드 #00422b] [사진] [바자회+경매 #8ce229 → /bazaar]
-//   Row2: [슬기로운 #8ce229 → /posts/wise-life] [사진] [제로웨이스트 #00422b → /posts/zero-waste] [사진]
+// 구조: 8개 타일(사진4 + 포스터4) 체커보드, 4열(>=1000px) / 2열(<1000px)
+//   Row1: [사진] [브랜드 #00422b] [사진] [바자회+경매 #8ce229]
+//   Row2: [슬기로운 #8ce229] [사진] [제로웨이스트 #00422b] [사진]
 //
-// 레이아웃/스케일/애니메이션은 전부 HomeHero.css 에서 처리 (JS 0줄).
-//   - 비율 유지   : aspect-ratio 480/562
-//   - 비례 스케일 : container-type + cqw (타일 너비 %로 글자/여백)
-//   - 풀블리드    : width:100vw + translateX(-50%) (AppLayout overflow-x:clip 과 짝)
+// 레이아웃/스케일/애니메이션은 전부 HomeHero.css (JS 0줄, cqw 비례 스케일).
 //
-// 사진 타일: CSS background-image(/home/*.jpg). 파일 없으면 크림색(#f7eee2) 폴백.
-//            → public/home/ 에 사진 4장 배치 시 자동 적용 (home-01 ~ home-04).
-// 일러스트 : 인라인 SVG(즉시 렌더). 추후 Figma export 로 교체 가능.
+// 일러스트: Figma export SVG (public/home/*.svg) — clover/arrow/zerobag.
+//   색이 SVG 내부에 박혀 있어 <img>로 그대로 렌더. 곡선 텍스트만 인라인 SVG(텍스트).
+// 사진 타일: CSS background-image(/home/home-01~04.jpg). 없으면 크림(#f7eee2) 폴백.
+//
+// 포스터 타일 클릭 = 행사정보 모달 오픈 예정(현재 onClick 핸들러 없음, 페이지 이동 아님).
 //
 // 변경 이력:
-//   2026-05-28  최초 작성 (Phase 6 홈 포스터 그리드)
+//   2026-05-28  최초 작성
+//   2026-05-28  Figma 실측 전면 정정 + 일러스트 SVG 적용, Link 제거(모달 연결 대기)  // ← [정정]
 // ============================================================================
 
-import { Link } from 'react-router-dom';
 import './HomeHero.css';
 
 export function HomeHero() {
@@ -27,9 +26,9 @@ export function HomeHero() {
       <div className="esg-hero__inner">
         <div className="esg-hero__grid">
 
-          {/* ── Row 1 ───────────────────────────────────────────── */}
+          {/* ── Row 1 ───────────────────────────────────────── */}
 
-          {/* R1C1 — 사진 타일 */}
+          {/* R1C1 — 사진 */}
           <div className="esg-hero__tile" aria-hidden="true">
             <div
               className="esg-hero__bg esg-hero__photo esg-hero__zoom"
@@ -37,18 +36,19 @@ export function HomeHero() {
             />
           </div>
 
-          {/* R1C2 — 브랜드 메시지 (#00422b) */}
+          {/* R1C2 — 브랜드 (#00422b) */}
           <div className="esg-hero__tile esg-hero__brand">
             <div className="esg-hero__fg">
               <p className="esg-hero__brand-en">C&amp;R RESEARCH</p>
               <div>
                 <p className="esg-hero__brand-ko">사람의 건강을 지원하는 나의 사명</p>
-                <p className="esg-hero__brand-ko">지구의 건강도 지키는 우리의 실천</p>
+                <p className="esg-hero__brand-ko">지구의 건강을 지키는 우리의 실천</p>
               </div>
+              <img className="esg-hero__brand-clover esg-hero__zoom" src="/home/clover.svg" alt="" aria-hidden="true" />
             </div>
           </div>
 
-          {/* R1C3 — 사진 타일 */}
+          {/* R1C3 — 사진 */}
           <div className="esg-hero__tile" aria-hidden="true">
             <div
               className="esg-hero__bg esg-hero__photo esg-hero__zoom"
@@ -56,80 +56,50 @@ export function HomeHero() {
             />
           </div>
 
-          {/* R1C4 — 바자회 + 경매 (#8ce229) → /bazaar */}
-          <Link to="/bazaar" className="esg-hero__tile esg-hero__bazaar">
+          {/* R1C4 — 바자회 + 경매 (#8ce229) ※ 클릭 시 모달 예정 */}
+          <div className="esg-hero__tile esg-hero__bazaar">
             <div className="esg-hero__fg">
-              {/* 상단: 바자회 / 경매 2컬럼 */}
+              {/* 상단 2컬럼 */}
               <div className="esg-hero__bazaar-row">
                 <div className="esg-hero__bazaar-col">
-                  <div className="esg-hero__bazaar-ttl">
-                    2026<br />창립기념<br />ESG 온라인 바자회
-                  </div>
+                  <div className="esg-hero__bazaar-ttl">2026<br />창립기념<br />ESG 온라인 바자회</div>
                   <p className="esg-hero__bazaar-date">6/30 — 7/10</p>
                 </div>
                 <div className="esg-hero__bazaar-col">
-                  <div className="esg-hero__bazaar-ttl">
-                    2026<br />창립기념<br />ESG 온라인 경매
-                  </div>
+                  <div className="esg-hero__bazaar-ttl">2026<br />창립기념<br />ESG 온라인 경매</div>
                   <p className="esg-hero__bazaar-date">6/30 — 7/10</p>
                 </div>
               </div>
 
-              {/* 중앙 엠블럼: 곡선 텍스트 + 화살표 (추후 Figma export 교체 가능) */}
-              <svg
-                className="esg-hero__bazaar-emblem esg-hero__zoom"
-                viewBox="0 0 220 96"
-                fill="none"
-                aria-hidden="true"
-              >
+              {/* 곡선 텍스트 "Online Charity Market" (텍스트라 인라인 SVG 유지) */}
+              <svg className="esg-hero__bazaar-curve" viewBox="0 0 480 200" fill="none" aria-hidden="true">
                 <defs>
-                  <path id="esgOcmArc" d="M22 70 A 110 110 0 0 1 198 70" fill="none" />
+                  <path id="esgOcmArc" d="M70 150 A 180 180 0 0 1 410 150" fill="none" />
                 </defs>
-                <text
-                  fontFamily="'Instrument Sans', sans-serif"
-                  fontSize="15"
-                  letterSpacing="1.5"
-                  fill="#0d2e16"
-                >
-                  <textPath href="#esgOcmArc" startOffset="50%" textAnchor="middle">
-                    Online Charity Market
-                  </textPath>
+                <text fontFamily="'Instrument Sans', sans-serif" fontSize="22" letterSpacing="2" fill="#0d2e16">
+                  <textPath href="#esgOcmArc" startOffset="50%" textAnchor="middle">Online Charity Market</textPath>
                 </text>
-                <line x1="78" y1="78" x2="142" y2="78" stroke="#0d2e16" strokeWidth="3" />
-                <path
-                  d="M134 70 L144 78 L134 86"
-                  fill="none"
-                  stroke="#0d2e16"
-                  strokeWidth="3"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
               </svg>
 
-              {/* 하단: Bazzar & Auction */}
-              <div>
-                <p className="esg-hero__bazaar-foot">
-                  2026<br />Bazzar &amp; Auction
-                </p>
-                <p className="esg-hero__bazaar-date" style={{ marginTop: '2cqw' }}>
-                  6/30 — 7/10
-                </p>
-              </div>
+              {/* 화살표 SVG (Figma export) */}
+              <img className="esg-hero__bazaar-arrow esg-hero__zoom" src="/home/arrow.svg" alt="" aria-hidden="true" />
+
+              {/* 하단 텍스트(절대배치) */}
+              <p className="esg-hero__bazaar-foot">2026<br />Bazzar &amp; Auction</p>
+              <p className="esg-hero__bazaar-footdate">6/30 — 7/10</p>
             </div>
-          </Link>
+          </div>
 
-          {/* ── Row 2 ───────────────────────────────────────────── */}
+          {/* ── Row 2 ───────────────────────────────────────── */}
 
-          {/* R2C1 — 슬기로운 사회생활 어워드 (#8ce229) → /posts/wise-life */}
-          <Link to="/posts/wise-life" className="esg-hero__tile esg-hero__wise">
+          {/* R2C1 — 슬기로운 사회생활 어워드 (#8ce229) ※ 클릭 시 모달 예정 */}
+          <div className="esg-hero__tile esg-hero__wise">
             <div className="esg-hero__fg">
-              <p className="esg-hero__award-h">
-                슬기로운 사회생활<br />어워드
-              </p>
+              <p className="esg-hero__wise-h">슬기로운 사회생활<br />어워드</p>
             </div>
-          </Link>
+          </div>
 
-          {/* R2C2 — 사진 타일 */}
+          {/* R2C2 — 사진 */}
           <div className="esg-hero__tile" aria-hidden="true">
             <div
               className="esg-hero__bg esg-hero__photo esg-hero__zoom"
@@ -137,53 +107,31 @@ export function HomeHero() {
             />
           </div>
 
-          {/* R2C3 — 제로 웨이스트 어워드 (#00422b) → /posts/zero-waste */}
-          <Link to="/posts/zero-waste" className="esg-hero__tile esg-hero__zero">
+          {/* R2C3 — 제로 웨이스트 어워드 (#00422b) ※ 클릭 시 모달 예정 */}
+          <div className="esg-hero__tile esg-hero__zero">
+            {/* 봉투 SVG (Figma export) — fg 밖 절대배치라 텍스트와 겹침 */}
+            <img className="esg-hero__zero-bag esg-hero__zoom" src="/home/zerobag.svg" alt="" aria-hidden="true" />
             <div className="esg-hero__fg">
               {/* 상단 제목 */}
               <div>
                 <p className="esg-hero__zero-en">ZERO WASTE</p>
-                <p className="esg-hero__award-h" style={{ color: '#fff' }}>
-                  제로 웨이스트 어워드
-                </p>
+                <p className="esg-hero__zero-ko">제로 웨이스트 어워드</p>
               </div>
-
-              {/* 중앙 봉투 일러스트 (추후 Figma export 교체 가능) */}
-              <svg
-                className="esg-hero__zero-bag esg-hero__zoom"
-                viewBox="0 0 120 130"
-                fill="none"
-                aria-hidden="true"
-              >
-                <path
-                  d="M40 42 V30 a20 20 0 0 1 40 0 V42"
-                  stroke="#fff"
-                  strokeWidth="5"
-                  strokeLinecap="round"
-                />
-                <path
-                  d="M26 42 H94 L87 122 H33 Z"
-                  stroke="#fff"
-                  strokeWidth="5"
-                  strokeLinejoin="round"
-                />
-                <line x1="30" y1="82" x2="90" y2="82" stroke="#beff9b" strokeWidth="5" />
-              </svg>
-
-              {/* 하단 캡션 */}
-              <div className="esg-hero__gap8">
-                <div className="esg-hero__gap2">
+              {/* 하단 캡션 (봉투는 위에서 절대배치로 중앙 영역 채움) */}
+              <div className="esg-hero__zero-caps">
+                <div className="esg-hero__zero-cap-grp">
                   <p className="esg-hero__zero-cap1">후보자 추천 및 좋아요 투표</p>
-                  <p className="esg-hero__zero-cap1">6/8 — 6/22</p>
+                  <p className="esg-hero__zero-cap1-en">6/8 — 6/22</p>
                 </div>
                 <p className="esg-hero__zero-cap2">
-                  <b>6/30</b> 창립기념일 행사에서 시상
+                  <span className="d">6/30</span>
+                  <span className="k">창립기념일 행사에서 시상</span>
                 </p>
               </div>
             </div>
-          </Link>
+          </div>
 
-          {/* R2C4 — 사진 타일 */}
+          {/* R2C4 — 사진 */}
           <div className="esg-hero__tile" aria-hidden="true">
             <div
               className="esg-hero__bg esg-hero__photo esg-hero__zoom"
