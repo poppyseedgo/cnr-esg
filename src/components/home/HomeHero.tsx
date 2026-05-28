@@ -36,14 +36,14 @@ export function HomeHero() {
             />
           </div>
 
-          {/* R1C2 — 브랜드 (#00422b) */}
+          {/* R1C2 — 브랜드 (#00422b) — 슬로건 위, 로고 아래 (Figma 927) */}
           <div className="esg-hero__tile esg-hero__brand">
             <div className="esg-hero__fg">
-              <img className="esg-hero__brand-logo" src="/home/cnr-research.svg" alt="C&amp;R RESEARCH" />
               <div className="esg-hero__brand-slogan">
                 <div className="esg-hero__brand-ko">사람의 건강을<br />지원하는 나의 사명</div>
                 <div className="esg-hero__brand-ko">지구의 건강을<br />지키는 우리의 실천</div>
               </div>
+              <img className="esg-hero__brand-logo" src="/home/cnr-research.svg" alt="C&amp;R RESEARCH" />
             </div>
           </div>
 

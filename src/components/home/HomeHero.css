@@ -97,25 +97,19 @@ a.esg-hero__tile { cursor: pointer; }
 .esg-hero__fg p { margin: 0; }
 
 /* ============================================================================
-   [브랜드] #00422b — pt24 pb40 px24, justify-center (Figma 927:47 "포스터")
-   구조: 로고 + 슬로건묶음을 한 그룹으로 세로 중앙. 그룹 내부 gap 100px.
-        슬로건은 2블록(각 2줄), 블록 간 gap 40px. 클로버 없음.
+   [브랜드] #00422b — pt24 pb24 px24, justify-between (Figma 927:47 "포스터")
+   구조: ① 슬로건(맨 위) ② C&R RESEARCH 로고(맨 아래). 슬로건 2블록(각 2줄) gap 40px.
+        ※ 콘텐츠박스 432×498, 슬로건 top0 / 로고 y435(바닥) → justify-between
    ============================================================================ */
 .esg-hero__brand { background: #00422b; }
 .esg-hero__brand .esg-hero__fg {
   align-items: center;
-  justify-content: center;           /* 로고+슬로건 묶음 세로 중앙 */
+  justify-content: space-between;    /* 슬로건 위 ↔ 로고 아래 */
   text-align: center;
   color: #fff;
-  padding: 5cqw 5cqw 8.333cqw;       /* pt24 px24 pb40 */
-  gap: 20.833cqw;                    /* 로고 ↔ 슬로건 묶음 100px */
+  padding: 5cqw;                     /* pt24 pb24 px24 (콘텐츠박스 498 = 562-24*2... 실측 균등24) */
 }
-.esg-hero__brand-logo {              /* C&R RESEARCH 영문 로고 SVG (394×63) */
-  width: 80.625cqw;                  /* 387/480 (Figma 로고 내부폭) */
-  height: auto;
-  display: block;
-}
-.esg-hero__brand-slogan {           /* 슬로건 2블록 묶음 */
+.esg-hero__brand-slogan {           /* 슬로건 2블록 묶음 — 맨 위 */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -127,6 +121,11 @@ a.esg-hero__tile { cursor: pointer; }
   font-size: 5.833cqw;               /* 28px */
   line-height: 1.5;
   white-space: nowrap;
+}
+.esg-hero__brand-logo {              /* C&R RESEARCH 영문 로고 SVG (394×63) — 맨 아래 */
+  width: 82.083cqw;                  /* 394/480 (Figma svg 프레임폭) */
+  height: auto;
+  display: block;
 }
 
 /* ============================================================================
