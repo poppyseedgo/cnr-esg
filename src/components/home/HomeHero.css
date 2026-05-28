@@ -107,26 +107,18 @@ a.esg-hero__tile { cursor: pointer; }
   color: #fff;
   padding: 5cqw 5cqw 8.333cqw;       /* pt24 px24 pb40 */
 }
-.esg-hero__brand-en {
-  font-family: 'Instrument Sans', sans-serif;
-  font-weight: 400;
-  font-size: 10.222cqw;              /* 사용자 조정 */
-  letter-spacing: 0.02em;            /* tracking 0.76 */
-  line-height: 1.25;
-  white-space: nowrap;
-  text-transform: capitalize;
+.esg-hero__brand-logo {              /* C&R RESEARCH 영문 로고 SVG (394×63) */
+  width: 62.5cqw;                    /* 300/480 (Figma 로고 그룹폭) */
+  height: auto;
+  display: block;
 }
 .esg-hero__brand-ko {
-  font-weight: 400;
+  font-weight: 300;
   font-size: 6cqw;                   /* 사용자 조정 (5→6) */
   line-height: 1.5;
   white-space: nowrap;               /* 사용자 추가 */
 }
-.esg-hero__brand-clover {            /* 하단 클로버 마크 SVG 96px */
-  width: 20cqw;                      /* 96/480 */
-  height: 20cqw;
-  display: block;
-}
+/* 하단 클로버 마크 — 임시 삭제 (2026-05-28). 복원 시 brand-clover 스타일 + TSX img 추가 */
 
 /* ============================================================================
    [바자회+경매] #8ce229 — Figma 926:306 "창립기념일" 1:1
