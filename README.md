@@ -4,7 +4,7 @@ C&R 29주년 창립기념일 ESG 이벤트 사이트.
 
 ## 📋 프로젝트 개요
 
-- **이벤트 기간**: 2026-06-30 09:00 ~ 2026-07-10 18:00 (KST)
+- **이벤트 기간**: 2026-06-08 09:00 ~ 2026-07-10 18:00 (KST)
 - **대상**: C&R 직원 약 525명 (USER 517 + ADMIN 8)
 - **주요 기능**:
   - Posting: ESG 아이디어 / 제로 웨이스트 / 슬기로운 사회 생활 어워드 (3개 카테고리)
@@ -42,6 +42,7 @@ cp .env.example .env.local
 ### 3. DB 마이그레이션 적용 (이전 단계)
 
 `supabase/migrations/` 내 5개 SQL 파일을 순서대로 적용. README 별도 존재:
+
 ```
 supabase/migrations/README.md
 ```
@@ -54,6 +55,7 @@ npm run dev
 ```
 
 브라우저에서 다음이 확인되면 셋업 성공:
+
 - ✅ Supabase 연결 성공
 - 이벤트 페이즈: `prelude`
 - 설정값 10개 표시
@@ -122,18 +124,20 @@ cnr-esg/
 
 ## 🛠 빌드 명령
 
-| 명령 | 용도 |
-|---|---|
-| `npm run dev` | 개발 서버 (port 5173) |
-| `npm run build` | 프로덕션 빌드 |
-| `npm run preview` | 빌드 결과 로컬 확인 |
+| 명령                 | 용도                                  |
+| -------------------- | ------------------------------------- |
+| `npm run dev`        | 개발 서버 (port 5173)                 |
+| `npm run build`      | 프로덕션 빌드                         |
+| `npm run preview`    | 빌드 결과 로컬 확인                   |
 | `npm run type-check` | TypeScript 타입만 검사 (배포 전 필수) |
 
 ## 🚢 Cloudflare Pages 배포
 
-도메인 확정 후 진행. 현재는 Cloudflare Pages 기본 도메인(`<project>.pages.dev`)으로 충분.
+esg.cnrres.store
+cnrres.store
 
 ### Cloudflare Pages 설정
+
 - **Build command**: `npm run build`
 - **Build output directory**: `dist`
 - **Node version**: 20 (또는 22)
@@ -144,11 +148,13 @@ cnr-esg/
   - `VITE_APP_ENV` = `production` (또는 `staging`)
 
 ### Git Branch 전략 (C&R Space와 동일)
+
 - `dev` → Preview 배포 (개발 확인)
 - `staging` → Preview 배포 (QA)
 - `main` → Production 배포
 
 ### 배포 전 체크리스트
+
 - [ ] `npm run build` 로컬 성공 확인 (chain `&&` 사용 금지, 단독 실행)
 - [ ] `npm run type-check` 통과
 - [ ] DB 마이그레이션 적용 완료
@@ -156,16 +162,16 @@ cnr-esg/
 
 ## 🔜 다음 Phase
 
-| Phase | 내용 | 상태 |
-|---|---|---|
-| 0-1 | DB 마이그레이션 | ✅ 완료 |
-| **0-2A** | **프로젝트 셋업 (인증 무관)** | **✅ 현재** |
-| 0-2B | 인증 모듈 (방식 확정 후) | 대기 |
-| 0-3 | 라우팅 + AuthGate | 대기 |
-| 1 | 홈화면 + 페이즈별 분기 | 대기 |
-| 2 | Posting (게시글 CRUD + 좋아요 + 댓글) | 대기 |
-| 3 | 바자회 + 결제 | 대기 |
-| 4 | 경매 + 실시간 비딩 | 대기 |
-| 5 | 마이페이지 + 어드민 | 대기 |
-| 6 | 디자인 적용 (피그마 기반) | 대기 |
-| 7 | QA + 런칭 | 대기 |
+| Phase    | 내용                                  | 상태        |
+| -------- | ------------------------------------- | ----------- |
+| 0-1      | DB 마이그레이션                       | ✅ 완료     |
+| **0-2A** | **프로젝트 셋업 (인증 무관)**         | **✅ 현재** |
+| 0-2B     | 인증 모듈 (방식 확정 후)              | ✅ 완료     |
+| 0-3      | 라우팅 + AuthGate                     | ✅ 완료     |
+| 1        | 홈화면 + 페이즈별 분기                | ✅ 완료     |
+| 2        | Posting (게시글 CRUD + 좋아요 + 댓글) | ✅ 완료     |
+| 3        | 바자회 + 결제                         | ✅ 완료     |
+| 4        | 경매 + 실시간 비딩                    | ✅ 완료     |
+| 5        | 마이페이지 + 어드민                   | ✅ 완료     |
+| 6        | 디자인 적용 (피그마 기반)             | 대기        |
+| 7        | QA + 런칭                             | 대기        |
