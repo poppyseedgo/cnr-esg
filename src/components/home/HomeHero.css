@@ -37,7 +37,7 @@
   margin-bottom: 24px;
 }
 .esg-hero__inner {
-  max-width: 1920px;                 /* 1920 초과 시 중앙 정렬, 양옆은 페이지 배경 */
+  max-width: 2600px;                 /* 1920 초과 시 중앙 정렬, 양옆은 페이지 배경 */
   margin: 0 auto;
 }
 
@@ -119,7 +119,7 @@ a.esg-hero__tile { cursor: pointer; }
 .esg-hero__brand-en {
   font-family: 'Instrument Sans', sans-serif;
   font-weight: 400;
-  font-size: 7.917cqw;               /* 38px (← 정정: 기존 28px) */
+  font-size: 11cqw;               /* 38px (← 정정: 기존 28px) */
   letter-spacing: 0.02em;            /* tracking 0.76 */
   line-height: 1.25;
   white-space: nowrap;
@@ -176,25 +176,18 @@ a.esg-hero__tile { cursor: pointer; }
   letter-spacing: 0.06em;            /* tracking 1.44 */
   white-space: nowrap;
 }
-/* 곡선 텍스트 "Online Charity Market" — 화살표 위에 곡선 배치 */
-.esg-hero__bazaar-curve {
-  width: 100%;
-  height: auto;
-  display: block;
+/* 곡선 텍스트 + 화살표 통합 SVG (charity-arrow.svg, 274×156)
+   Figma: 곡선 "Online Charity Market" + 라임 화살표가 한 덩어리.
+   타일 중앙 영역에 절대배치 (상단 2컬럼과 하단 텍스트 사이) */
+.esg-hero__bazaar-emblem {
   position: absolute;
-  left: 0;
-  top: 40cqw;                        /* 곡선 시작(엠블럼 상단) — 화살표와 간격 확보 */
-  pointer-events: none;
-}
-/* 화살표 SVG — Figma left190 top237 (100×71) 절대배치, 곡선 아래 중앙 */
-.esg-hero__bazaar-arrow {
-  position: absolute;
-  left: 50%;                         /* 중앙 정렬(Figma 시각 기준) */
+  left: 50%;
+  top: 36cqw;                        /* 상단 2컬럼 아래 ~ 하단 텍스트 위 중앙 영역 */
   transform: translateX(-50%);
-  top: 49.375cqw;                    /* 237/480 */
-  width: 20.833cqw;                  /* 100/480 */
+  width: 58cqw;                      /* 곡선+화살표 묶음 폭 (aspect 1.756 자동 유지) */
   height: auto;
   display: block;
+  pointer-events: none;
 }
 /* 하단 "2026 / Bazzar & Auction" — Figma top412 절대배치 */
 .esg-hero__bazaar-foot {
@@ -236,7 +229,7 @@ a.esg-hero__tile { cursor: pointer; }
 }
 .esg-hero__wise-h {
   font-family: 'Pretendard', sans-serif;
-  font-weight: 300;                  /* Light */
+  font-weight: 400;                  /* Light */
   font-size: 7.917cqw;               /* 38px */
   line-height: 1.25;
   text-align: left;
@@ -254,13 +247,11 @@ a.esg-hero__tile { cursor: pointer; }
   color: #fff;
   padding: 5cqw 4.375cqw 9.167cqw 5cqw;  /* pt24 pr21 pb44 pl24 */
 }
-.esg-hero__zero-en {
-  font-family: 'Instrument Sans', sans-serif;
-  font-weight: 400;
-  font-size: 7.917cqw;               /* 38px */
-  letter-spacing: 0.02em;
-  line-height: 1.3;
-  white-space: nowrap;
+.esg-hero__zero-logo {                /* ZERO WASTE 영문 로고 SVG (Ø 빗금 포함, 236×45) */
+  width: 50.417cqw;                  /* 242/480 (Figma 그룹폭) */
+  height: auto;
+  display: block;
+  margin: 0 auto 1.04cqw;            /* 중앙 정렬 + 한글과 간격(5px) */
 }
 .esg-hero__zero-ko {
   font-family: 'Pretendard', sans-serif;
@@ -295,7 +286,7 @@ a.esg-hero__tile { cursor: pointer; }
 }
 .esg-hero__zero-cap1 {
   font-family: 'Pretendard', sans-serif;
-  font-weight: 500;                  /* Medium */
+  font-weight: 400;                  /* Medium */
   font-size: 3.333cqw;               /* 16px */
   line-height: 1.25;
   white-space: nowrap;
@@ -324,5 +315,5 @@ a.esg-hero__tile { cursor: pointer; }
 }
 .esg-hero__zero-cap2 .k {            /* 창립기념일 행사에서 시상 (Pretendard SemiBold) */
   font-family: 'Pretendard', sans-serif;
-  font-weight: 600;
+  font-weight: 400;
 }

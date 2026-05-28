@@ -62,27 +62,17 @@ export function HomeHero() {
               {/* 상단 2컬럼 */}
               <div className="esg-hero__bazaar-row">
                 <div className="esg-hero__bazaar-col">
-                  <div className="esg-hero__bazaar-ttl">2026<br />창립기념<br />ESG 온라인 바자회</div>
+                  <div className="esg-hero__bazaar-ttl">2026<br />C&amp;R 창립기념<br />바자회</div>
                   <p className="esg-hero__bazaar-date">6/30 — 7/10</p>
                 </div>
                 <div className="esg-hero__bazaar-col">
-                  <div className="esg-hero__bazaar-ttl">2026<br />창립기념<br />ESG 온라인 경매</div>
+                  <div className="esg-hero__bazaar-ttl">2026<br />C&amp;R 창립기념<br />경매</div>
                   <p className="esg-hero__bazaar-date">6/30 — 7/10</p>
                 </div>
               </div>
 
-              {/* 곡선 텍스트 "Online Charity Market" (텍스트라 인라인 SVG 유지) */}
-              <svg className="esg-hero__bazaar-curve" viewBox="0 0 480 200" fill="none" aria-hidden="true">
-                <defs>
-                  <path id="esgOcmArc" d="M70 150 A 180 180 0 0 1 410 150" fill="none" />
-                </defs>
-                <text fontFamily="'Instrument Sans', sans-serif" fontSize="22" letterSpacing="2" fill="#0d2e16">
-                  <textPath href="#esgOcmArc" startOffset="50%" textAnchor="middle">Online Charity Market</textPath>
-                </text>
-              </svg>
-
-              {/* 화살표 SVG (Figma export) */}
-              <img className="esg-hero__bazaar-arrow esg-hero__zoom" src="/home/arrow.svg" alt="" aria-hidden="true" />
+              {/* 곡선 텍스트 + 화살표 통합 SVG (Figma export) */}
+              <img className="esg-hero__bazaar-emblem esg-hero__zoom" src="/home/charity-arrow.svg" alt="" aria-hidden="true" />
 
               {/* 하단 텍스트(절대배치) */}
               <p className="esg-hero__bazaar-foot">2026<br />Bazzar &amp; Auction</p>
@@ -114,7 +104,7 @@ export function HomeHero() {
             <div className="esg-hero__fg">
               {/* 상단 제목 */}
               <div>
-                <p className="esg-hero__zero-en">ZERO WASTE</p>
+                <img className="esg-hero__zero-logo esg-hero__zoom" src="/home/zerowaste-logo.svg" alt="ZERO WASTE" />
                 <p className="esg-hero__zero-ko">제로 웨이스트 어워드</p>
               </div>
               {/* 하단 캡션 (봉투는 위에서 절대배치로 중앙 영역 채움) */}
