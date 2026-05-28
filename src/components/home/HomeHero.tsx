@@ -71,12 +71,8 @@ export function HomeHero() {
                 </div>
               </div>
 
-              {/* 곡선 텍스트 + 화살표 통합 SVG (Figma export) */}
-              <img className="esg-hero__bazaar-emblem esg-hero__zoom" src="/home/charity-arrow.svg" alt="" aria-hidden="true" />
-
-              {/* 하단 텍스트(절대배치) */}
-              <p className="esg-hero__bazaar-foot">2026<br />Bazzar &amp; Auction</p>
-              <p className="esg-hero__bazaar-footdate">6/30 — 7/10</p>
+              {/* 화살표 + Online Charity Market + Bazzar&Auction + 날짜 통합 SVG (Figma export) */}
+              <img className="esg-hero__bazaar-emblem" src="/home/charity-arrow.svg" alt="Online Charity Market — 2026 Bazzar & Auction, 6/30—7/10" />
             </div>
           </div>
 
