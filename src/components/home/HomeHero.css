@@ -119,7 +119,7 @@ a.esg-hero__tile { cursor: pointer; }
 .esg-hero__brand-en {
   font-family: 'Instrument Sans', sans-serif;
   font-weight: 400;
-  font-size: 11cqw;               /* 38px (← 정정: 기존 28px) */
+  font-size: 10.222cqw;               /* 38px (← 정정: 기존 28px) */
   letter-spacing: 0.02em;            /* tracking 0.76 */
   line-height: 1.25;
   white-space: nowrap;
@@ -127,7 +127,7 @@ a.esg-hero__tile { cursor: pointer; }
 }
 .esg-hero__brand-ko {
   font-weight: 400;
-  font-size: 5cqw;                   /* 24px */
+  font-size: 6cqw;                   /* 24px */
   line-height: 1.5;
   white-space: nowrap;
 }
@@ -149,7 +149,7 @@ a.esg-hero__tile { cursor: pointer; }
 }
 .esg-hero__bazaar-row {              /* 상단 2컬럼 */
   display: flex;
-  gap: 8.333cqw;                     /* 40px */
+  gap: 16cqw;                     /* 40px */
   align-items: flex-start;
   justify-content: center;
 }
