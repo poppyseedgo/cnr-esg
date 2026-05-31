@@ -11,17 +11,54 @@
 //   색이 SVG 내부에 박혀 있어 <img>로 그대로 렌더. 곡선 텍스트만 인라인 SVG(텍스트).
 // 사진 타일: CSS background-image(/home/home-01~04.jpg). 없으면 크림(#f7eee2) 폴백.
 //
-// 포스터 타일 클릭 = 행사정보 모달 오픈 예정(현재 onClick 핸들러 없음, 페이지 이동 아님).
+// 포스터 타일 클릭 = 행사안내 모달 오픈 (?modal=bazaar|wise|zero, URL 동기화)
+//   - 바자회+경매 → 'bazaar' 참여안내
+//   - 슬기로운    → 'wise'   참여안내+투표
+//   - 제로웨이스트 → 'zero'  참여안내+투표
+//   - 브랜드/사진 타일은 클릭 없음
 //
 // 변경 이력:
 //   2026-05-28  최초 작성
-//   2026-05-28  Figma 실측 전면 정정 + 일러스트 SVG 적용, Link 제거(모달 연결 대기)  // ← [정정]
+//   2026-05-28  Figma 실측 전면 정정 + 일러스트 SVG 적용
+//   2026-05-28  포스터 클릭 → 모달 연결(useSearchParams URL 동기화, EventModal 주입)
 // ============================================================================
 
+import { useSearchParams } from 'react-router-dom';
+import { EventModal } from './EventModal';
+import { isEventModalKey, type EventModalKey } from './eventModalContent';
 import './HomeHero.css';
 
 export function HomeHero() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const rawModal = searchParams.get('modal');
+  const activeModal: EventModalKey | null = isEventModalKey(rawModal) ? rawModal : null;
+
+  // 모달 열기: ?modal=<key> 세팅 (뒤로가기 시 닫히도록 history push)
+  const openModal = (key: EventModalKey) => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set('modal', key);
+        return next;
+      },
+      { replace: false },
+    );
+  };
+
+  // 모달 닫기: modal 파라미터 제거
+  const closeModal = () => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('modal');
+        return next;
+      },
+      { replace: false },
+    );
+  };
+
   return (
+    <>
     <section className="esg-hero" aria-label="C&R 29주년 ESG 이벤트 주요 활동">
       <div className="esg-hero__inner">
         <div className="esg-hero__grid">
@@ -40,8 +77,8 @@ export function HomeHero() {
           <div className="esg-hero__tile esg-hero__brand">
             <div className="esg-hero__fg">
               <div className="esg-hero__brand-slogan">
-                <div className="esg-hero__brand-ko">사람의 건강을<br />지원하는 나의 사명</div>
-                <div className="esg-hero__brand-ko">지구의 건강을<br />지키는 우리의 실천</div>
+                <div className="esg-hero__brand-ko">사람의 건강을 지원하는 나의 사명</div>
+                <div className="esg-hero__brand-ko">지구의 건강을 지키는 우리의 실천</div>
               </div>
               <img className="esg-hero__brand-logo" src="/home/cnr-research.svg" alt="C&amp;R RESEARCH" />
             </div>
@@ -55,8 +92,15 @@ export function HomeHero() {
             />
           </div>
 
-          {/* R1C4 — 바자회 + 경매 (#8ce229) ※ 클릭 시 모달 예정 */}
-          <div className="esg-hero__tile esg-hero__bazaar">
+          {/* R1C4 — 바자회 + 경매 (#8ce229) → 참여안내 모달 */}
+          <div
+            className="esg-hero__tile esg-hero__bazaar esg-hero__clickable"
+            role="button"
+            tabIndex={0}
+            aria-label="바자회·경매 참여안내 보기"
+            onClick={() => openModal('bazaar')}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openModal('bazaar'); } }}
+          >
             <div className="esg-hero__fg">
               {/* 상단 2컬럼 */}
               <div className="esg-hero__bazaar-row">
@@ -77,8 +121,15 @@ export function HomeHero() {
 
           {/* ── Row 2 ───────────────────────────────────────── */}
 
-          {/* R2C1 — 슬기로운 사회생활 어워드 (#8ce229) ※ 클릭 시 모달 예정 */}
-          <div className="esg-hero__tile esg-hero__wise">
+          {/* R2C1 — 슬기로운 사회생활 어워드 (#8ce229) → 참여안내+투표 모달 */}
+          <div
+            className="esg-hero__tile esg-hero__wise esg-hero__clickable"
+            role="button"
+            tabIndex={0}
+            aria-label="슬기로운 사회생활 어워드 참여안내 보기"
+            onClick={() => openModal('wise')}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openModal('wise'); } }}
+          >
             <div className="esg-hero__fg">
               <p className="esg-hero__wise-h">슬기로운 사회생활<br />어워드</p>
             </div>
@@ -92,8 +143,15 @@ export function HomeHero() {
             />
           </div>
 
-          {/* R2C3 — 제로 웨이스트 어워드 (#00422b) ※ 클릭 시 모달 예정 */}
-          <div className="esg-hero__tile esg-hero__zero">
+          {/* R2C3 — 제로 웨이스트 어워드 (#00422b) → 참여안내+투표 모달 */}
+          <div
+            className="esg-hero__tile esg-hero__zero esg-hero__clickable"
+            role="button"
+            tabIndex={0}
+            aria-label="제로 웨이스트 어워드 참여안내 보기"
+            onClick={() => openModal('zero')}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openModal('zero'); } }}
+          >
             {/* 봉투 SVG (Figma export) — fg 밖 절대배치라 텍스트와 겹침 */}
             <img className="esg-hero__zero-bag esg-hero__zoom" src="/home/zerobag.svg" alt="" aria-hidden="true" />
             <div className="esg-hero__fg">
@@ -127,5 +185,9 @@ export function HomeHero() {
         </div>
       </div>
     </section>
+
+    {/* 행사안내 모달 (?modal=bazaar|wise|zero) */}
+    {activeModal && <EventModal modalKey={activeModal} onClose={closeModal} />}
+    </>
   );
 }

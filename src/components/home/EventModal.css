@@ -1,0 +1,133 @@
+/* ============================================================================
+   EventModal.css — 홈 포스터 클릭 시 뜨는 공용 행사안내 모달 셸
+
+   설계:
+     - 오버레이: 배경 dim + blur, 중앙 정렬
+     - 모달: auto full-height (콘텐츠가 길면 화면 높이-여백까지만, 내부 스크롤)
+             100dvh 사용 → 모바일 주소창 변화 대응
+     - 닫기: X 버튼(우상단) + 하단 fixed 닫기 버튼 (+ ESC/배경클릭은 JS에서)
+     - 애니메이션: 오버레이 fade + 모달 scale-up (포스터 진입 확대와 톤 통일)
+
+   변경 이력:
+     2026-05-28  최초 작성 (모달 인프라 — 디자인 확정 전 셸)
+   ============================================================================ */
+
+/* ── 오버레이 (dim + blur) ──────────────────────────────────── */
+.esg-modal__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.5);            /* dim */
+  backdrop-filter: blur(6px);                /* blur */
+  -webkit-backdrop-filter: blur(6px);
+  animation: esgModalFade 0.2s ease both;
+}
+
+/* ── 모달 박스 ──────────────────────────────────────────────── */
+.esg-modal {
+  position: relative;
+  width: 100%;
+  max-width: 560px;                          /* 디자인 확정 시 조정 */
+  max-height: calc(100dvh - 48px);           /* auto full-height: 화면-여백까지만 */
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 20px;
+  overflow: hidden;                          /* 모서리 라운드 클립 */
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.25);
+  animation: esgModalPop 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* ── 본문 (스크롤 영역) ─────────────────────────────────────── */
+.esg-modal__body {
+  flex: 1 1 auto;
+  overflow-y: auto;                          /* 내용 길면 내부 스크롤 */
+  padding: 40px 32px 24px;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── X 버튼 (우상단 고정) ───────────────────────────────────── */
+.esg-modal__close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 2;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.05);
+  color: #111;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.esg-modal__close:hover { background: rgba(0, 0, 0, 0.12); }
+.esg-modal__close svg { width: 20px; height: 20px; }
+
+/* ── 하단 fixed 닫기 버튼 ───────────────────────────────────── */
+.esg-modal__footer {
+  flex: 0 0 auto;
+  padding: 16px 32px 24px;
+  border-top: 1px solid #f0f0f0;
+  background: #fff;
+}
+.esg-modal__close-btn {
+  width: 100%;
+  height: 52px;
+  border: none;
+  border-radius: 12px;
+  background: #00422b;                        /* 딥그린 (브랜드 톤) */
+  color: #fff;
+  font-family: 'Pretendard', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.esg-modal__close-btn:hover { background: #00553a; }
+
+/* ── 애니메이션 ─────────────────────────────────────────────── */
+@keyframes esgModalFade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes esgModalPop {
+  from { opacity: 0; transform: scale(0.94); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .esg-modal__overlay,
+  .esg-modal { animation: none; }
+}
+
+/* ── 본문 placeholder (디자인 확정 전 임시) ─────────────────── */
+.esg-modal__title {
+  font-family: 'Pretendard', sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: #111;
+  margin: 0 0 8px;
+}
+.esg-modal__subtitle {
+  font-family: 'Pretendard', sans-serif;
+  font-size: 15px;
+  color: #666;
+  margin: 0 0 24px;
+}
+.esg-modal__placeholder {
+  font-family: 'Pretendard', sans-serif;
+  font-size: 14px;
+  color: #999;
+  line-height: 1.7;
+  padding: 24px;
+  border: 1px dashed #ddd;
+  border-radius: 12px;
+  text-align: center;
+}
