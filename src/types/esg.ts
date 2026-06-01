@@ -149,6 +149,47 @@ export interface EsgSettingsValueMap {
   activity_periods: EsgActivityPeriods;
   /** 바자회/경매 상품 상세 페이지의 "상품 수령" 탭에 표시되는 공통 안내 (markdown) */
   delivery_info: string;
+  /**
+   * 바자회 참여 물품 가이드 (홈 포스터 모달 본문).
+   * 구조는 고정, 텍스트만 어드민에서 편집 가능.
+   * 데이터 없으면 BazaarGuide 컴포넌트의 기본값 폴백.
+   */
+  bazaar_guide: EsgBazaarGuide;
+}
+
+/** 바자회 가이드 — 텍스트 편집 가능한 필드 모음 */
+export interface EsgBazaarGuide {
+  /** 기본 원칙 강조 박스 (highlight = 굵게 강조 부분, subtitle = 둘째 줄) */
+  principle: {
+    highlight: string;
+    subtitle: string;
+  };
+  /** 물품별 기부 기준 카드 10종 — 순서 고정 */
+  categories: Array<{
+    /** 카테고리 식별자 (고정, 변경 금지) */
+    id: string;
+    /** 표시 이름 (편집 가능) */
+    name: string;
+    /** 신규 배지 표시 여부 (편집 가능) */
+    isNew: boolean;
+    /** 가능 기준 텍스트 (편집 가능) */
+    allowed: string;
+    /** 불가 기준 텍스트 (편집 가능) */
+    disallowed: string;
+  }>;
+  /** 공통 불가 기준 5개 항목 (텍스트만 편집) */
+  commonDisallowed: string[];
+  /** 기부 접수 절차 3단계 */
+  steps: Array<{
+    title: string;
+    /** 부가 설명 (없으면 빈 문자열) */
+    desc: string;
+  }>;
+  /** 하단 자원순환 ESG 메시지 (highlight = 굵게 강조 부분) */
+  footerMessage: {
+    text: string;
+    highlight: string;
+  };
 }
 
 export type EsgSettingsKey = keyof EsgSettingsValueMap;

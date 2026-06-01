@@ -23,6 +23,7 @@
 
 import type { ReactNode } from 'react';
 import type { EventModalButton } from './EventModal';
+import { BazaarGuide } from './BazaarGuide';
 
 export type EventModalKey = 'brand' | 'bazaar' | 'wise' | 'zero';
 
@@ -68,9 +69,9 @@ export const EVENT_MODAL_CONTENT: Record<EventModalKey, EventModalContent> = {
   },
   bazaar: {
     title: '바자회 & 경매 참여안내',
-    subtitle: '2026 C&R 창립기념 · 6/30 — 7/10',
-    hero: null,                     // 디자인 확정 시 이미지 URL 또는 undefined로
-    body: PLACEHOLDER_BODY,
+    subtitle: '참여 물품 가이드 · 2026 C&R 창립기념 · 6/30 — 7/10',
+    // hero 생략 → 이미지 영역 미표시 (가이드 콘텐츠가 풍부해서 본문에 집중)
+    body: <BazaarGuide />,
   },
   wise: {
     title: '슬기로운 사회생활 어워드',
