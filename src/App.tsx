@@ -64,6 +64,7 @@ import { AdminEmails } from '@/pages/admin/AdminEmails';
 import { AdminDonations } from '@/pages/admin/AdminDonations';
 import { AdminQA } from '@/pages/admin/AdminQA';
 import { AdminBazaarGuide } from '@/pages/admin/AdminBazaarGuide';
+import { AdminFaq } from '@/pages/admin/AdminFaq';
 import { NotificationsPage } from '@/pages/NotificationsPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 
@@ -169,6 +170,7 @@ const router = createBrowserRouter([
           { path: 'posts', element: <AdminPosts /> },
           { path: 'qa', element: <AdminQA /> },
           { path: 'bazaar-guide', element: <AdminBazaarGuide /> },
+          { path: 'faq', element: <AdminFaq /> },
           { path: 'products', element: <AdminProducts /> },
           { path: 'auctions', element: <AdminAuctions /> },
           { path: 'orders', element: <AdminOrders /> },
