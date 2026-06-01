@@ -976,3 +976,86 @@ export interface EsgProductQuestionAnswerRow {
   created_at: string;
   updated_at: string | null;
 }
+
+// ============================================================================
+// FAQ + Q&A (행사 운영) — 상품 Q&A(esg_product_questions)와 별개 시스템
+// 2026-06-01 신규
+// ============================================================================
+
+/** Q&A 카테고리 (5종, 문의하기 모달 라디오 선택지) */
+export type EsgQnaCategory =
+  | 'general'      // 일반
+  | 'zero_waste'   // 제로 웨이스트 어워드
+  | 'wise_life'    // 슬기로운 사회생활 어워드
+  | 'bazaar'       // C&R 바자회
+  | 'auction';     // C&R 경매
+
+/** Q&A 카테고리 라벨 (Figma 풀네임) */
+export const ESG_QNA_CATEGORY_LABELS: Record<EsgQnaCategory, string> = {
+  general: '일반',
+  zero_waste: '제로 웨이스트 어워드',
+  wise_life: '슬기로운 사회생활 어워드',
+  bazaar: 'C&R 바자회',
+  auction: 'C&R 경매',
+};
+
+/** Q&A 카테고리 — 칩(목록 표시용) 약어 (Figma: 슬사생 어워드 등) */
+export const ESG_QNA_CATEGORY_CHIP_LABELS: Record<EsgQnaCategory, string> = {
+  general: '일반',
+  zero_waste: '제로 웨이스트 어워드',
+  wise_life: '슬사생 어워드',
+  bazaar: 'C&R 바자회',
+  auction: 'C&R 경매',
+};
+
+/** Q&A 질문 상태 */
+export type EsgQnaQuestionStatus = 'pending' | 'answered' | 'hidden';
+
+/** esg_faq row */
+export interface EsgFaqRow {
+  id: string;
+  question: string;
+  answer: string;
+  sort_order: number;
+  is_published: boolean;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+}
+
+/** esg_qna_questions row */
+export interface EsgQnaQuestionRow {
+  id: string;
+  category: EsgQnaCategory;
+  content: string;
+  author_id: string;
+  status: EsgQnaQuestionStatus;
+  created_at: string;
+}
+
+/** esg_qna_answers row */
+export interface EsgQnaAnswerRow {
+  id: string;
+  question_id: string;
+  content: string;
+  admin_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * 질문 + 답변 결합 (UI에서 자주 함께 쓰는 형태).
+ * Q&A 목록 조회 API가 question + answer(optional)를 묶어 반환.
+ */
+export interface EsgQnaQuestionWithAnswer extends EsgQnaQuestionRow {
+  answer: EsgQnaAnswerRow | null;
+}
+
+/**
+ * 어드민 화면용 질문 상세 (작성자 프로필 포함).
+ * 일반 사용자에게는 익명 노출이라 별도 타입.
+ */
+export interface EsgQnaQuestionWithAuthor extends EsgQnaQuestionRow {
+  author: { id: string; name: string; dept: string | null; email: string } | null;
+  answer: EsgQnaAnswerRow | null;
+}
