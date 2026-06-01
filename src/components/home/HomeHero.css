@@ -122,7 +122,7 @@ a.esg-hero__tile { cursor: pointer; }
   gap: 0.833cqw;                     /* 블록 간 4px */
 }
 .esg-hero__brand-ko {
-  font-family: 'Pretendard', sans-serif;
+  font-family: var(--font-sans);
   font-weight: 300;                  /* Light */
   font-size: 5cqw;                   /* 24px */
   line-height: 1.5;
@@ -202,7 +202,7 @@ a.esg-hero__tile { cursor: pointer; }
   padding: 4.167cqw 5cqw 9.167cqw;   /* pt20 px24 pb44 */
 }
 .esg-hero__wise-h {
-  font-family: 'Pretendard', sans-serif;
+  font-family: var(--font-sans);
   font-weight: 400;                  /* 사용자 조정 (300→400) */
   font-size: 7.917cqw;               /* 38px */
   line-height: 1.25;
@@ -228,7 +228,7 @@ a.esg-hero__tile { cursor: pointer; }
   margin: 0 auto 1.04cqw;            /* 중앙 정렬 + 한글과 간격(5px) */
 }
 .esg-hero__zero-ko {
-  font-family: 'Pretendard', sans-serif;
+  font-family: var(--font-sans);
   font-weight: 300;                  /* Light */
   font-size: 7.917cqw;               /* 38px */
   letter-spacing: -0.01em;           /* tracking -0.38 */
@@ -259,7 +259,7 @@ a.esg-hero__tile { cursor: pointer; }
   gap: 0.417cqw;                     /* 2px */
 }
 .esg-hero__zero-cap1 {
-  font-family: 'Pretendard', sans-serif;
+  font-family: var(--font-sans);
   font-weight: 400;                  /* 사용자 조정 (500→400) */
   font-size: 3.333cqw;               /* 16px */
   line-height: 1.25;
@@ -288,6 +288,6 @@ a.esg-hero__tile { cursor: pointer; }
   letter-spacing: 0.06em;            /* tracking 0.9 */
 }
 .esg-hero__zero-cap2 .k {            /* 창립기념일 행사에서 시상 (Pretendard) */
-  font-family: 'Pretendard', sans-serif;
+  font-family: var(--font-sans);
   font-weight: 400;                  /* 사용자 조정 (600→400) */
 }

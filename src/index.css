@@ -1,6 +1,11 @@
 /* ============================================================================
-   cnr-esg — 최소 글로벌 CSS (placeholder)
-   실제 디자인은 Phase 6에서 피그마 기반으로 교체.
+   cnr-esg — 글로벌 CSS
+   2026-06-01  Pretendard 강제 적용 정정 [근본]:
+                index.html이 Pretendard Variable(가변폰트)을 로드하는데, 기존 스택은
+                `-apple-system, BlinkMacSystemFont`가 Pretendard보다 앞이라
+                Mac/iOS에서 SF Pro가 우선 적용되어 OS별 두께·자형이 다르게 보였음.
+                → Pretendard Variable을 맨 앞으로, OS 시스템 폰트는 최종 fallback.
+                  가변폰트(weight 45~920 무단계) 매칭 보장.
    ============================================================================ */
 
 *,
@@ -9,21 +14,38 @@
   box-sizing: border-box;
 }
 
+/* 한글 본문 폰트: Pretendard Variable(가변) → Pretendard(정적) → OS fallback */
+:root {
+  --font-sans:
+    'Pretendard Variable', 'Pretendard',
+    -apple-system, BlinkMacSystemFont, system-ui,
+    'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic',
+    sans-serif;
+}
+
 html,
 body {
   margin: 0;
   padding: 0;
-  font-family:
-    -apple-system, BlinkMacSystemFont, 'Pretendard', 'Noto Sans KR',
-    system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-size: 14px;
   line-height: 1.5;
   color: #1a1a1a;
   background: #fafafa;
+  -webkit-font-smoothing: antialiased;        /* Pretendard 권장(자형 또렷) */
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
-button {
+/* 폼 요소: 브라우저 기본 폰트 무시하고 본문 폰트 상속 */
+button,
+input,
+select,
+textarea {
   font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
 }
 
 a {

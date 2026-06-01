@@ -63,7 +63,7 @@
   min-width: 0;                              /* word-break 허용 */
 }
 .esg-modal__title {
-  font-family: 'Pretendard', sans-serif;
+  font-family: var(--font-sans);
   font-weight: 500;                          /* Medium */
   font-size: 40px;
   line-height: 1.2;
@@ -72,7 +72,7 @@
   word-break: break-word;
 }
 .esg-modal__subtitle {
-  font-family: 'Pretendard', sans-serif;
+  font-family: var(--font-sans);
   font-weight: 400;                          /* Regular */
   font-size: 20px;
   line-height: 1.3;
@@ -131,7 +131,7 @@
   display: block;
 }
 .esg-modal__hero-placeholder {
-  font-family: 'Pretendard', sans-serif;
+  font-family: var(--font-sans);
   font-weight: 500;
   font-size: 16px;
   line-height: 1.5;
@@ -140,7 +140,7 @@
 
 /* ── 본문 텍스트 ─────────────────────────────────────────────── */
 .esg-modal__body {
-  font-family: 'Pretendard', sans-serif;
+  font-family: var(--font-sans);
   font-weight: 400;
   font-size: 14px;
   line-height: 1.6;
@@ -180,7 +180,7 @@
   height: 56px;
   border: none;
   border-radius: 16px;
-  font-family: 'Pretendard', sans-serif;
+  font-family: var(--font-sans);
   font-weight: 600;                          /* SemiBold */
   font-size: 14px;
   line-height: 1.5;
