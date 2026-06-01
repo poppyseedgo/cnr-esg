@@ -341,7 +341,7 @@
   }
   .faqqna-container__inner {
     gap: 80px;                /* 170 → 80 */
-    padding: 0 12px;          /* 좌우 12 — Figma 1034:881 */
+    padding: 0;               /* 좌우 padding 제거 — AppLayout의 padding이 이미 적용됨 */
   }
 
   /* ── 섹션 공통 ── */
