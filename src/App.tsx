@@ -65,6 +65,7 @@ import { AdminDonations } from '@/pages/admin/AdminDonations';
 import { AdminQA } from '@/pages/admin/AdminQA';
 import { AdminBazaarGuide } from '@/pages/admin/AdminBazaarGuide';
 import { AdminFaq } from '@/pages/admin/AdminFaq';
+import { AdminQnaEvent } from '@/pages/admin/AdminQnaEvent';
 import { NotificationsPage } from '@/pages/NotificationsPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 
@@ -171,6 +172,7 @@ const router = createBrowserRouter([
           { path: 'qa', element: <AdminQA /> },
           { path: 'bazaar-guide', element: <AdminBazaarGuide /> },
           { path: 'faq', element: <AdminFaq /> },
+          { path: 'qna-event', element: <AdminQnaEvent /> },
           { path: 'products', element: <AdminProducts /> },
           { path: 'auctions', element: <AdminAuctions /> },
           { path: 'orders', element: <AdminOrders /> },
