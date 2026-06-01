@@ -104,6 +104,11 @@
 .esg-modal__title--medium    { font-size: 24px; line-height: 1.5; white-space: nowrap; }
 .esg-modal__subtitle--medium { font-size: 14px; line-height: 1.4; color: #64748b; }
 
+/* ── Drag handle (모바일 bottom sheet) — 데스크탑에서는 숨김 ── */
+.esg-modal__handle {
+  display: none;                  /* 데스크탑 기본 hidden, 모바일에서 flex로 전환 */
+}
+
 /* ── X 버튼 ─────────────────────────────────────────────────── */
 .esg-modal__close {
   flex: 0 0 auto;
@@ -260,18 +265,96 @@
   .esg-modal { animation: none; }
 }
 
-/* ── 반응형 ─────────────────────────────────────────────────── */
-@media (max-width: 600px) {
-  .esg-modal__overlay { padding: 12px; }
-  .esg-modal { border-radius: 20px; }
+/* ── 반응형: 모바일 bottom sheet (≤768px) ─────────────────────
+   하단에서 슬라이드 업, 위쪽 모서리 radius 24, max-height 90vh
+   ─────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* Overlay — 하단 정렬, padding 제거 */
+  .esg-modal__overlay {
+    align-items: flex-end;        /* 하단 정렬 */
+    justify-content: stretch;
+    padding: 0;
+  }
+
+  /* 모달 박스 — bottom sheet 형태 */
+  .esg-modal {
+    width: 100%;
+    max-width: 100%;
+    max-height: 90vh;             /* 상단 10vh 여백 (iOS 표준) */
+    height: auto;                 /* 컨텐츠에 맞춤 */
+    border-radius: 24px 24px 0 0; /* 위쪽만 둥글게 */
+    /* Pop 애니메이션 대신 슬라이드 업 */
+    animation: esgSheetUp 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
+    /* iOS 회색 깜빡임 제거 */
+    -webkit-tap-highlight-color: transparent;
+  }
   .esg-modal--big,
-  .esg-modal--medium { width: 100%; }
+  .esg-modal--medium {
+    width: 100%;
+  }
+
+  /* Drag handle — 모바일에서만 표시 */
+  .esg-modal__handle {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 8px 0 4px;
+    cursor: grab;
+    touch-action: none;           /* 터치 이벤트 우리가 처리, 브라우저 기본 스크롤 무시 */
+    flex-shrink: 0;
+  }
+  .esg-modal__handle:active { cursor: grabbing; }
+  .esg-modal__handle-bar {
+    width: 36px;
+    height: 4px;
+    background: #d1d5db;
+    border-radius: 999px;
+  }
+
+  /* Header — 헤더 padding 조정 (모바일 압축) */
   .esg-modal__header--big,
-  .esg-modal__header--medium { padding: 14px 14px 14px 16px; }
+  .esg-modal__header--medium {
+    padding: 12px 16px;
+  }
   .esg-modal__title--big    { font-size: 28px; }
   .esg-modal__subtitle--big { font-size: 16px; white-space: normal; }
   .esg-modal__title--medium { font-size: 20px; white-space: normal; }
+
+  /* Contents — 본문 padding 압축 */
   .esg-modal__contents--big,
-  .esg-modal__contents--medium { padding: 16px; padding-bottom: 78px; }
-  .esg-modal__btn { font-size: 14px; height: 52px; }
+  .esg-modal__contents--medium {
+    padding: 16px;
+    padding-bottom: 16px;         /* fade 없으므로 추가 여백 제거 */
+  }
+
+  /* Scroll fade — 모바일에서 숨김 (푸터 시각적으로 명확) */
+  .esg-modal__fade {
+    display: none;
+  }
+
+  /* Footer — fixed 효과 (이미 flex-shrink 0이라 sticky 자동) + safe-area */
+  .esg-modal__footer {
+    padding: 8px 8px max(8px, env(safe-area-inset-bottom)) 8px;
+  }
+
+  /* 버튼 — 모바일 압축 + 탭 모션 */
+  .esg-modal__btn {
+    font-size: 14px;
+    height: 52px;
+    transition: transform 0.1s ease, opacity 0.15s ease;
+  }
+  .esg-modal__btn:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+}
+
+/* ── Bottom sheet 슬라이드 업 애니메이션 ─────────────────────── */
+@keyframes esgSheetUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .esg-modal {
+    animation: none !important;
+  }
 }
