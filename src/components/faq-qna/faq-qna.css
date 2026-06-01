@@ -1,0 +1,466 @@
+/* ============================================================================
+   faq-qna.css — FAQ/Q&A 영역 공통 스타일 + 모바일 최적화
+
+   설계:
+     - 데스크탑: Figma 1003:306 (FAQ) / 1024:595 (Q&A) 토큰 그대로
+     - 모바일 (≤768px): Figma 1034:881 토큰 + Q&A 자체 설계
+       · 컨테이너 padding 12px (좁은 폭 최대 활용)
+       · 클로버 아이콘 제거 (B 옵션)
+       · 행 padding y-16 압축
+       · Q&A 행 세로 3단 (메타 → 본문 → 액션)
+       · 화살표 → keyboard_arrow_down.svg
+
+   변경 이력:
+     2026-06-01  최초 작성 — 인라인 스타일 마이그레이션 + 모바일 최적화
+   ============================================================================ */
+
+/* ============================================================================
+   HomePage 컨테이너 (FAQ+Q&A 묶음)
+   ============================================================================ */
+.faqqna-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 8px;          /* Figma 32 - AppLayout 24 */
+  padding-bottom: 176px;     /* Figma 200 - AppLayout 24 */
+  font-family: var(--font-sans);
+}
+
+.faqqna-container__inner {
+  display: flex;
+  flex-direction: column;
+  gap: 170px;                /* Figma 933:206 → 993:591 */
+  width: 100%;
+  max-width: 1200px;
+}
+
+/* ============================================================================
+   섹션 (FAQ / Q&A 공통 래퍼)
+   ============================================================================ */
+.faqqna-section {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  width: 100%;
+}
+
+.faqqna-section__header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 24px 0;
+}
+
+.faqqna-section__title {
+  margin: 0;
+  font-weight: 500;
+  font-size: 48px;
+  line-height: 1.2;
+  color: #111;
+}
+
+.faqqna-section__subtitle {
+  margin: 0;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 1.5;
+  color: #111;
+}
+
+.faqqna-section__subtitle p { margin: 0; }
+
+.faqqna-section__list {
+  display: flex;
+  flex-direction: column;
+}
+
+.faqqna-section__empty {
+  padding: 24px 0;
+  font-size: 16px;
+  color: #96a0b3;
+}
+
+/* ============================================================================
+   Q&A 섹션 헤더 (제목 그룹 + "질문 남기기" 버튼)
+   ============================================================================ */
+.faqqna-qna-header {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px 0;
+}
+
+.faqqna-qna-header__title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.faqqna-ask-button {
+  align-self: flex-start;
+  background: #111;
+  color: #fff;
+  border: none;
+  border-radius: 16px;
+  padding: 16px 24px;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 20px;
+  line-height: 1.5;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.faqqna-ask-button:hover { opacity: 0.85; }
+
+/* ============================================================================
+   FaqAccordionItem — FAQ 행
+   ============================================================================ */
+.faqqna-faq {
+  border-bottom: 1px solid #e3e9f5;
+}
+
+.faqqna-faq__header {
+  width: 100%;
+  min-height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 24px 24px 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  text-align: left;
+}
+
+.faqqna-faq__header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.faqqna-faq__clover {
+  flex-shrink: 0;
+  display: block;
+}
+
+.faqqna-faq__question {
+  font-weight: 500;
+  font-size: 24px;
+  line-height: 1.2;
+  color: #111;
+  word-break: break-word;
+}
+
+.faqqna-faq__arrow {
+  flex-shrink: 0;
+  display: block;
+  transition: transform 0.2s ease;
+  color: #1C1B1F;
+}
+.faqqna-faq__arrow--expanded { transform: rotate(180deg); }
+
+.faqqna-faq__panel {
+  padding-top: 24px;
+  padding-bottom: 44px;
+  font-family: var(--font-sans);
+}
+
+.faqqna-faq__answer-box {
+  padding: 24px;
+  border-radius: 24px;
+  font-weight: 400;
+  font-size: 20px;
+  line-height: 1.4;
+  color: #111;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ============================================================================
+   QnaAccordionItem — Q&A 행 (Figma 1024:595 데스크탑 + 모바일 자체 설계)
+   ============================================================================ */
+.faqqna-qna {
+  border-bottom: 1px solid #bababa;
+}
+
+/* 데스크탑: 한 줄 — 좌측[클로버+칩+질문] + 우측[배지+답변하기] */
+.faqqna-qna__header {
+  width: 100%;
+  min-height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 0;
+  background: transparent;
+  border: none;
+  font-family: var(--font-sans);
+  text-align: left;
+}
+.faqqna-qna__header--clickable { cursor: pointer; }
+.faqqna-qna__header--disabled { cursor: default; }
+
+.faqqna-qna__header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.faqqna-qna__clover {
+  flex-shrink: 0;
+  display: block;
+}
+
+.faqqna-qna__question {
+  font-weight: 500;
+  font-size: 24px;
+  line-height: 1.2;
+  color: #111;
+  word-break: break-word;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.faqqna-qna__header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.faqqna-qna__answer-button {
+  background: #111;
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 16px;
+  line-height: 1.5;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.15s;
+}
+.faqqna-qna__answer-button:hover { opacity: 0.85; }
+
+.faqqna-qna__arrow {
+  flex-shrink: 0;
+  display: block;
+  transition: transform 0.2s ease;
+  color: #1C1B1F;
+}
+.faqqna-qna__arrow--expanded { transform: rotate(180deg); }
+
+/* Q&A 모바일 전용 영역 (데스크탑 hidden) */
+.faqqna-qna__mobile-meta,
+.faqqna-qna__mobile-question,
+.faqqna-qna__mobile-action {
+  display: none;
+}
+
+/* Q&A 펼침 (답변) */
+.faqqna-qna__panel {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 24px 24px 64px 24px;
+  border-radius: 24px;
+  font-family: var(--font-sans);
+}
+
+.faqqna-qna__reply-icon {
+  flex-shrink: 0;
+  display: block;
+}
+
+.faqqna-qna__answer-text {
+  font-weight: 400;
+  font-size: 20px;
+  line-height: 1.5;
+  color: #111;
+  white-space: pre-wrap;
+  word-break: break-word;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* ============================================================================
+   ⓒⓛ 카테고리 칩 (Figma 1024:577)
+   ============================================================================ */
+.faqqna-chip {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #111;
+  border-radius: 999px;
+  padding: 4px 16px;
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #111;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ============================================================================
+   상태 배지 (답변 대기 / 답변 완료)
+   ============================================================================ */
+.faqqna-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #000;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.faqqna-badge--pending { background: #e3e9f5; }
+.faqqna-badge--answered { background: #d4f6ff; }
+
+/* ============================================================================
+   ───────────── 모바일 최적화 (≤768px) ─────────────
+   Figma 1034:881 (FAQ) + Q&A 자체 설계
+   ============================================================================ */
+@media (max-width: 768px) {
+
+  /* ── HomePage 컨테이너 ── */
+  .faqqna-container {
+    padding-top: 0;
+    padding-bottom: 80px;     /* 176 → 80 */
+  }
+  .faqqna-container__inner {
+    gap: 80px;                /* 170 → 80 */
+    padding: 0 12px;          /* 좌우 12 — Figma 1034:881 */
+  }
+
+  /* ── 섹션 공통 ── */
+  .faqqna-section {
+    gap: 24px;                /* 40 → 24 (모바일 압축) */
+  }
+  .faqqna-section__header {
+    padding: 24px 0;          /* 그대로 */
+  }
+  /* 제목/부제 폰트는 그대로 (48px, 16px) — Figma 모바일 정확값 */
+
+  /* ── Q&A 헤더 ── */
+  .faqqna-qna-header {
+    gap: 16px;                /* 24 → 16 */
+  }
+
+  /* ── "질문 남기기" 버튼 ── */
+  .faqqna-ask-button {
+    padding: 12px 20px;
+    font-size: 18px;
+    border-radius: 12px;
+  }
+
+  /* ── FAQ 행 ── */
+  .faqqna-faq__header {
+    padding: 16px 0;          /* 24 0 → 16 0 (Figma 1034:887) */
+    min-height: 0;
+  }
+  .faqqna-faq__header-left {
+    gap: 16px;                /* 그대로 (Figma 1034:887) */
+  }
+  /* 클로버 아이콘 제거 (B 옵션) */
+  .faqqna-faq__clover { display: none; }
+  /* 질문 폰트 24px 그대로 (Figma 모바일 명시) */
+  /* arrow 32×32 그대로 */
+
+  /* FAQ 펼침 */
+  .faqqna-faq__panel {
+    padding-top: 16px;        /* 24 → 16 (Figma 1034:895 pt-16) */
+    padding-bottom: 24px;     /* 44 → 24 (Figma 1034:895 pb-24) */
+  }
+  .faqqna-faq__answer-box {
+    padding: 24px 0;          /* Figma 1034:896 py-24, px 없음 */
+    border-radius: 24px;
+  }
+
+  /* ── Q&A 행 — 모바일 자체 설계 (세로 3단) ── */
+  .faqqna-qna__header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    padding: 16px 0;
+    min-height: 0;
+  }
+
+  /* 데스크탑 한 줄 구조 숨김 */
+  .faqqna-qna__header-left,
+  .faqqna-qna__header-right {
+    display: none;
+  }
+
+  /* 모바일 메타 row (칩 + 상태배지) */
+  .faqqna-qna__mobile-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding-bottom: 4px;
+  }
+
+  /* 모바일 본문 row (질문 + 화살표) */
+  .faqqna-qna__mobile-question {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding-top: 4px;
+  }
+  .faqqna-qna__mobile-question > span {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-weight: 500;
+    font-size: 24px;
+    line-height: 1.2;
+    color: #111;
+    word-break: break-word;
+  }
+
+  /* 모바일 액션 row (답변하기 버튼, 어드민+pending만) */
+  .faqqna-qna__mobile-action {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 8px;
+  }
+  .faqqna-qna__mobile-action .faqqna-qna__answer-button {
+    padding: 6px 12px;
+    font-size: 14px;
+  }
+
+  /* 칩/배지 모바일 (살짝 축소) */
+  .faqqna-chip {
+    padding: 3px 12px;
+    font-size: 12px;
+  }
+  /* 배지는 그대로 12px (이미 작음) */
+
+  /* Q&A 펼침 */
+  .faqqna-qna__panel {
+    padding: 16px 0 24px 0;   /* 24/24/64/24 → 16/0/24/0 (좁은 폭 활용) */
+  }
+  .faqqna-qna__answer-text {
+    font-size: 16px;          /* 20 → 16 (모바일 답변 가독성) */
+    line-height: 1.5;
+  }
+  /* reply 아이콘 28×28 — JS에서 width/height 적용 */
+}
+
+/* ── 초소형 모바일 (≤360px) — 살짝만 더 압축 ── */
+@media (max-width: 360px) {
+  .faqqna-section__title { font-size: 40px; }
+  .faqqna-faq__question,
+  .faqqna-qna__mobile-question > span { font-size: 20px; }
+}

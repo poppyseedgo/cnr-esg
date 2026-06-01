@@ -1,50 +1,21 @@
 // ============================================================================
 // QnaStatusBadge — Q&A 답변 상태 배지
 //
-// 상태:
-//   - pending : "답변 대기 중" bg #e3e9f5 (연회청색)
-//   - answered: "답변 완료"   bg #d4f6ff (연하늘색)
-//   - hidden  : 표시 안 함 (어드민용 별도 라벨 필요 시 옵션)
-//
-// 토큰 (Figma 933:102 / 1003:379):
-//   - radius 8, padding 4px 8px, font 12px Pretendard Regular, color black, line 1.5
+// 변경 이력:
+//   2026-06-01  최초 작성
+//   2026-06-01  CSS 클래스로 마이그레이션 (faq-qna.css)
 // ============================================================================
 
 import type { EsgQnaQuestionStatus } from '@/types/esg';
+import './faq-qna.css';
 
 interface Props {
   status: EsgQnaQuestionStatus;
 }
 
-const STATUS_CONFIG: Record<EsgQnaQuestionStatus, { bg: string; label: string } | null> = {
-  pending: { bg: '#e3e9f5', label: '답변 대기 중' },
-  answered: { bg: '#d4f6ff', label: '답변 완료' },
-  hidden: null, // 일반 사용자에게는 표시 안 됨 (RLS로 차단). 어드민에서만 별도 처리.
-};
-
 export function QnaStatusBadge({ status }: Props) {
-  const config = STATUS_CONFIG[status];
-  if (!config) return null;
-
-  return (
-    <span
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: config.bg,
-        borderRadius: 8,
-        padding: '4px 8px',
-        fontFamily: 'var(--font-sans)',
-        fontWeight: 400,
-        fontSize: 12,
-        lineHeight: 1.5,
-        color: '#000',
-        whiteSpace: 'nowrap',
-        flexShrink: 0,
-      }}
-    >
-      {config.label}
-    </span>
-  );
+  if (status === 'hidden') return null;
+  const cls = status === 'pending' ? 'faqqna-badge--pending' : 'faqqna-badge--answered';
+  const label = status === 'pending' ? '답변 대기 중' : '답변 완료';
+  return <span className={`faqqna-badge ${cls}`}>{label}</span>;
 }
