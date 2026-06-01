@@ -98,9 +98,21 @@
 
 /* Big — 제목 40px / 부제 20px
    - 제목 max-width 462px: Figma 1015:141 명시. 462px 초과 시 자연 줄바꿈.
-   - 부제 nowrap: Figma 1015:142 — 짧은 부제이므로 한 줄 유지. */
+   - 부제: <div> wrapper + 내부 <p> 줄별 nowrap (Figma 1035:968 멀티라인 대응) */
 .esg-modal__title--big    { font-size: 40px; line-height: 1.2; max-width: 462px; }
-.esg-modal__subtitle--big { font-size: 20px; line-height: 1.3; white-space: nowrap; }
+.esg-modal__subtitle--big {
+  font-size: 20px;
+  line-height: 1.3;
+}
+.esg-modal__subtitle--big p {
+  margin: 0;
+  white-space: nowrap;                       /* 각 줄 nowrap (Figma 명시) */
+}
+
+/* Bazaar 모달 전용 Contents 배경 (Figma 1035:973 white → #e3e3e3 그라데이션) */
+.esg-modal__contents--bazaar {
+  background: linear-gradient(to bottom, #fff, #e3e3e3) !important;  /* 기본 #fff override */
+}
 
 /* Medium — 제목 24px, 부제 없는 게 기본이지만 있으면 14px */
 .esg-modal__title--medium    { font-size: 24px; line-height: 1.5; white-space: nowrap; }
@@ -322,6 +334,7 @@
   }
   .esg-modal__title--big    { font-size: 28px; max-width: none; }      /* 모바일: 컨테이너 폭 전체 사용 */
   .esg-modal__subtitle--big { font-size: 16px; white-space: normal; }
+  .esg-modal__subtitle--big p { white-space: normal; }                  /* 모바일 multi-paragraph도 자유 줄바꿈 */
   .esg-modal__title--medium { font-size: 20px; white-space: normal; }
   .esg-modal__body          { font-size: 16px; }                       /* 모바일 본문 가독성 */
 

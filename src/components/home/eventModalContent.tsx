@@ -29,10 +29,13 @@ export type EventModalKey = 'brand' | 'bazaar' | 'wise' | 'zero';
 
 export interface EventModalContent {
   title: string;
-  subtitle: string;
+  /** 단순 문자열(한 줄) 또는 ReactNode (다중 줄 <p> 또는 fragment) */
+  subtitle: ReactNode;
   hero?: string | null;             // undefined: 영역 없음, null: placeholder, string: 이미지 URL
   body: ReactNode;                  // 디자인 확정 시 이 부분 교체
   buttons?: EventModalButton[];     // 생략 시 "닫기" 단독
+  /** Contents div에 추가 클래스 (예: 'esg-modal__contents--bazaar' 그라데이션) */
+  contentsClassName?: string;
 }
 
 // 모든 모달 공통 placeholder 본문 (lorem ipsum 더미)
@@ -68,9 +71,15 @@ export const EVENT_MODAL_CONTENT: Record<EventModalKey, EventModalContent> = {
   },
   bazaar: {
     title: '바자회 & 경매 참여안내',
-    subtitle: '참여 물품 가이드 · 2026 C&R 창립기념 · 6/30 — 7/10',
-    // hero 생략 → 이미지 영역 미표시 (가이드 콘텐츠가 풍부해서 본문에 집중)
+    subtitle: (
+      <>
+        <p>나눔 자원 순환 위크 동안 온라인 바자회와 경매를 진행합니다.</p>
+        <p>임직원 여러분들의 적극적인 참여를 기다리고 있어요.</p>
+      </>
+    ),
+    // hero 생략 → 이미지 영역 미표시 (Figma 1035:964 — 헤더+본문만)
     body: <BazaarGuide />,
+    contentsClassName: 'esg-modal__contents--bazaar',  // Figma 1035:973 그라데이션
   },
   wise: {
     title: '슬기로운 사회생활 어워드',

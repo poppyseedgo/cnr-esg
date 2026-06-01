@@ -1,219 +1,200 @@
 /* ============================================================================
-   BazaarGuide.css — 바자회·경매 참여 물품 가이드 (모달 본문)
+   BazaarGuide.css — 바자회 모달 본문 (Figma 1035:964 정밀 토큰)
 
-   설계:
-     - 모달 흰 배경 톤에 맞춤 (회색 배경 카드 + 컬러 배지)
-     - 섹션 간 24px 간격, 카드 내부 12px
-     - 배지: 가능(#dcfce7/#15803d), 불가(#fee2e2/#b91c1c), 신규(#dbeafe/#1d4ed8), ESG(#00422b)
-     - 반응형: 카드 그리드 auto-fill minmax(280px, 1fr)
-
-   ※ 임시 디자인 (피그마 디자인 확정 후 교체 예정)
+   참고: 본 컴포넌트는 EventModal contents (padding 20) 안에서 렌더링됨.
+        Contents 배경 그라데이션은 EventModal.css의 .esg-modal__contents--bazaar 담당.
 
    변경 이력:
-     2026-06-01  최초 작성
+     2026-06-01  최초 작성 — Figma 1035:964 매핑
    ============================================================================ */
 
 .bazaar-guide {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;                                  /* inner Contents gap */
+  width: 100%;
   font-family: var(--font-sans);
-  color: #1a1a1a;
+  color: #111;
 }
 
 /* ── 섹션 공통 ─────────────────────────────────────────────── */
-.bazaar-guide .bg-section {
-  margin-bottom: 28px;
-}
-.bazaar-guide .bg-section:last-of-type {
-  margin-bottom: 0;
-}
-.bazaar-guide .bg-section__label {
-  font-size: 13px;
-  font-weight: 600;
-  color: #64748b;
-  margin: 0 0 12px;
-  letter-spacing: 0.02em;
-}
-
-/* ── 기본 원칙 박스 ────────────────────────────────────────── */
-.bazaar-guide .bg-principle {
-  background: #f8fafc;
-  border-radius: 12px;
-  padding: 16px 18px;
-  border: 1px solid #e2e8f0;
-}
-.bazaar-guide .bg-principle p {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.6;
-  color: #1a1a1a;
-}
-.bazaar-guide .bg-principle p:first-child {
-  margin-bottom: 4px;
-}
-
-/* ── 배지 ──────────────────────────────────────────────────── */
-.bazaar-guide .bg-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  padding: 2px 8px;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1.4;
-  letter-spacing: 0.02em;
-}
-.bazaar-guide .bg-badge--ok  { background: #dcfce7; color: #15803d; }   /* 가능 */
-.bazaar-guide .bg-badge--no  { background: #fee2e2; color: #b91c1c; }   /* 불가 */
-.bazaar-guide .bg-badge--new { background: #dbeafe; color: #1d4ed8; }   /* 신규 */
-.bazaar-guide .bg-badge--esg {
-  background: #00422b;
-  color: #fff;
-  padding: 4px 10px;
-  font-size: 11px;
-}
-.bazaar-guide .bg-badge--sm {
-  font-size: 10px;
-  padding: 1px 6px;
-}
-
-/* ── 물품별 카드 그리드 ────────────────────────────────────── */
-.bazaar-guide .bg-categories {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 10px;
-}
-.bazaar-guide .bg-card {
-  background: #f8fafc;
-  border-radius: 12px;
-  border: 1px solid #e2e8f0;
-  padding: 14px 16px;
-}
-.bazaar-guide .bg-card__head {
+.bazaar-section {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
+  flex-direction: column;
+  gap: 24px;
+  padding-bottom: 32px;
+  border-bottom: 1px solid #000;              /* Figma border-b black */
+  width: 100%;
 }
-.bazaar-guide .bg-card__title {
+.bazaar-section--first {
+  padding-top: 24px;                          /* 첫 섹션만 pt-24 */
+}
+.bazaar-section--center {
+  align-items: center;                        /* 가운데 정렬 (마지막 안내) */
+  padding-bottom: 24px;                       /* 마지막 pb-24 */
+}
+.bazaar-section--last {
+  /* 시각적으로 가장 마지막 — border-b 유지 (Figma도 black border 유지) */
+}
+
+.bazaar-section__title {
   margin: 0;
-  font-size: 15px;
-  font-weight: 600;
+  font-weight: 700;                           /* Bold */
+  font-size: 20px;
+  line-height: 1.3;
   color: #111;
-}
-.bazaar-guide .bg-card__row {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 6px 0;
-  font-size: 13px;
-  line-height: 1.5;
-  color: #343a3f;
-}
-.bazaar-guide .bg-card__row + .bg-card__row {
-  border-top: 1px solid #e2e8f0;
-}
-.bazaar-guide .bg-card__text {
-  flex: 1;
-  min-width: 0;
+  white-space: nowrap;
 }
 
-/* ── 공통 불가 기준 ────────────────────────────────────────── */
-.bazaar-guide .bg-disallowed {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  background: #f8fafc;
-  border-radius: 12px;
-  border: 1px solid #e2e8f0;
-}
-.bazaar-guide .bg-disallowed li {
+.bazaar-section__body {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 12px 16px;
-  font-size: 13px;
+  flex-direction: column;
+  font-weight: 400;
+  font-size: 20px;
   line-height: 1.5;
-  color: #343a3f;
+  color: #111;
+  word-break: break-word;
 }
-.bazaar-guide .bg-disallowed li + li {
-  border-top: 1px solid #e2e8f0;
-}
+.bazaar-section__body p { margin: 0; }
+.bazaar-section__body p:not(:last-child) { margin-bottom: 4px; }
+.bazaar-section__body strong { font-weight: 700; }
 
-/* ── 기부 접수 절차 (번호 스텝) ────────────────────────────── */
-.bazaar-guide .bg-steps {
+/* ── 리스트 (불가 물품 / 절차) ───────────────────────────────── */
+.bazaar-list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 12px;                                  /* 항목 사이 12 */
+  width: 100%;
 }
-.bazaar-guide .bg-step {
+.bazaar-list li {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  gap: 16px;                                  /* 배지 ↔ 텍스트 16 */
+  width: 100%;
 }
-.bazaar-guide .bg-step__num {
-  flex-shrink: 0;
-  width: 24px;
-  height: 24px;
+.bazaar-list__text {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: 500;                           /* Medium */
+  font-size: 20px;
+  line-height: 1.5;
+  color: #111;
+  word-break: break-word;
+}
+.bazaar-list--steps {
+  /* ol 자체 들여쓰기 제거 (이미 padding 0) */
+}
+
+/* ── 배지 공통 ─────────────────────────────────────────────── */
+.bazaar-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: #00422b;
-  color: #fff;
-  border-radius: 50%;
+  padding: 4px 12px;
+  border-radius: 24px;
+  font-family: var(--font-sans);
+  font-weight: 500;                           /* Medium */
   font-size: 12px;
-  font-weight: 700;
-  line-height: 1;
+  line-height: 1.5;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
-.bazaar-guide .bg-step__body {
-  flex: 1;
-  min-width: 0;
-  padding-top: 2px;
-}
-.bazaar-guide .bg-step__title {
-  margin: 0 0 4px;
-  font-size: 14px;
-  font-weight: 500;
+
+/* 가능 (라임 #b4ffa4) */
+.bazaar-badge--ok {
+  background: #b4ffa4;
   color: #111;
-  line-height: 1.5;
-}
-.bazaar-guide .bg-step__desc {
-  margin: 0;
-  font-size: 13px;
-  color: #64748b;
-  line-height: 1.5;
 }
 
-/* ── 하단 ESG 메시지 ───────────────────────────────────────── */
-.bazaar-guide .bg-footer-msg {
+/* 불가 (검정 + 흰색 텍스트) */
+.bazaar-badge--ng {
+  background: #111;
+  color: #fff;
+}
+
+/* 큰 사이즈 (공통 불가 / 절차 단계용 — 14px) */
+.bazaar-badge--lg {
+  font-size: 14px;
+}
+
+/* ── 그리드 (품목별 기준 2×5) ────────────────────────────────── */
+.bazaar-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  width: 100%;
+}
+
+.bazaar-card {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
-  border-radius: 12px;
-  padding: 14px 16px;
-}
-.bazaar-guide .bg-footer-msg p {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.6;
-  color: #14532d;
-  flex: 1;
+  flex-direction: column;
+  gap: 20px;
+  padding: 16px;
+  background: #fff;
+  border-radius: 24px;
 }
 
-/* ── 반응형 ────────────────────────────────────────────────── */
-@media (max-width: 600px) {
-  .bazaar-guide .bg-categories {
-    grid-template-columns: 1fr;
-  }
-  .bazaar-guide .bg-card,
-  .bazaar-guide .bg-disallowed,
-  .bazaar-guide .bg-principle,
-  .bazaar-guide .bg-footer-msg {
-    padding: 12px 14px;
-  }
+.bazaar-card__title {
+  margin: 0;
+  font-weight: 500;                           /* Medium */
+  font-size: 20px;
+  line-height: 1.5;
+  color: #111;
+  white-space: nowrap;
+}
+
+.bazaar-card__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bazaar-card__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bazaar-card__text {
+  margin: 0;
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #111;
+  white-space: nowrap;                        /* Figma nowrap (카드 폭 안에 들어감) */
+}
+
+/* ── 마지막 안내 ──────────────────────────────────────────── */
+.bazaar-final {
+  margin: 0;
+  text-align: center;
+  font-weight: 500;
+  font-size: 20px;
+  line-height: 1.3;
+  color: #111;
+  white-space: nowrap;
+}
+
+/* ── 모바일 (≤768px) ─────────────────────────────────────────
+   bottom sheet 좁은 폭에서 가독성 + 그리드 1열 */
+@media (max-width: 768px) {
+  .bazaar-guide { gap: 20px; }
+  .bazaar-section { padding-bottom: 24px; gap: 16px; }
+  .bazaar-section--first { padding-top: 16px; }
+
+  .bazaar-section__title { font-size: 16px; }
+  .bazaar-section__body { font-size: 14px; }
+  .bazaar-list__text { font-size: 14px; }
+
+  /* 모바일에서는 카드 1열 */
+  .bazaar-grid { grid-template-columns: 1fr; gap: 12px; }
+  .bazaar-card { padding: 14px; gap: 14px; }
+  .bazaar-card__title { font-size: 16px; }
+  .bazaar-card__text { font-size: 12px; white-space: normal; }
+
+  .bazaar-final { font-size: 14px; white-space: normal; }
+  .bazaar-section__title { white-space: normal; }
 }

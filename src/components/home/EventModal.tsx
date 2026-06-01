@@ -41,10 +41,15 @@ export function EventModal({ modalKey, onClose }: Props) {
       size="big"
       onClose={onClose}
       ariaLabel={content.title}
+      contentsClassName={content.contentsClassName}
       header={
         <div className="esg-modal__title-group">
           <h2 className="esg-modal__title esg-modal__title--big">{content.title}</h2>
-          <p className="esg-modal__subtitle esg-modal__subtitle--big">{content.subtitle}</p>
+          <div className="esg-modal__subtitle esg-modal__subtitle--big">
+            {typeof content.subtitle === 'string'
+              ? <p>{content.subtitle}</p>
+              : content.subtitle}
+          </div>
         </div>
       }
       footer={buttons}

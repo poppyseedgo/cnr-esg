@@ -43,13 +43,15 @@ interface Props {
   children: ReactNode;
   footer?: ModalShellButton[];
   ariaLabel?: string;
+  /** Contents div에 추가 클래스 (모달별 배경 등 커스터마이즈, 예: bazaar 그라데이션) */
+  contentsClassName?: string;
 }
 
 // 모바일 bottom sheet 닫기 임계값
 const CLOSE_THRESHOLD_PX = 100;     // 100px 이상 끌면 닫기
 const CLOSE_ANIMATION_MS = 280;     // 슬라이드 다운 후 onClose
 
-export function ModalShell({ size, onClose, header, children, footer, ariaLabel }: Props) {
+export function ModalShell({ size, onClose, header, children, footer, ariaLabel, contentsClassName }: Props) {
   // 모달 박스 = drag sheet 같은 노드라 ref 하나로 충분
   const sheetRef = useRef<HTMLDivElement>(null);
 
@@ -166,7 +168,7 @@ export function ModalShell({ size, onClose, header, children, footer, ariaLabel 
         </header>
 
         {/* Contents */}
-        <div className={`esg-modal__contents esg-modal__contents--${size}`}>{children}</div>
+        <div className={`esg-modal__contents esg-modal__contents--${size}${contentsClassName ? ' ' + contentsClassName : ''}`}>{children}</div>
 
         {/* Scroll fade (데스크탑) */}
         {footer && footer.length > 0 && (
