@@ -73,8 +73,15 @@ export function HomeHero() {
             />
           </div>
 
-          {/* R1C2 — 브랜드 (#00422b) — 슬로건 위, 로고 아래 (Figma 927) */}
-          <div className="esg-hero__tile esg-hero__brand">
+          {/* R1C2 — 브랜드 (#00422b) — 슬로건 위, 로고 아래 (Figma 927) → 행사 취지 모달 */}
+          <div
+            className="esg-hero__tile esg-hero__brand esg-hero__clickable"
+            role="button"
+            tabIndex={0}
+            aria-label="C&R RESEARCH 29주년 ESG 이벤트 안내 보기"
+            onClick={() => openModal('brand')}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openModal('brand'); } }}
+          >
             <div className="esg-hero__fg">
               <div className="esg-hero__brand-slogan">
                 <div className="esg-hero__brand-ko">사람의 건강을 지원하는 나의 사명</div>

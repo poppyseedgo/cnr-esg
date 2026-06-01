@@ -1,7 +1,8 @@
 // ============================================================================
 // eventModalContent.tsx — 포스터 모달 3종 내용 레지스트리
 //
-// 키: 'bazaar' | 'wise' | 'zero'  (HomeHero 타일 클릭 시 ?modal=<키>)
+// 키: 'brand' | 'bazaar' | 'wise' | 'zero'  (HomeHero 타일 클릭 시 ?modal=<키>)
+//   brand  : C&R RESEARCH 행사 취지 + 생명의 숲 기부 안내
 //   bazaar : 바자회 + 경매 통합 "참여안내"
 //   wise   : 슬기로운 사회생활 어워드 "참여안내 + 어워드 투표 안내"
 //   zero   : 제로 웨이스트 어워드 "참여안내 + 어워드 투표 안내"
@@ -23,7 +24,7 @@
 import type { ReactNode } from 'react';
 import type { EventModalButton } from './EventModal';
 
-export type EventModalKey = 'bazaar' | 'wise' | 'zero';
+export type EventModalKey = 'brand' | 'bazaar' | 'wise' | 'zero';
 
 export interface EventModalContent {
   title: string;
@@ -42,6 +43,29 @@ const PLACEHOLDER_BODY: ReactNode = (
 );
 
 export const EVENT_MODAL_CONTENT: Record<EventModalKey, EventModalContent> = {
+  brand: {
+    title: 'C&R RESEARCH 29주년 ESG 이벤트',
+    subtitle: '사람과 지구의 건강을 함께 지키는 우리의 실천',
+    hero: null,
+    body: (
+      <>
+        <p>
+          C&amp;R RESEARCH는 창립 29주년을 맞아, 임직원이 함께 참여하는 ESG 이벤트를 개최합니다.
+          일상 속 작은 실천을 모아 의미 있는 변화를 만들고, 그 마음을 기부로 이어갑니다.
+        </p>
+        <p>
+          이번 이벤트는 <b>제로 웨이스트 어워드</b>, <b>슬기로운 사회생활 어워드</b>,
+          그리고 <b>창립기념 ESG 온라인 바자회 · 경매</b>로 구성됩니다.
+          모든 활동의 수익금과 모금액은 전액 <b>생명의 숲</b>에 기부되어,
+          도시 숲 조성과 환경 보전 활동에 사용됩니다.
+        </p>
+        <p>
+          사람의 건강을 지원하는 일이 곧 지구의 건강을 지키는 일이라는 믿음으로,
+          여러분의 따뜻한 참여를 기다립니다.
+        </p>
+      </>
+    ),
+  },
   bazaar: {
     title: '바자회 & 경매 참여안내',
     subtitle: '2026 C&R 창립기념 · 6/30 — 7/10',
@@ -63,5 +87,5 @@ export const EVENT_MODAL_CONTENT: Record<EventModalKey, EventModalContent> = {
 };
 
 export function isEventModalKey(v: string | null): v is EventModalKey {
-  return v === 'bazaar' || v === 'wise' || v === 'zero';
+  return v === 'brand' || v === 'bazaar' || v === 'wise' || v === 'zero';
 }
