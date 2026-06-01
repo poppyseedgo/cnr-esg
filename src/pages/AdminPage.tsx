@@ -14,6 +14,7 @@ const adminTabs = [
   { to: '/admin/donations', label: '기부 관리', icon: '💚' },
   { to: '/admin/posts', label: '게시글 관리', icon: '📝' },
   { to: '/admin/qa', label: 'Q&A 관리', icon: '❓' },
+  { to: '/admin/bazaar-guide', label: '바자회 가이드', icon: '📋' },
   { to: '/admin/emails', label: '이메일 발송', icon: '📨' },
 ];
 
