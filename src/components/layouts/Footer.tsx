@@ -1,49 +1,154 @@
 // ============================================================================
-// Footer — 하단 정보
+// Footer — 사이트 푸터 (Figma 1027:736 정밀 매핑)
+//
+// 구조:
+//   [상단 영역] bg #fff, pt-32 pb-48 px-32 — 메뉴 + ESG 안내 테이블
+//     · 메뉴 행: flex gap-80 items-start, pb-48 pr-24
+//       - FAQ 링크 → /faq (28px Medium + arrow_outward 32×32)
+//       - "행사 관련 문의 하기" 링크 → /qna (28px SemiBold + arrow_outward 32×32)
+//       - ESG 프로그램 및 기간 안내 (flex-1, 우측 영역)
+//     · 안내 테이블:
+//       - 제목 28px SemiBold + border-b #eff4ff pb-48
+//       - 행 1: 29주년 창립기념식 (Regular w-240) | ESG 어워드 (Medium w-200) | 2개 항목 col gap-24
+//       - 행 2: Cup & Reduce day | 종이컵 없는 날 | 6월 30일 화요일
+//       - 행 3: 나눔 순환 자원 위크 | (C&R 바자회 / C&R 경매) 2서브행 col gap-64
+//
+//   [하단 영역] flex-col gap-16 p-24 — 회사정보
+//     · (주)씨엔알리서치 16px (letter-spacing 0.16px)
+//     · 사업자등록번호 829-87-01755 16px
+//     · © C&R RESEARCH 20px
+//
+// 색상/구분선:
+//   - 텍스트 #111
+//   - 구분선 #eff4ff (Figma 정확값, 매우 연한 회청)
+//
+// 링크:
+//   - "FAQ" 와 "행사 관련 문의 하기" 가 헤더에서 제거되면서(작업 3+4)
+//     이 푸터가 진입점이 됨. /faq, /qna 라우트는 그대로 유지됨.
+//
+// 변경 이력:
+//   2026-05  최초 임시 푸터 (페이즈 표시)
+//   2026-06-01  Figma 1027:736 전면 매핑 (작업 2)
 // ============================================================================
 
-import { useEventPhase } from '@/hooks/useEventPhase';
-
-const phaseLabels: Record<string, string> = {
-  prelude: '이벤트 준비 중',
-  shop_open: '진행 중',
-  shop_closed: '구매·경매 종료 (결과 공개)',
-  archived: '이벤트 종료',
-};
+import { Link } from 'react-router-dom';
+import './Footer.css';
 
 export function Footer() {
-  const { phase } = useEventPhase();
-
   return (
-    <footer
-      style={{
-        borderTop: '1px solid #eee',
-        padding: '24px 20px',
-        marginTop: 64,
-        background: '#fafafa',
-        color: '#888',
-        fontSize: 12,
-      }}
-    >
-      <div
-        style={{
-          maxWidth: 1360,
-          margin: '0 auto',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 8,
-          textAlign: 'center',
-        }}
-      >
-        <div>
-          <strong style={{ color: '#444' }}>C&R 29주년 ESG 이벤트</strong>
-          <span style={{ margin: '0 8px' }}>·</span>
-          2026. 06. 30 — 07. 10
-          <span style={{ margin: '0 8px' }}>·</span>
-          <span style={{ color: '#0ea5e9' }}>{phaseLabels[phase] ?? phase}</span>
+    <footer className="esg-footer">
+      {/* ── 상단: 메뉴 + ESG 안내 ── */}
+      <div className="esg-footer__top">
+        <div className="esg-footer__menu-row">
+          {/* FAQ 링크 */}
+          <Link to="/faq" className="esg-footer__menu-link esg-footer__menu-link--faq">
+            <span>FAQ</span>
+            <img
+              src="/icons/arrow_outward.svg"
+              alt=""
+              aria-hidden="true"
+              width={32}
+              height={32}
+            />
+          </Link>
+
+          {/* 행사 관련 문의 하기 링크 */}
+          <Link to="/qna" className="esg-footer__menu-link">
+            <span>행사 관련 문의 하기</span>
+            <img
+              src="/icons/arrow_outward.svg"
+              alt=""
+              aria-hidden="true"
+              width={32}
+              height={32}
+            />
+          </Link>
+
+          {/* ESG 프로그램 및 기간 안내 */}
+          <div className="esg-footer__schedule">
+            <div className="esg-footer__schedule-title">
+              <p>ESG 프로그램 및 기간 안내</p>
+            </div>
+
+            <div className="esg-footer__schedule-body">
+              {/* 행 1: 29주년 창립기념식 */}
+              <div className="esg-footer__row esg-footer__row--bordered">
+                <p className="esg-footer__col1">29주년 창립기념식</p>
+                <p className="esg-footer__col2">ESG 어워드</p>
+                <div className="esg-footer__col3 esg-footer__col3--multi">
+                  <div className="esg-footer__sub-row">
+                    <p className="esg-footer__label">슬기로운 사회생활 어워드</p>
+                    <p className="esg-footer__value">6월 30일 창립기념식에서 시상</p>
+                  </div>
+                  <div className="esg-footer__sub-row">
+                    <p className="esg-footer__label">제로 웨이스트 어워드</p>
+                    <p className="esg-footer__value">6월 30일 창립기념식에서 시상</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 행 2: Cup & Reduce day */}
+              <div className="esg-footer__row esg-footer__row--bordered">
+                <p className="esg-footer__col1">Cup & Reduce day</p>
+                <p className="esg-footer__col2">종이컵 없는 날</p>
+                <div className="esg-footer__col3">
+                  <p className="esg-footer__value-single">6월 30일 화요일</p>
+                </div>
+              </div>
+
+              {/* 행 3: 나눔 순환 자원 위크 (서브행 2개: C&R 바자회 / C&R 경매) */}
+              <div className="esg-footer__row">
+                <p className="esg-footer__col1">나눔 순환 자원 위크</p>
+                <div className="esg-footer__col-rest">
+                  {/* 서브행 1: C&R 바자회 */}
+                  <div className="esg-footer__sub-block">
+                    <p className="esg-footer__col2">C&amp;R 바자회</p>
+                    <div className="esg-footer__col3 esg-footer__col3--multi">
+                      <div className="esg-footer__sub-row">
+                        <p className="esg-footer__label">물품 참여 기간</p>
+                        <div className="esg-footer__date-range">
+                          <p>6월 8일 월요일</p>
+                          <p>—</p>
+                          <p>6월 22일 월요일</p>
+                        </div>
+                      </div>
+                      <div className="esg-footer__sub-row">
+                        <p className="esg-footer__label">바자회 판매 기간</p>
+                        <div className="esg-footer__date-range">
+                          <p>6월 30일 화요일</p>
+                          <p>—</p>
+                          <p>7월 8일 수요일</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 서브행 2: C&R 경매 */}
+                  <div className="esg-footer__sub-block">
+                    <p className="esg-footer__col2">C&amp;R 경매</p>
+                    <div className="esg-footer__date-range">
+                      <p>7월 8일 수요일</p>
+                      <p>—</p>
+                      <p>7월 10일 금요일</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-        <div>굿즈 판매 수익금은 전부 생명의 숲에 기부됩니다.</div>
-        <div style={{ color: '#bbb' }}>© C&R Research</div>
+      </div>
+
+      {/* ── 하단: 회사 정보 ── */}
+      <div className="esg-footer__bottom">
+        <div className="esg-footer__company">
+          <p className="esg-footer__company-name">(주)씨엔알리서치</p>
+          <div className="esg-footer__biz">
+            <p>사업자등록번호</p>
+            <p>829-87-01755</p>
+          </div>
+        </div>
+        <p className="esg-footer__copyright">© C&amp;R RESEARCH</p>
       </div>
     </footer>
   );
