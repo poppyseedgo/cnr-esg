@@ -40,6 +40,8 @@ import { CartPage } from '@/pages/CartPage';
 import { CheckoutPage } from '@/pages/CheckoutPage';
 import { OrderDetailPage } from '@/pages/OrderDetailPage';
 import { DonatePage } from '@/pages/DonatePage';
+import { FaqPage } from '@/pages/FaqPage';
+import { QnaPage } from '@/pages/QnaPage';
 import { DonateOrderPage } from '@/pages/DonateOrderPage';
 import { DonationCertificatePage } from '@/pages/DonationCertificatePage';
 import {
@@ -83,6 +85,8 @@ const router = createBrowserRouter([
       { path: '/auction', element: <ActivityGate activityKey="auction"><AuctionPage /></ActivityGate> },
       { path: '/auction/:auctionId', element: <ActivityGate activityKey="auction"><AuctionDetailPage /></ActivityGate> },
       { path: '/donate', element: <DonatePage /> },
+      { path: '/faq', element: <FaqPage /> },
+      { path: '/qna', element: <QnaPage /> },
 
       // 로그인 필수
       {

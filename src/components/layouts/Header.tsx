@@ -478,6 +478,8 @@ function DesktopMenu({
       <NavMenuItem to="/bazaar" label="ESG 바자회" badge={bazaarBadge} tokens={tokens} activityKey="bazaar" />
       <NavMenuItem to="/auction" label="ESG 경매" badge={auctionBadge} tokens={tokens} activityKey="auction" />
       <NavMenuItem to="/donate" label="기부하기" tokens={tokens} />
+      <NavMenuItem to="/faq" label="FAQ" tokens={tokens} />
+      <NavMenuItem to="/qna" label="Q&amp;A" tokens={tokens} />
       {isAdmin && <AdminMenuItem tokens={tokens} />}
     </nav>
   );
@@ -938,6 +940,8 @@ function MobileMenu({
       <MobileLink to="/bazaar" label="ESG 바자회" badge={bazaarBadge} onClick={onClose} tokens={tokens} activityKey="bazaar" />
       <MobileLink to="/auction" label="ESG 경매" badge={auctionBadge} onClick={onClose} tokens={tokens} activityKey="auction" />
       <MobileLink to="/donate" label="기부하기" onClick={onClose} tokens={tokens} />
+      <MobileLink to="/faq" label="FAQ" onClick={onClose} tokens={tokens} />
+      <MobileLink to="/qna" label="Q&amp;A" onClick={onClose} tokens={tokens} />
       {isAdmin && (
         <Link
           to="/admin"
