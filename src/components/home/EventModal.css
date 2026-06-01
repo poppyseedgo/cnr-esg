@@ -221,6 +221,31 @@
 .esg-modal__btn--confirm { background: #111;    color: #fff;    }
 .esg-modal__btn--primary { background: #00422b; color: #fff;    }
 
+/* ── 입력 (textarea/input) — 모달 본문에서 사용 ─────────────── */
+/*
+ * 사용: <textarea className="esg-modal__input"> 또는 <input className="esg-modal__input">
+ * Figma: placeholder #bdc5d4, 입력값 #111, font 16px Regular line 1.5
+ * border-bottom 색은 부모 wrapper가 결정 (focus 시 #111, 평시 #d2ddf1)
+ */
+.esg-modal__input {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  padding: 0;
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 1.5;
+  color: #111;
+  resize: none;                              /* textarea: resize 핸들 숨김 */
+  min-height: 24px;
+  word-break: break-word;
+}
+.esg-modal__input::placeholder         { color: #bdc5d4; opacity: 1; }
+.esg-modal__input::-webkit-input-placeholder { color: #bdc5d4; }
+.esg-modal__input:-ms-input-placeholder      { color: #bdc5d4; }
+
 /* ── 애니메이션 ─────────────────────────────────────────────── */
 @keyframes esgModalFade {
   from { opacity: 0; }
