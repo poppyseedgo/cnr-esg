@@ -1,22 +1,28 @@
 /* ============================================================================
-   EventModal.css — 공용 행사안내 모달 (Big size, Figma 989:262 1:1)
+   EventModal.css — 공용 모달 셸 스타일 (ModalShell + EventModal 본문 공용)
 
-   설계:
-     - 오버레이: dim + blur, 중앙 정렬, 화면 높이 고려한 auto full-height
-     - 모달 폭: 760px 고정 (Figma), max-height: calc(100dvh - 48px) → 작은 화면 대응
-     - Header: pt16 pl20 pr16 pb16 (close icon 32×32 우상단)
-     - Contents: padding 20 균일, flex 1 (가변 높이), 내부 스크롤
-     - Footer: padding 8, 버튼 1~3개 균등(flex-1) gap 8
-     - Footer 위 스크롤 페이드: 62px 흰색 그라데이션 (스크롤 시 하단 흐릿)
-     - radius 24 (모달), 20 (대표이미지), 16 (버튼)
-     - 닫기: X 버튼 / 하단 닫기 버튼 / ESC / 배경 클릭
+   사이즈 분기:
+     Big    (760px) — Figma 989:262 (행사안내 모달)
+       헤더 padding 16 / pl20 pr16, 제목 40px Medium + 부제 20px Regular
+       Contents padding 20, padding-bottom 82 (62 fade + 20)
+     Medium (520px) — Figma 997:800/961/1145 (문의/답변 모달)
+       헤더 padding 20/16/16/20 (pl20 pr16 py16), 제목 24px Medium, 부제 없음
+       Contents padding 20, padding-bottom 82
+
+   공통:
+     - 오버레이: dim+blur 중앙 정렬, 24px 여백
+     - 모달 radius 24, max-height calc(100dvh - 48px) → 작은 화면 대응
+     - Footer padding 8, 버튼 height 56, radius 16, gap 8, 균등 1~3개
+     - Footer 위 62px 흰색 그라데이션 (스크롤 페이드)
+     - Header X 버튼: 32×32 영역 + 20×20 SVG
 
    변경 이력:
      2026-05-28  최초 작성 (인프라)
-     2026-06-01  Figma 989:262 Big size 1:1 적용, X 아이콘 close.svg, 그라데이션 페이드
+     2026-06-01  Big size Figma 989:262 1:1 적용
+     2026-06-01  Medium size 추가, 헤더 사이즈별 분기 (ModalShell 도입)
    ============================================================================ */
 
-/* ── 오버레이 (dim + blur, 중앙 정렬) ────────────────────────── */
+/* ── 오버레이 ───────────────────────────────────────────────── */
 .esg-modal__overlay {
   position: fixed;
   inset: 0;
@@ -31,57 +37,74 @@
   animation: esgModalFade 0.2s ease both;
 }
 
-/* ── 모달 (Big size 760px, Figma 989:262) ───────────────────── */
+/* ── 모달 박스 (공통) ───────────────────────────────────────── */
 .esg-modal {
   position: relative;
-  width: 760px;                              /* Figma 고정폭 */
   max-width: 100%;                           /* 작은 화면 대응 */
-  max-height: calc(100dvh - 48px);           /* auto full-height: 화면-여백 */
+  max-height: calc(100dvh - 48px);
   display: flex;
   flex-direction: column;
   background: #fff;
   border-radius: 24px;
-  overflow: hidden;                          /* 모서리 라운드 클립 */
+  overflow: hidden;
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.25);
   animation: esgModalPop 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
+.esg-modal--big    { width: 760px; }
+.esg-modal--medium { width: 520px; }
 
-/* ── Header ─────────────────────────────────────────────────── */
+/* ── Header 공통 ────────────────────────────────────────────── */
 .esg-modal__header {
   flex: 0 0 auto;
   display: flex;
-  align-items: flex-start;
   justify-content: space-between;
-  padding: 16px 16px 16px 20px;              /* pt16 pl20 pr16 pb16 */
   background: #fff;
 }
+.esg-modal__header-inner {
+  flex: 1 1 auto;
+  min-width: 0;                              /* word-break 허용 */
+}
+
+/* Big: align-items flex-start (제목 길어도 X는 상단 고정) */
+.esg-modal__header--big {
+  align-items: flex-start;
+  padding: 16px 16px 16px 20px;
+}
+/* Medium: align-items center (제목 한 줄이라 X와 수직 중앙 정렬) */
+.esg-modal__header--medium {
+  align-items: center;
+  padding: 16px 16px 16px 20px;
+}
+
+/* ── 제목/부제 (EventModal 본문에서 사용. 새 모달은 자체 헤더 가능) ── */
 .esg-modal__title-group {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  flex: 1 1 auto;
-  min-width: 0;                              /* word-break 허용 */
 }
 .esg-modal__title {
   font-family: var(--font-sans);
   font-weight: 500;                          /* Medium */
-  font-size: 40px;
-  line-height: 1.2;
   color: #111;
   margin: 0;
   word-break: break-word;
 }
 .esg-modal__subtitle {
   font-family: var(--font-sans);
-  font-weight: 400;                          /* Regular */
-  font-size: 20px;
-  line-height: 1.3;
+  font-weight: 400;
   color: #111;
   margin: 0;
-  white-space: nowrap;
 }
 
-/* ── X 버튼 (32×32 영역, 내부 20×20 아이콘) ─────────────────── */
+/* Big — 제목 40px / 부제 20px */
+.esg-modal__title--big    { font-size: 40px; line-height: 1.2; }
+.esg-modal__subtitle--big { font-size: 20px; line-height: 1.3; white-space: nowrap; }
+
+/* Medium — 제목 24px, 부제 없는 게 기본이지만 있으면 14px */
+.esg-modal__title--medium    { font-size: 24px; line-height: 1.5; white-space: nowrap; }
+.esg-modal__subtitle--medium { font-size: 14px; line-height: 1.4; color: #64748b; }
+
+/* ── X 버튼 ─────────────────────────────────────────────────── */
 .esg-modal__close {
   flex: 0 0 auto;
   width: 32px;
@@ -92,7 +115,7 @@
   border: none;
   border-radius: 50%;
   background: transparent;
-  color: #1C1B1F;                            /* SVG currentColor */
+  color: #1C1B1F;
   cursor: pointer;
   transition: background 0.2s ease;
   padding: 0;
@@ -100,22 +123,24 @@
 .esg-modal__close:hover { background: rgba(0, 0, 0, 0.06); }
 .esg-modal__close img { width: 20px; height: 20px; display: block; }
 
-/* ── Contents (padding 20 균일, flex 1, 스크롤) ─────────────── */
+/* ── Contents (스크롤 영역) ─────────────────────────────────── */
 .esg-modal__contents {
   flex: 1 1 auto;
-  min-height: 0;                             /* flex 안에서 overflow-y 동작 보장 */
+  min-height: 0;
   overflow-y: auto;
-  padding: 20px;
   background: #fff;
   -webkit-overflow-scrolling: touch;
-  /* 하단 그라데이션이 본문을 가리지 않도록 여백 (footer 위 fade 62px) */
+}
+.esg-modal__contents--big,
+.esg-modal__contents--medium {
+  padding: 20px;
   padding-bottom: 82px;                      /* 20 + 62(fade) */
 }
 
-/* ── 대표 이미지 (이미지 있을 때만) ─────────────────────────── */
+/* ── 대표 이미지 (Big 본문 전용) ────────────────────────────── */
 .esg-modal__hero {
   width: 100%;
-  aspect-ratio: 720 / 360;                   /* Figma 비율 */
+  aspect-ratio: 720 / 360;
   background: #f2f2f2;
   border-radius: 20px;
   display: flex;
@@ -138,7 +163,7 @@
   color: #96a0b3;
 }
 
-/* ── 본문 텍스트 ─────────────────────────────────────────────── */
+/* ── 본문 텍스트 (EventModal 본문에서 사용) ─────────────────── */
 .esg-modal__body {
   font-family: var(--font-sans);
   font-weight: 400;
@@ -150,19 +175,21 @@
 .esg-modal__body p { margin: 0 0 12px; }
 .esg-modal__body p:last-child { margin-bottom: 0; }
 
-/* ── Footer 위 스크롤 페이드 (62px 흰색 그라데이션) ─────────── */
+/* ── Footer 위 스크롤 페이드 ────────────────────────────────── */
 .esg-modal__fade {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 72px;                              /* footer 높이 위 */
   height: 62px;
-  pointer-events: none;                      /* 클릭/스크롤 안 막음 */
+  pointer-events: none;
   background: linear-gradient(to bottom, rgba(255, 255, 255, 0) 0%, #fff 100%);
   z-index: 1;
 }
+.esg-modal__fade--big    { /* 추가 분기 필요 없음, 공통 */ }
+.esg-modal__fade--medium { /* 추가 분기 필요 없음, 공통 */ }
 
-/* ── Footer (padding 8, 버튼 균등 1~3개) ────────────────────── */
+/* ── Footer ─────────────────────────────────────────────────── */
 .esg-modal__footer {
   flex: 0 0 auto;
   display: flex;
@@ -171,7 +198,7 @@
   background: #fff;
   border-bottom-left-radius: 24px;
   border-bottom-right-radius: 24px;
-  position: relative;                        /* fade는 absolute, footer는 그 아래 normal flow */
+  position: relative;
   z-index: 2;
 }
 .esg-modal__btn {
@@ -181,17 +208,18 @@
   border: none;
   border-radius: 16px;
   font-family: var(--font-sans);
-  font-weight: 600;                          /* SemiBold */
+  font-weight: 600;
   font-size: 14px;
   line-height: 1.5;
   cursor: pointer;
   transition: opacity 0.2s ease;
   padding: 16px;
 }
-.esg-modal__btn:hover { opacity: 0.85; }
-.esg-modal__btn--close   { background: #f1f5f9; color: #64748b; }   /* 닫기 (회색) */
-.esg-modal__btn--confirm { background: #111;    color: #fff;    }   /* 확인 (검정) */
-.esg-modal__btn--primary { background: #00422b; color: #fff;    }   /* 편집/주요 (딥그린) */
+.esg-modal__btn:hover:not(:disabled) { opacity: 0.85; }
+.esg-modal__btn:disabled { cursor: not-allowed; opacity: 0.5; }
+.esg-modal__btn--close   { background: #f1f5f9; color: #64748b; }
+.esg-modal__btn--confirm { background: #111;    color: #fff;    }
+.esg-modal__btn--primary { background: #00422b; color: #fff;    }
 
 /* ── 애니메이션 ─────────────────────────────────────────────── */
 @keyframes esgModalFade {
@@ -207,14 +235,18 @@
   .esg-modal { animation: none; }
 }
 
-/* ── 반응형: 작은 화면(모바일/태블릿) 보정 ─────────────────── */
+/* ── 반응형 ─────────────────────────────────────────────────── */
 @media (max-width: 600px) {
   .esg-modal__overlay { padding: 12px; }
   .esg-modal { border-radius: 20px; }
-  .esg-modal__header { padding: 14px 14px 14px 16px; }
-  .esg-modal__title { font-size: 28px; }
-  .esg-modal__subtitle { font-size: 16px; white-space: normal; }
-  .esg-modal__contents { padding: 16px; padding-bottom: 78px; }
-  .esg-modal__footer { padding: 8px; }
+  .esg-modal--big,
+  .esg-modal--medium { width: 100%; }
+  .esg-modal__header--big,
+  .esg-modal__header--medium { padding: 14px 14px 14px 16px; }
+  .esg-modal__title--big    { font-size: 28px; }
+  .esg-modal__subtitle--big { font-size: 16px; white-space: normal; }
+  .esg-modal__title--medium { font-size: 20px; white-space: normal; }
+  .esg-modal__contents--big,
+  .esg-modal__contents--medium { padding: 16px; padding-bottom: 78px; }
   .esg-modal__btn { font-size: 14px; height: 52px; }
 }
