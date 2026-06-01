@@ -80,7 +80,7 @@ export function HomeHero() {
                 <div className="esg-hero__brand-ko">사람의 건강을 지원하는 나의 사명</div>
                 <div className="esg-hero__brand-ko">지구의 건강을 지키는 우리의 실천</div>
               </div>
-              <img className="esg-hero__brand-logo" src="/home/cnr-research.svg" alt="C&amp;R RESEARCH" />
+              <img className="esg-hero__brand-logo esg-hero__zoom" src="/home/cnr-research.svg" alt="C&amp;R RESEARCH" />
             </div>
           </div>
 
@@ -106,11 +106,11 @@ export function HomeHero() {
               <div className="esg-hero__bazaar-row">
                 <div className="esg-hero__bazaar-col">
                   <div className="esg-hero__bazaar-ttl">2026<br />C&amp;R 창립기념<br />바자회</div>
-                  <p className="esg-hero__bazaar-date">6/30 — 7/10</p>
+                  <p className="esg-hero__bazaar-date">6/30 — 7/8</p>
                 </div>
                 <div className="esg-hero__bazaar-col">
                   <div className="esg-hero__bazaar-ttl">2026<br />C&amp;R 창립기념<br />경매</div>
-                  <p className="esg-hero__bazaar-date">6/30 — 7/10</p>
+                  <p className="esg-hero__bazaar-date">7/8 — 7/10</p>
                 </div>
               </div>
 

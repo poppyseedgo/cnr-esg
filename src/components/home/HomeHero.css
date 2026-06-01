@@ -119,11 +119,11 @@ a.esg-hero__tile { cursor: pointer; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.833cqw;                     /* 블록 간 4px */
+  gap: 0.417cqw;                     /* 블록 간 2px (Figma 933 실측) */
 }
 .esg-hero__brand-ko {
   font-family: var(--font-sans);
-  font-weight: 300;                  /* Light */
+  font-weight: 400;                  /* Regular (Figma 933: Light→Regular) */
   font-size: 5cqw;                   /* 24px */
   line-height: 1.5;
   white-space: nowrap;               /* 각 1줄 유지 */
@@ -151,7 +151,7 @@ a.esg-hero__tile { cursor: pointer; }
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  gap: 16cqw;                        /* 사용자 조정 */
+  gap: 16.667cqw;                    /* 80px (Figma 990:299 실측) */
   align-items: flex-start;
   justify-content: center;
 }
@@ -179,7 +179,8 @@ a.esg-hero__tile { cursor: pointer; }
   white-space: nowrap;
 }
 /* ② 화살표 + Online Charity Market + Bazzar&Auction + 날짜 통합 SVG (274×292)
-   Figma: 화살표 top237 ~ 하단날짜 top530 (높이 293 ≈ viewBox 292) → top237 시작 */
+   Figma: 화살표 top237 ~ 하단날짜 top530 (높이 293 ≈ viewBox 292) → top237 시작
+   호버 확대: translateX(-50%)와 scale 충돌 방지 위해 전용 규칙 정의 (esg-hero__zoom 미사용) */
 .esg-hero__bazaar-emblem {
   position: absolute;
   top: 49.375cqw;                    /* 237/480 — SVG 시작점 */
@@ -189,6 +190,10 @@ a.esg-hero__tile { cursor: pointer; }
   height: auto;
   display: block;
   pointer-events: none;
+  transition: transform 0.45s ease;  /* 호버 확대 트랜지션 */
+}
+.esg-hero__bazaar:hover .esg-hero__bazaar-emblem {
+  transform: translateX(-50%) scale(1.05);  /* 중앙 유지 + 확대 (단일 transform으로 합성) */
 }
 
 /* ============================================================================
