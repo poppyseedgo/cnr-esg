@@ -1,18 +1,22 @@
 /* ============================================================================
-   EventModal.css — 홈 포스터 클릭 시 뜨는 공용 행사안내 모달 셸
+   EventModal.css — 공용 행사안내 모달 (Big size, Figma 989:262 1:1)
 
    설계:
-     - 오버레이: 배경 dim + blur, 중앙 정렬
-     - 모달: auto full-height (콘텐츠가 길면 화면 높이-여백까지만, 내부 스크롤)
-             100dvh 사용 → 모바일 주소창 변화 대응
-     - 닫기: X 버튼(우상단) + 하단 fixed 닫기 버튼 (+ ESC/배경클릭은 JS에서)
-     - 애니메이션: 오버레이 fade + 모달 scale-up (포스터 진입 확대와 톤 통일)
+     - 오버레이: dim + blur, 중앙 정렬, 화면 높이 고려한 auto full-height
+     - 모달 폭: 760px 고정 (Figma), max-height: calc(100dvh - 48px) → 작은 화면 대응
+     - Header: pt16 pl20 pr16 pb16 (close icon 32×32 우상단)
+     - Contents: padding 20 균일, flex 1 (가변 높이), 내부 스크롤
+     - Footer: padding 8, 버튼 1~3개 균등(flex-1) gap 8
+     - Footer 위 스크롤 페이드: 62px 흰색 그라데이션 (스크롤 시 하단 흐릿)
+     - radius 24 (모달), 20 (대표이미지), 16 (버튼)
+     - 닫기: X 버튼 / 하단 닫기 버튼 / ESC / 배경 클릭
 
    변경 이력:
-     2026-05-28  최초 작성 (모달 인프라 — 디자인 확정 전 셸)
+     2026-05-28  최초 작성 (인프라)
+     2026-06-01  Figma 989:262 Big size 1:1 적용, X 아이콘 close.svg, 그라데이션 페이드
    ============================================================================ */
 
-/* ── 오버레이 (dim + blur) ──────────────────────────────────── */
+/* ── 오버레이 (dim + blur, 중앙 정렬) ────────────────────────── */
 .esg-modal__overlay {
   position: fixed;
   inset: 0;
@@ -21,77 +25,173 @@
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(0, 0, 0, 0.5);            /* dim */
-  backdrop-filter: blur(6px);                /* blur */
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   animation: esgModalFade 0.2s ease both;
 }
 
-/* ── 모달 박스 ──────────────────────────────────────────────── */
+/* ── 모달 (Big size 760px, Figma 989:262) ───────────────────── */
 .esg-modal {
   position: relative;
-  width: 100%;
-  max-width: 560px;                          /* 디자인 확정 시 조정 */
-  max-height: calc(100dvh - 48px);           /* auto full-height: 화면-여백까지만 */
+  width: 760px;                              /* Figma 고정폭 */
+  max-width: 100%;                           /* 작은 화면 대응 */
+  max-height: calc(100dvh - 48px);           /* auto full-height: 화면-여백 */
   display: flex;
   flex-direction: column;
   background: #fff;
-  border-radius: 20px;
+  border-radius: 24px;
   overflow: hidden;                          /* 모서리 라운드 클립 */
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.25);
   animation: esgModalPop 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
-/* ── 본문 (스크롤 영역) ─────────────────────────────────────── */
-.esg-modal__body {
+/* ── Header ─────────────────────────────────────────────────── */
+.esg-modal__header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 16px 16px 16px 20px;              /* pt16 pl20 pr16 pb16 */
+  background: #fff;
+}
+.esg-modal__title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   flex: 1 1 auto;
-  overflow-y: auto;                          /* 내용 길면 내부 스크롤 */
-  padding: 40px 32px 24px;
-  -webkit-overflow-scrolling: touch;
+  min-width: 0;                              /* word-break 허용 */
+}
+.esg-modal__title {
+  font-family: 'Pretendard', sans-serif;
+  font-weight: 500;                          /* Medium */
+  font-size: 40px;
+  line-height: 1.2;
+  color: #111;
+  margin: 0;
+  word-break: break-word;
+}
+.esg-modal__subtitle {
+  font-family: 'Pretendard', sans-serif;
+  font-weight: 400;                          /* Regular */
+  font-size: 20px;
+  line-height: 1.3;
+  color: #111;
+  margin: 0;
+  white-space: nowrap;
 }
 
-/* ── X 버튼 (우상단 고정) ───────────────────────────────────── */
+/* ── X 버튼 (32×32 영역, 내부 20×20 아이콘) ─────────────────── */
 .esg-modal__close {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  z-index: 2;
-  width: 40px;
-  height: 40px;
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
   border: none;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.05);
-  color: #111;
+  background: transparent;
+  color: #1C1B1F;                            /* SVG currentColor */
   cursor: pointer;
   transition: background 0.2s ease;
+  padding: 0;
 }
-.esg-modal__close:hover { background: rgba(0, 0, 0, 0.12); }
-.esg-modal__close svg { width: 20px; height: 20px; }
+.esg-modal__close:hover { background: rgba(0, 0, 0, 0.06); }
+.esg-modal__close img { width: 20px; height: 20px; display: block; }
 
-/* ── 하단 fixed 닫기 버튼 ───────────────────────────────────── */
+/* ── Contents (padding 20 균일, flex 1, 스크롤) ─────────────── */
+.esg-modal__contents {
+  flex: 1 1 auto;
+  min-height: 0;                             /* flex 안에서 overflow-y 동작 보장 */
+  overflow-y: auto;
+  padding: 20px;
+  background: #fff;
+  -webkit-overflow-scrolling: touch;
+  /* 하단 그라데이션이 본문을 가리지 않도록 여백 (footer 위 fade 62px) */
+  padding-bottom: 82px;                      /* 20 + 62(fade) */
+}
+
+/* ── 대표 이미지 (이미지 있을 때만) ─────────────────────────── */
+.esg-modal__hero {
+  width: 100%;
+  aspect-ratio: 720 / 360;                   /* Figma 비율 */
+  background: #f2f2f2;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+.esg-modal__hero img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.esg-modal__hero-placeholder {
+  font-family: 'Pretendard', sans-serif;
+  font-weight: 500;
+  font-size: 16px;
+  line-height: 1.5;
+  color: #96a0b3;
+}
+
+/* ── 본문 텍스트 ─────────────────────────────────────────────── */
+.esg-modal__body {
+  font-family: 'Pretendard', sans-serif;
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #343a3f;
+  word-break: break-word;
+}
+.esg-modal__body p { margin: 0 0 12px; }
+.esg-modal__body p:last-child { margin-bottom: 0; }
+
+/* ── Footer 위 스크롤 페이드 (62px 흰색 그라데이션) ─────────── */
+.esg-modal__fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 72px;                              /* footer 높이 위 */
+  height: 62px;
+  pointer-events: none;                      /* 클릭/스크롤 안 막음 */
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0) 0%, #fff 100%);
+  z-index: 1;
+}
+
+/* ── Footer (padding 8, 버튼 균등 1~3개) ────────────────────── */
 .esg-modal__footer {
   flex: 0 0 auto;
-  padding: 16px 32px 24px;
-  border-top: 1px solid #f0f0f0;
+  display: flex;
+  gap: 8px;
+  padding: 8px;
   background: #fff;
+  border-bottom-left-radius: 24px;
+  border-bottom-right-radius: 24px;
+  position: relative;                        /* fade는 absolute, footer는 그 아래 normal flow */
+  z-index: 2;
 }
-.esg-modal__close-btn {
-  width: 100%;
-  height: 52px;
+.esg-modal__btn {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 56px;
   border: none;
-  border-radius: 12px;
-  background: #00422b;                        /* 딥그린 (브랜드 톤) */
-  color: #fff;
+  border-radius: 16px;
   font-family: 'Pretendard', sans-serif;
-  font-size: 16px;
-  font-weight: 600;
+  font-weight: 600;                          /* SemiBold */
+  font-size: 14px;
+  line-height: 1.5;
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: opacity 0.2s ease;
+  padding: 16px;
 }
-.esg-modal__close-btn:hover { background: #00553a; }
+.esg-modal__btn:hover { opacity: 0.85; }
+.esg-modal__btn--close   { background: #f1f5f9; color: #64748b; }   /* 닫기 (회색) */
+.esg-modal__btn--confirm { background: #111;    color: #fff;    }   /* 확인 (검정) */
+.esg-modal__btn--primary { background: #00422b; color: #fff;    }   /* 편집/주요 (딥그린) */
 
 /* ── 애니메이션 ─────────────────────────────────────────────── */
 @keyframes esgModalFade {
@@ -107,27 +207,14 @@
   .esg-modal { animation: none; }
 }
 
-/* ── 본문 placeholder (디자인 확정 전 임시) ─────────────────── */
-.esg-modal__title {
-  font-family: 'Pretendard', sans-serif;
-  font-size: 24px;
-  font-weight: 700;
-  color: #111;
-  margin: 0 0 8px;
-}
-.esg-modal__subtitle {
-  font-family: 'Pretendard', sans-serif;
-  font-size: 15px;
-  color: #666;
-  margin: 0 0 24px;
-}
-.esg-modal__placeholder {
-  font-family: 'Pretendard', sans-serif;
-  font-size: 14px;
-  color: #999;
-  line-height: 1.7;
-  padding: 24px;
-  border: 1px dashed #ddd;
-  border-radius: 12px;
-  text-align: center;
+/* ── 반응형: 작은 화면(모바일/태블릿) 보정 ─────────────────── */
+@media (max-width: 600px) {
+  .esg-modal__overlay { padding: 12px; }
+  .esg-modal { border-radius: 20px; }
+  .esg-modal__header { padding: 14px 14px 14px 16px; }
+  .esg-modal__title { font-size: 28px; }
+  .esg-modal__subtitle { font-size: 16px; white-space: normal; }
+  .esg-modal__contents { padding: 16px; padding-bottom: 78px; }
+  .esg-modal__footer { padding: 8px; }
+  .esg-modal__btn { font-size: 14px; height: 52px; }
 }
