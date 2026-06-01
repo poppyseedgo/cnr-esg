@@ -1,22 +1,35 @@
 // ============================================================================
 // QnaAccordionItem — Q&A 단일 아코디언 행 (홈 + /qna 페이지 공용)
 //
-// 토큰 (Figma 933:102 / 1003:379):
-//   행 헤더:
-//     - height 80px, padding-right 24, padding-y 24
-//     - 좌측: 클로버 Q&A 아이콘 36×36 + gap 16 + 카테고리 칩 + 질문 24px Medium + 상태 배지
-//     - 우측: 답변완료 → arrow-down 32×32 / 답변대기+어드민 → "답변 하기" 버튼
-//   펼침 영역 (답변 완료 시만):
-//     - padding 24 / 64 / 24 / 24, radius 24
-//     - reply 아이콘 32×32 + gap 16 + 답변 20px Regular line 1.5
-//   행 구분선: border-bottom 1px solid #bababa (Q&A 전용, FAQ보다 진함)
+// 디자인 출처: Figma 1024:595 (정밀 매핑)
+//
+// 행 헤더 (높이 80px):
+//   - padding: 24px 0 (좌우 0, Figma 1024:572)
+//   - 좌측 그룹 (gap 16): 클로버(36×36) + 카테고리 칩 + 질문 텍스트 24px Medium
+//   - 우측 그룹 (gap 16):
+//       · 상태 배지 (대기 #e3e9f5 / 완료 #d4f6ff)
+//       · 답변하기 버튼 (어드민 + pending) 16px Medium 흰색
+//       (화살표 없음 — Figma 1024:595에 부재)
+//   - 행 구분선: border-b 1px solid #bababa
+//
+// 펼침 영역 (답변 완료 시만):
+//   - padding 24/24/64/24, gap 16
+//   - reply.svg (32×32) + 답변 본문 20px Regular line 1.5
 //
 // 상태별 분기:
-//   - answered: 펼침 가능 (답변 표시) → 우측 arrow-down (회전)
-//   - pending + 어드민: 우측 "답변 하기" 버튼 (펼침 불가)
-//   - pending + 일반: 우측 영역 비움 (답변이 없으니 펼침 의미 없음)
+//   - answered + answer 있음:
+//       클릭 가능, 펼침 가능. 우측 [상태배지만]
+//   - pending + 어드민:
+//       우측 [상태배지 + 답변하기 버튼]. 펼침 불가
+//   - pending + 일반:
+//       우측 [상태배지만]. 펼침 불가
 //
-// 익명 처리: 작성자 정보는 표시 안 함 (UI 레이어 책임, props에 author 없음)
+// 익명 처리: 작성자 정보는 표시 안 함 (UI 레이어 책임).
+//
+// 변경 이력:
+//   2026-06-01  최초 작성 (Figma 933:102 기준)
+//   2026-06-01  Figma 1024:595 정밀 매핑 — 화살표 제거, 상태배지 우측 그룹 이동,
+//               답변하기 16px, reply.svg 교체, 행 좌우 padding 0
 // ============================================================================
 
 import type { EsgQnaQuestionWithAnswer } from '@/types/esg';
@@ -50,58 +63,6 @@ export function QnaAccordionItem({
   const panelId = `qna-panel-${qna.id}`;
   const headerId = `qna-header-${qna.id}`;
 
-  // 우측 영역 결정
-  const rightArea = (() => {
-    if (canExpand) {
-      return (
-        <img
-          src="/icons/arrow-down.svg"
-          alt=""
-          aria-hidden="true"
-          width={32}
-          height={32}
-          style={{
-            flexShrink: 0,
-            display: 'block',
-            transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-            transition: 'transform 0.2s ease',
-            color: '#1C1B1F',
-          }}
-        />
-      );
-    }
-    if (isPending && isAdmin) {
-      return (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();          // 헤더 onClick(펼침 토글) 방지
-            onAnswerClick?.();
-          }}
-          style={{
-            flexShrink: 0,
-            background: '#111',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 999,
-            padding: '8px 16px',
-            fontFamily: 'var(--font-sans)',
-            fontWeight: 500,
-            fontSize: 14,
-            lineHeight: 1.5,
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-            transition: 'opacity 0.15s',
-          }}
-        >
-          답변 하기
-        </button>
-      );
-    }
-    // pending + 일반 사용자: 빈 자리 (정렬 유지를 위해 32×32 spacer)
-    return <div style={{ width: 32, height: 32, flexShrink: 0 }} aria-hidden="true" />;
-  })();
-
   return (
     <div style={{ borderBottom: '1px solid #bababa' }}>
       {/* 헤더 */}
@@ -118,7 +79,7 @@ export function QnaAccordionItem({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '24px 24px 24px 0',
+          padding: '24px 0',          // ← Figma 1024:572 좌우 0
           background: 'transparent',
           border: 'none',
           cursor: canExpand ? 'pointer' : 'default',
@@ -126,6 +87,7 @@ export function QnaAccordionItem({
           textAlign: 'left',
         }}
       >
+        {/* 좌측: 클로버 + 칩 + 질문 (상태배지 X) */}
         <div
           style={{
             display: 'flex',
@@ -133,7 +95,7 @@ export function QnaAccordionItem({
             gap: 16,
             flex: '1 1 auto',
             minWidth: 0,
-            flexWrap: 'wrap',           // 좁은 화면에서 자연스럽게 줄바꿈
+            flexWrap: 'wrap',
           }}
         >
           <img
@@ -158,9 +120,44 @@ export function QnaAccordionItem({
           >
             {qna.content}
           </span>
-          <QnaStatusBadge status={qna.status} />
         </div>
-        {rightArea}
+
+        {/* 우측 그룹: 상태배지 + (답변하기 OR nothing) */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 16,
+            flexShrink: 0,
+          }}
+        >
+          <QnaStatusBadge status={qna.status} />
+          {isPending && isAdmin && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onAnswerClick?.();
+              }}
+              style={{
+                background: '#111',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 999,
+                padding: '8px 16px',
+                fontFamily: 'var(--font-sans)',
+                fontWeight: 500,
+                fontSize: 16,             // ← Figma 1024:582 정확값 (이전 14 → 16)
+                lineHeight: 1.5,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                transition: 'opacity 0.15s',
+              }}
+            >
+              답변 하기
+            </button>
+          )}
+        </div>
       </button>
 
       {/* 답변 패널 (답변 완료 시만) */}
@@ -179,7 +176,7 @@ export function QnaAccordionItem({
           }}
         >
           <img
-            src="/icons/reply.png"
+            src="/icons/reply.svg"        // ← png → svg 교체
             alt=""
             aria-hidden="true"
             width={32}
