@@ -6,6 +6,7 @@
 import { Outlet, ScrollRestoration } from 'react-router-dom';
 import { Header } from './Header';
 import { Footer } from './Footer';
+import { GlobalEventModal } from '@/components/home/GlobalEventModal';
 
 export function AppLayout() {
   return (
@@ -26,6 +27,8 @@ export function AppLayout() {
       </main>
       <Footer />
       <ScrollRestoration />
+      {/* ?modal=brand|bazaar|wise|zero 감지해 어디서든 모달 표시 */}
+      <GlobalEventModal />
     </div>
   );
 }

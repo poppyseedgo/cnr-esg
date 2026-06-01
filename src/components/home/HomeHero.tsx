@@ -24,16 +24,14 @@
 // ============================================================================
 
 import { useSearchParams } from 'react-router-dom';
-import { EventModal } from './EventModal';
-import { isEventModalKey, type EventModalKey } from './eventModalContent';
+import type { EventModalKey } from './eventModalContent';
 import './HomeHero.css';
 
 export function HomeHero() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const rawModal = searchParams.get('modal');
-  const activeModal: EventModalKey | null = isEventModalKey(rawModal) ? rawModal : null;
+  const [, setSearchParams] = useSearchParams();
 
   // 모달 열기: ?modal=<key> 세팅 (뒤로가기 시 닫히도록 history push)
+  // 모달 자체는 AppLayout의 <GlobalEventModal />이 ?modal= 감지해 렌더함.
   const openModal = (key: EventModalKey) => {
     setSearchParams(
       (prev) => {
@@ -45,20 +43,7 @@ export function HomeHero() {
     );
   };
 
-  // 모달 닫기: modal 파라미터 제거
-  const closeModal = () => {
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.delete('modal');
-        return next;
-      },
-      { replace: false },
-    );
-  };
-
   return (
-    <>
     <section className="esg-hero" aria-label="C&R 29주년 ESG 이벤트 주요 활동">
       <div className="esg-hero__inner">
         <div className="esg-hero__grid">
@@ -192,9 +177,5 @@ export function HomeHero() {
         </div>
       </div>
     </section>
-
-    {/* 행사안내 모달 (?modal=bazaar|wise|zero) */}
-    {activeModal && <EventModal modalKey={activeModal} onClose={closeModal} />}
-    </>
   );
 }

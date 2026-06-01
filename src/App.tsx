@@ -26,6 +26,7 @@ import { AuthProvider } from '@/hooks/useCurrentUser';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { RequireAuth } from '@/components/routing/RequireAuth';
 import { RequireAdmin } from '@/components/routing/RequireAdmin';
+import { ActivityGate } from '@/components/ActivityGate';
 
 // Pages
 import { HomePage } from '@/pages/HomePage';
@@ -77,10 +78,10 @@ const router = createBrowserRouter([
       { path: '/posts', element: <PostsPage /> },
       { path: '/posts/:category', element: <PostsPage /> },
       { path: '/posts/detail/:id', element: <PostDetailPage /> },
-      { path: '/bazaar', element: <BazaarPage /> },
-      { path: '/bazaar/:productId', element: <BazaarProductPage /> },
-      { path: '/auction', element: <AuctionPage /> },
-      { path: '/auction/:auctionId', element: <AuctionDetailPage /> },
+      { path: '/bazaar', element: <ActivityGate activityKey="bazaar"><BazaarPage /></ActivityGate> },
+      { path: '/bazaar/:productId', element: <ActivityGate activityKey="bazaar"><BazaarProductPage /></ActivityGate> },
+      { path: '/auction', element: <ActivityGate activityKey="auction"><AuctionPage /></ActivityGate> },
+      { path: '/auction/:auctionId', element: <ActivityGate activityKey="auction"><AuctionDetailPage /></ActivityGate> },
       { path: '/donate', element: <DonatePage /> },
 
       // 로그인 필수

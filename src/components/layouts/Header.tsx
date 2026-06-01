@@ -31,6 +31,8 @@ import { useEffect, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEventPhase } from '@/hooks/useEventPhase';
+import { useEventGate } from '@/hooks/useEventGate';
+import type { EsgActivityKey } from '@/types/esg';
 import { signInWithMicrosoft } from '@/lib/auth';
 import { getCartCount, subscribeMyCart, onCartChanged } from '@/lib/cart';
 import {
@@ -471,10 +473,10 @@ function DesktopMenu({
 }: DesktopMenuProps) {
   return (
     <nav style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <NavMenuItem to="/posts/zero-waste" label="제로 웨이스트" badge={zeroWasteBadge} tokens={tokens} />
-      <NavMenuItem to="/posts/wise-life" label="슬기로운 사회생활" badge={wiseLifeBadge} tokens={tokens} />
-      <NavMenuItem to="/bazaar" label="ESG 바자회" badge={bazaarBadge} tokens={tokens} />
-      <NavMenuItem to="/auction" label="ESG 경매" badge={auctionBadge} tokens={tokens} />
+      <NavMenuItem to="/posts/zero-waste" label="제로 웨이스트" badge={zeroWasteBadge} tokens={tokens} activityKey="zero_waste" />
+      <NavMenuItem to="/posts/wise-life" label="슬기로운 사회생활" badge={wiseLifeBadge} tokens={tokens} activityKey="wise_life" />
+      <NavMenuItem to="/bazaar" label="ESG 바자회" badge={bazaarBadge} tokens={tokens} activityKey="bazaar" />
+      <NavMenuItem to="/auction" label="ESG 경매" badge={auctionBadge} tokens={tokens} activityKey="auction" />
       <NavMenuItem to="/donate" label="기부하기" tokens={tokens} />
       {isAdmin && <AdminMenuItem tokens={tokens} />}
     </nav>
@@ -524,20 +526,36 @@ function NavMenuItem({
   badge,        // 우측 배지 (기본)
   badgeLeft,    // 좌측 배지 (옵션)
   tokens,
+  activityKey,  // ← [신규] 활동 키 (있으면 가드 적용, 비어드민 시작전이면 모달)
 }: {
   to: string;
   label: string;
   badge?: BadgeInfo;
   badgeLeft?: BadgeInfo;
   tokens: VariantTokens;
+  activityKey?: EsgActivityKey;
 }) {
   const hasRight = badge?.show ?? false;
   const hasLeft = badgeLeft?.show ?? false;
   const padding = getMenuPadding(hasLeft, hasRight);
 
+  // 가드: activityKey가 있을 때만 동작. 없으면(기부하기 등) blocked는 항상 false.
+  // ※ hooks rules: 조건부 호출 금지 → activityKey 없으면 placeholder 키로 호출하고 결과 무시.
+  const gate = useEventGate(activityKey ?? 'bazaar');
+  const blocked = activityKey ? gate.blocked : false;
+
+  // blocked면 페이지 이동 막고 모달만 오픈
+  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (blocked) {
+      e.preventDefault();
+      gate.openGuide();
+    }
+  };
+
   return (
     <NavLink
       to={to}
+      onClick={handleClick}
       style={({ isActive }) => ({
         display: 'flex',
         alignItems: 'center',
@@ -915,10 +933,10 @@ function MobileMenu({
         fontFamily: FONT_PRETENDARD,
       }}
     >
-      <MobileLink to="/posts/zero-waste" label="제로 웨이스트" badge={zeroWasteBadge} onClick={onClose} tokens={tokens} />
-      <MobileLink to="/posts/wise-life" label="슬기로운 사회생활" badge={wiseLifeBadge} onClick={onClose} tokens={tokens} />
-      <MobileLink to="/bazaar" label="ESG 바자회" badge={bazaarBadge} onClick={onClose} tokens={tokens} />
-      <MobileLink to="/auction" label="ESG 경매" badge={auctionBadge} onClick={onClose} tokens={tokens} />
+      <MobileLink to="/posts/zero-waste" label="제로 웨이스트" badge={zeroWasteBadge} onClick={onClose} tokens={tokens} activityKey="zero_waste" />
+      <MobileLink to="/posts/wise-life" label="슬기로운 사회생활" badge={wiseLifeBadge} onClick={onClose} tokens={tokens} activityKey="wise_life" />
+      <MobileLink to="/bazaar" label="ESG 바자회" badge={bazaarBadge} onClick={onClose} tokens={tokens} activityKey="bazaar" />
+      <MobileLink to="/auction" label="ESG 경매" badge={auctionBadge} onClick={onClose} tokens={tokens} activityKey="auction" />
       <MobileLink to="/donate" label="기부하기" onClick={onClose} tokens={tokens} />
       {isAdmin && (
         <Link
@@ -954,6 +972,7 @@ function MobileLink({
   badgeLeft,
   onClick,
   tokens,
+  activityKey,  // ← [신규] 활동 키 (가드 적용)
 }: {
   to: string;
   label: string;
@@ -961,11 +980,24 @@ function MobileLink({
   badgeLeft?: BadgeInfo;
   onClick: () => void;
   tokens: VariantTokens;
+  activityKey?: EsgActivityKey;
 }) {
+  // hooks rules: 조건부 호출 금지 → activityKey 없으면 placeholder 키로 호출하고 결과 무시
+  const gate = useEventGate(activityKey ?? 'bazaar');
+  const blocked = activityKey ? gate.blocked : false;
+
+  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (blocked) {
+      e.preventDefault();
+      gate.openGuide();
+    }
+    onClick();    // 모바일 메뉴 항상 닫기 (페이지 이동이든 모달이든)
+  };
+
   return (
     <Link
       to={to}
-      onClick={onClick}
+      onClick={handleClick}
       style={{
         display: 'flex',
         alignItems: 'center',

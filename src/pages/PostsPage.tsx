@@ -19,6 +19,7 @@ import { loadPosts, subscribePostsChanges } from '@/lib/posts';
 import { formatKSTDate, formatKSTFull } from '@/utils/time';
 import { PostFormModal } from '@/components/PostFormModal';
 import { PostDetailModal } from '@/components/PostDetailModal';
+import { ActivityGate } from '@/components/ActivityGate';
 import { signInWithMicrosoft } from '@/lib/auth';
 import type {
   EsgActivityKey,
@@ -96,7 +97,9 @@ export function PostsPage() {
 
         {/* 선택된 카테고리 콘텐츠 */}
         {current ? (
-          <CategoryContent meta={current} />
+          <ActivityGate activityKey={current.activityKey}>
+            <CategoryContent meta={current} />
+          </ActivityGate>
         ) : (
           <div
             style={{
