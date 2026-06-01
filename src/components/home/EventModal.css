@@ -186,7 +186,7 @@
 .esg-modal__body {
   font-family: var(--font-sans);
   font-weight: 400;
-  font-size: 20px;                           /* Figma 1015:153: 20px Regular */
+  font-size: 16px;                           /* 16px Regular (데스크탑/모바일 통일) */
   line-height: 1.6;
   color: #111;                               /* Figma 1015:153: #111 */
   word-break: break-word;
@@ -336,7 +336,6 @@
   .esg-modal__subtitle--big { font-size: 16px; white-space: normal; }
   .esg-modal__subtitle--big p { white-space: normal; }                  /* 모바일 multi-paragraph도 자유 줄바꿈 */
   .esg-modal__title--medium { font-size: 20px; white-space: normal; }
-  .esg-modal__body          { font-size: 16px; }                       /* 모바일 본문 가독성 */
 
   /* Contents — 본문 padding 압축 */
   .esg-modal__contents--big,
