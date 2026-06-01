@@ -49,7 +49,7 @@ const CATEGORY_OPTIONS: EsgQnaCategory[] = [
   'auction',
 ];
 
-const MAX_LENGTH = 200; // DB 하드 리밋. Figma는 "40자 이내"지만 여유 둠.
+const MAX_LENGTH = 40; // Figma 디자인 기준 (placeholder "40자 이내"). DB CHECK는 200까지 허용하나 UI에서 40자로 제한.
 
 export function InquiryModal({ onClose, onSuccess }: Props) {
   const [category, setCategory] = useState<EsgQnaCategory>('general');

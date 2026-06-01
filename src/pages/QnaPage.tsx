@@ -44,7 +44,6 @@ export function QnaPage() {
   const { currentUser, isAdmin, signInWithMicrosoft } = useCurrentUser();
 
   const [items, setItems] = useState<EsgQnaQuestionWithAnswer[]>([]);
-  const [authorMap, setAuthorMap] = useState<Map<string, EsgQnaQuestionWithAuthor>>(new Map());
   const [totalCount, setTotalCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -68,13 +67,9 @@ export function QnaPage() {
 
       if (isAdmin) {
         const adminRows = rows as EsgQnaQuestionWithAuthor[];
-        const map = new Map<string, EsgQnaQuestionWithAuthor>();
-        for (const row of adminRows) map.set(row.id, row);
-        setAuthorMap(map);
         setItems(adminRows as EsgQnaQuestionWithAnswer[]);
       } else {
         setItems(rows as EsgQnaQuestionWithAnswer[]);
-        setAuthorMap(new Map());
       }
 
       // 현재 페이지가 totalPages를 초과하면 마지막 페이지로 조정
@@ -115,9 +110,11 @@ export function QnaPage() {
   };
 
   const handleAnswerClick = (questionId: string) => {
-    const target = authorMap.get(questionId);
-    if (!target) {
-      console.error('[QnaPage] author info missing for', questionId);
+    // items 자체가 어드민이면 EsgQnaQuestionWithAuthor 데이터를 갖고 있음 (loadQuestionsAdmin 결과).
+    const target = items.find((q) => q.id === questionId) as EsgQnaQuestionWithAuthor | undefined;
+    if (!target || !target.author) {
+      console.error('[QnaPage] author info missing for', questionId, target);
+      alert('작성자 정보를 불러올 수 없습니다. 새로고침 후 다시 시도해 주세요.');
       return;
     }
     setAnswerTarget(target);

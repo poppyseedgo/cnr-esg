@@ -133,6 +133,11 @@ export interface LoadQuestionsAdminOptions extends LoadQuestionsOptions {
 /**
  * 어드민용 Q&A 조회 — 작성자(profiles) JOIN.
  * profiles의 id로 매핑 (auth.users.id == profiles.id).
+ *
+ * 2026-06-01 fix: FK relationship hint (profiles!esg_qna_questions_author_id_fkey) 가
+ *   esg_qna_questions가 auth.users를 직접 참조하고 profiles는 별도 테이블이라 동작 안 함.
+ *   기존 fallback 패턴을 default로 채택 — 두 쿼리(질문+답변, 그리고 작성자 일괄)로 수동 JOIN.
+ *   N+1 아님, 작성자는 한 번에 in() 으로 일괄 조회.
  */
 export async function loadQuestionsAdmin(
   opts: LoadQuestionsAdminOptions = {}
@@ -142,43 +147,7 @@ export async function loadQuestionsAdmin(
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
-  let query = supabase
-    .from('esg_qna_questions')
-    .select(`
-      *,
-      answer:esg_qna_answers(*),
-      author:profiles!esg_qna_questions_author_id_fkey(id, name, dept, email)
-    `)
-    .order('created_at', { ascending: false })
-    .range(from, to);
-
-  if (opts.category) query = query.eq('category', opts.category);
-  if (opts.status && opts.status !== 'all') query = query.eq('status', opts.status);
-
-  const { data, error } = await query;
-  if (error) {
-    // FK 관계 hint가 잘못된 경우 fallback: 두 번 쿼리 (질문 + 작성자 별도 로드)
-    console.warn('[qna] admin join failed, fallback to manual join:', error);
-    return loadQuestionsAdminFallback(opts, from, to);
-  }
-
-  return (data ?? []).map((row: EsgQnaQuestionRow & {
-    answer: EsgQnaAnswerRow[] | EsgQnaAnswerRow | null;
-    author: { id: string; name: string; dept: string | null; email: string } | { id: string; name: string; dept: string | null; email: string }[] | null;
-  }) => ({
-    ...row,
-    answer: Array.isArray(row.answer) ? (row.answer[0] ?? null) : (row.answer ?? null),
-    author: Array.isArray(row.author) ? (row.author[0] ?? null) : (row.author ?? null),
-  })) as EsgQnaQuestionWithAuthor[];
-}
-
-/** 어드민 JOIN 실패 시 fallback (FK 관계 hint 없을 때) */
-async function loadQuestionsAdminFallback(
-  opts: LoadQuestionsAdminOptions,
-  from: number,
-  to: number,
-): Promise<EsgQnaQuestionWithAuthor[]> {
-  // 1) 질문 + 답변
+  // 1) 질문 + 답변 (1:1 nested select)
   let q1 = supabase
     .from('esg_qna_questions')
     .select('*, answer:esg_qna_answers(*)')
@@ -189,20 +158,33 @@ async function loadQuestionsAdminFallback(
 
   const { data: questions, error: qErr } = await q1;
   if (qErr) throw qErr;
-  const rows = (questions ?? []) as Array<EsgQnaQuestionRow & { answer: EsgQnaAnswerRow[] | EsgQnaAnswerRow | null }>;
+  const rows = (questions ?? []) as Array<
+    EsgQnaQuestionRow & { answer: EsgQnaAnswerRow[] | EsgQnaAnswerRow | null }
+  >;
 
-  // 2) 작성자 일괄 로드
+  if (rows.length === 0) return [];
+
+  // 2) 작성자 일괄 로드 (auth.users.id == profiles.id)
   const authorIds = Array.from(new Set(rows.map((r) => r.author_id)));
-  if (authorIds.length === 0) return [];
-
   const { data: profiles, error: pErr } = await supabase
     .from('profiles')
     .select('id, name, dept, email')
     .in('id', authorIds);
-  if (pErr) throw pErr;
+  if (pErr) {
+    console.warn('[qna] author profiles load failed:', pErr);
+    // profiles 조회 실패해도 author=null로 계속 진행 (질문은 보여야 함)
+  }
 
-  const authorMap = new Map<string, { id: string; name: string; dept: string | null; email: string }>();
-  for (const p of (profiles ?? []) as Array<{ id: string; name: string; dept: string | null; email: string }>) {
+  const authorMap = new Map<
+    string,
+    { id: string; name: string; dept: string | null; email: string }
+  >();
+  for (const p of (profiles ?? []) as Array<{
+    id: string;
+    name: string;
+    dept: string | null;
+    email: string;
+  }>) {
     authorMap.set(p.id, p);
   }
 

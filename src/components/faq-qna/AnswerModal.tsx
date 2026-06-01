@@ -40,7 +40,7 @@ interface Props {
   onSuccess?: () => void;
 }
 
-const MAX_LENGTH = 500; // DB 하드 리밋. Figma는 "100글자 이내".
+const MAX_LENGTH = 100; // Figma 디자인 기준 (placeholder "100글자 이내"). DB CHECK는 500까지 허용하나 UI에서 100자로 제한.
 
 export function AnswerModal({ question, onClose, onSuccess }: Props) {
   const [content, setContent] = useState('');

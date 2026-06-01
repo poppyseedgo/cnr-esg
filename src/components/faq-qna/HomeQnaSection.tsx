@@ -41,12 +41,9 @@ const HOME_PAGE_SIZE = 5;
 export function HomeQnaSection() {
   const { currentUser, isAdmin, signInWithMicrosoft } = useCurrentUser();
 
-  // 일반: question + answer, 어드민: + author
-  // 어드민일 때만 작성자 정보 필요해서 별도 state 한 묶음으로 처리.
-  // (어드민이 답변하기 누를 때 작성자 정보 필요)
+  // 데이터: 어드민이면 EsgQnaQuestionWithAuthor (author 포함), 아니면 EsgQnaQuestionWithAnswer
+  // 둘 다 EsgQnaQuestionWithAnswer 형태로 보관(전자가 후자를 확장). 어드민 분기 시 cast로 author 접근.
   const [items, setItems] = useState<EsgQnaQuestionWithAnswer[]>([]);
-  // 어드민용 author 정보 맵 (qna.id → author 정보 포함 row)
-  const [authorMap, setAuthorMap] = useState<Map<string, EsgQnaQuestionWithAuthor>>(new Map());
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -57,17 +54,12 @@ export function HomeQnaSection() {
   const reload = async () => {
     try {
       if (isAdmin) {
-        // 어드민: 작성자 정보 포함 조회 → items도 같은 데이터로 사용
+        // 어드민: 작성자 정보 포함 조회 → items에 author 들어 있음 (cast로 접근)
         const adminRows = await loadQuestionsAdmin({ pageSize: HOME_PAGE_SIZE });
-        const map = new Map<string, EsgQnaQuestionWithAuthor>();
-        for (const row of adminRows) map.set(row.id, row);
-        setAuthorMap(map);
-        // QnaAccordionItem이 받는 타입은 EsgQnaQuestionWithAnswer로 호환 → 동일 사용
         setItems(adminRows as EsgQnaQuestionWithAnswer[]);
       } else {
         const rows = await loadQuestions({ pageSize: HOME_PAGE_SIZE });
         setItems(rows);
-        setAuthorMap(new Map()); // 일반 사용자는 author 정보 X
       }
     } catch (e) {
       console.error('[HomeQnaSection] load:', e);
@@ -99,9 +91,12 @@ export function HomeQnaSection() {
   };
 
   const handleAnswerClick = (questionId: string) => {
-    const target = authorMap.get(questionId);
-    if (!target) {
-      console.error('[HomeQnaSection] author info missing for', questionId);
+    // items 자체가 어드민이면 EsgQnaQuestionWithAuthor 데이터를 갖고 있음 (loadQuestionsAdmin 결과).
+    // authorMap stale 위험 회피 위해 items에서 직접 찾음.
+    const target = items.find((q) => q.id === questionId) as EsgQnaQuestionWithAuthor | undefined;
+    if (!target || !target.author) {
+      console.error('[HomeQnaSection] author info missing for', questionId, target);
+      alert('작성자 정보를 불러올 수 없습니다. 새로고침 후 다시 시도해 주세요.');
       return;
     }
     setAnswerTarget(target);
