@@ -367,6 +367,7 @@
 
   /* ── FAQ 행 ── */
   .faqqna-faq__header {
+    align-items: flex-start;  /* Figma 1034:887 items-start — 2줄 질문 시 화살표 상단 정렬 */
     padding: 16px 0;          /* 24 0 → 16 0 (Figma 1034:887) */
     min-height: 0;
   }
