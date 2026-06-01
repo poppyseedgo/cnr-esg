@@ -1,19 +1,20 @@
 /* ============================================================================
-   Footer.css — Figma 1027:736 정밀 매핑
+   Footer.css — Figma 1027:736 v2 정밀 매핑
+
+   v2 변경점:
+     - col1 (왼쪽 그룹 라벨 컬럼) 완전 제거 → 안내 테이블 평면화
+     - 행 2 구조 변경: 종이컵 없는 날 + Cup & Reduce day(w-280) + 6월 30일 화요일
+     - 하단 © 텍스트 → footer_logo.svg 워드마크 (175×24)
 
    토큰 (Figma 1:1):
-     - bg: #fff
-     - text: #111
-     - border: #eff4ff (1px solid)
-     - 메뉴 간 gap: 80
-     - 테이블 컬럼 gap: 64
-     - 내부 줄 사이 gap: 24
-     - 라벨↔값 gap: 40
-     - 날짜 양옆 gap: 12
-     - col1 width: 240, col2 width: 200, col3-label width: 280, col3-label-row width: 280
+     - bg #fff, text #111, border #eff4ff
+     - 메뉴 간 gap: 80, 테이블 컬럼 gap: 64
+     - 내부 줄 사이 gap: 24, 라벨↔값 gap: 40, 날짜 양옆 gap: 12
+     - col2 width: 200, label width: 280
 
    변경 이력:
-     2026-06-01  Figma 1027:736 정밀 매핑 (작업 2)
+     2026-06-01  v1 (col1 포함)
+     2026-06-01  v2 — col1 제거 + 행2 평면화 + 로고 SVG
    ============================================================================ */
 
 /* ── footer 루트 ─────────────────────────────────────────── */
@@ -33,21 +34,20 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  padding: 32px 32px 48px;          /* pt-32 pb-48 px-32 */
+  padding: 32px 32px 48px;
   width: 100%;
 }
 
-/* 메뉴 행: FAQ + 문의 + 안내 (gap-80) */
 .esg-footer__menu-row {
   display: flex;
   gap: 80px;
   align-items: flex-start;
-  padding-bottom: 48px;             /* pb-48 */
-  padding-right: 24px;              /* pr-24 */
+  padding-bottom: 48px;
+  padding-right: 24px;
   width: 100%;
 }
 
-/* ── 메뉴 링크 (FAQ, 행사 관련 문의 하기) ─────────────── */
+/* ── 메뉴 링크 ─────────────────────────────────────────── */
 .esg-footer__menu-link {
   display: flex;
   gap: 8px;
@@ -62,7 +62,7 @@
 
 .esg-footer__menu-link span {
   font-family: var(--font-sans);
-  font-weight: 600;                 /* SemiBold (기본: 행사 관련 문의 하기) */
+  font-weight: 600;
   font-size: 28px;
   line-height: 1.2;
   color: #111;
@@ -70,16 +70,12 @@
   white-space: nowrap;
 }
 
-/* FAQ만 Medium + letter-spacing 0.56px */
 .esg-footer__menu-link--faq span {
-  font-weight: 500;                 /* Medium */
-  letter-spacing: 0.56px;           /* 28px * 0.02 */
+  font-weight: 500;
+  letter-spacing: 0.56px;
 }
 
-.esg-footer__menu-link img {
-  display: block;
-  flex-shrink: 0;
-}
+.esg-footer__menu-link img { display: block; flex-shrink: 0; }
 
 /* ── ESG 안내 (오른쪽, flex-1) ────────────────────────── */
 .esg-footer__schedule {
@@ -90,7 +86,6 @@
   min-width: 0;
 }
 
-/* 안내 제목 */
 .esg-footer__schedule-title {
   display: flex;
   align-items: flex-start;
@@ -102,7 +97,7 @@
 .esg-footer__schedule-title p {
   margin: 0;
   font-family: var(--font-sans);
-  font-weight: 600;                 /* SemiBold */
+  font-weight: 600;
   font-size: 28px;
   line-height: 1.2;
   color: #111;
@@ -110,7 +105,6 @@
   white-space: nowrap;
 }
 
-/* 안내 본문 */
 .esg-footer__schedule-body {
   display: flex;
   flex-direction: column;
@@ -121,24 +115,19 @@
   color: #111;
 }
 
-/* 본문 — 행 (3개) */
+/* ── 행 (v2: col1 제거됨, col2부터 시작) ───────────────── */
 .esg-footer__row {
   display: flex;
   gap: 64px;
   align-items: flex-start;
-  padding: 24px 24px 24px 0;        /* py-24 pr-24 */
+  padding: 24px 24px 24px 0;
   width: 100%;
 }
 .esg-footer__row--bordered {
   border-bottom: 1px solid #eff4ff;
 }
-
-/* col1: 일정명 (Regular, w-240) */
-.esg-footer__col1 {
-  margin: 0;
-  flex-shrink: 0;
-  width: 240px;
-  font-weight: 400;                 /* Regular */
+.esg-footer__row--last {
+  /* 마지막 행은 border 없음 (Figma) */
 }
 
 /* col2: 카테고리 (Medium, w-200) */
@@ -146,10 +135,10 @@
   margin: 0;
   flex-shrink: 0;
   width: 200px;
-  font-weight: 500;                 /* Medium */
+  font-weight: 500;
 }
 
-/* col3: 내용 영역 */
+/* col3: 내용 영역 (가변) */
 .esg-footer__col3 {
   display: flex;
   flex-direction: column;
@@ -158,15 +147,8 @@
   flex-shrink: 0;
 }
 .esg-footer__col3--multi {
-  gap: 24px;                        /* 내부 줄 사이 gap */
+  gap: 24px;
   justify-content: center;
-}
-
-/* col3 단일 값 */
-.esg-footer__value-single {
-  margin: 0;
-  font-weight: 400;
-  white-space: nowrap;
 }
 
 /* 서브 행 (라벨 + 값) — gap-40 */
@@ -176,12 +158,16 @@
   align-items: center;
   flex-shrink: 0;
 }
+
+/* 라벨 (w-280, Regular) */
 .esg-footer__label {
   margin: 0;
   flex-shrink: 0;
-  width: 280px;                     /* Figma w-280 */
+  width: 280px;
   font-weight: 400;
 }
+
+/* 값 (nowrap, Regular) */
 .esg-footer__value {
   margin: 0;
   flex-shrink: 0;
@@ -198,12 +184,9 @@
   white-space: nowrap;
   font-weight: 400;
 }
-.esg-footer__date-range p {
-  margin: 0;
-  flex-shrink: 0;
-}
+.esg-footer__date-range p { margin: 0; flex-shrink: 0; }
 
-/* 행 3 — col-rest (col2 + col3 합쳐서 세로로 2개) */
+/* 행 3 — col-rest (서브 블록 2개 세로 나열) */
 .esg-footer__col-rest {
   display: flex;
   flex-direction: column;
@@ -219,7 +202,7 @@
   flex-shrink: 0;
 }
 
-/* ── 하단 영역 (회사 정보) ─────────────────────────────── */
+/* ── 하단 영역 ─────────────────────────────────────────── */
 .esg-footer__bottom {
   display: flex;
   flex-direction: column;
@@ -244,7 +227,7 @@
   font-weight: 400;
   font-size: 16px;
   line-height: 1.2;
-  letter-spacing: 0.16px;           /* 16px * 0.01 */
+  letter-spacing: 0.16px;
   color: #111;
   white-space: nowrap;
 }
@@ -263,20 +246,17 @@
 }
 .esg-footer__biz p { margin: 0; flex-shrink: 0; }
 
-.esg-footer__copyright {
-  margin: 0;
-  font-family: var(--font-sans);
-  font-weight: 400;
-  font-size: 20px;
-  line-height: 1.2;
-  color: #111;
-  white-space: nowrap;
+/* 로고 (v2: © 텍스트 대체) */
+.esg-footer__logo {
+  display: block;
+  height: 24px;
+  width: auto;
 }
 
 /* ── 반응형: 1200px 이하 ─────────────────────────────────── */
 @media (max-width: 1200px) {
   .esg-footer__menu-row {
-    flex-direction: column;         /* 메뉴/안내 세로 배치 */
+    flex-direction: column;
     gap: 32px;
     padding-bottom: 32px;
   }
@@ -288,14 +268,11 @@
   .esg-footer__top { padding: 24px 20px 32px; }
   .esg-footer__menu-link span,
   .esg-footer__schedule-title p { font-size: 22px; }
-  .esg-footer__menu-link img,
-  .esg-footer__schedule-title img { width: 24px; height: 24px; }
+  .esg-footer__menu-link img { width: 24px; height: 24px; }
 
   .esg-footer__schedule-body { font-size: 16px; }
 
-  /* 모바일은 컬럼 전체를 세로로 펼침 */
   .esg-footer__row { flex-direction: column; gap: 12px; padding: 16px 0; }
-  .esg-footer__col1,
   .esg-footer__col2,
   .esg-footer__label { width: auto; }
   .esg-footer__sub-row { flex-direction: column; gap: 4px; align-items: flex-start; }
@@ -306,5 +283,5 @@
   .esg-footer__bottom { padding: 20px; }
   .esg-footer__company-name,
   .esg-footer__biz { font-size: 14px; }
-  .esg-footer__copyright { font-size: 16px; }
+  .esg-footer__logo { height: 20px; }
 }

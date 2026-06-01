@@ -1,5 +1,5 @@
 // ============================================================================
-// Footer — 사이트 푸터 (Figma 1027:736 정밀 매핑)
+// Footer — 사이트 푸터 (Figma 1027:736 v2 정밀 매핑)
 //
 // 구조:
 //   [상단 영역] bg #fff, pt-32 pb-48 px-32 — 메뉴 + ESG 안내 테이블
@@ -9,26 +9,18 @@
 //       - ESG 프로그램 및 기간 안내 (flex-1, 우측 영역)
 //     · 안내 테이블:
 //       - 제목 28px SemiBold + border-b #eff4ff pb-48
-//       - 행 1: 29주년 창립기념식 (Regular w-240) | ESG 어워드 (Medium w-200) | 2개 항목 col gap-24
-//       - 행 2: Cup & Reduce day | 종이컵 없는 날 | 6월 30일 화요일
-//       - 행 3: 나눔 순환 자원 위크 | (C&R 바자회 / C&R 경매) 2서브행 col gap-64
+//       - 행 1: ESG 어워드 (Medium w-200) | 슬기/제로 2줄 (Regular w-280)
+//       - 행 2: 종이컵 없는 날 (Medium w-200) | Cup & Reduce day (Regular w-280) | 6월 30일 화요일
+//       - 행 3: C&R 바자회 / C&R 경매 2서브 (col1 없음, col2부터 시작)
 //
 //   [하단 영역] flex-col gap-16 p-24 — 회사정보
 //     · (주)씨엔알리서치 16px (letter-spacing 0.16px)
 //     · 사업자등록번호 829-87-01755 16px
-//     · © C&R RESEARCH 20px
-//
-// 색상/구분선:
-//   - 텍스트 #111
-//   - 구분선 #eff4ff (Figma 정확값, 매우 연한 회청)
-//
-// 링크:
-//   - "FAQ" 와 "행사 관련 문의 하기" 가 헤더에서 제거되면서(작업 3+4)
-//     이 푸터가 진입점이 됨. /faq, /qna 라우트는 그대로 유지됨.
+//     · footer_logo.svg (C&R RESEARCH 워드마크 175×24)
 //
 // 변경 이력:
-//   2026-05  최초 임시 푸터 (페이즈 표시)
-//   2026-06-01  Figma 1027:736 전면 매핑 (작업 2)
+//   2026-06-01  Figma 1027:736 v1 매핑
+//   2026-06-01  Figma 1027:736 v2 — col1 제거(평면화), 행2 구조변경, © 텍스트→SVG 로고
 // ============================================================================
 
 import { Link } from 'react-router-dom';
@@ -71,9 +63,8 @@ export function Footer() {
             </div>
 
             <div className="esg-footer__schedule-body">
-              {/* 행 1: 29주년 창립기념식 */}
+              {/* 행 1: ESG 어워드 (슬기/제로 2줄) */}
               <div className="esg-footer__row esg-footer__row--bordered">
-                <p className="esg-footer__col1">29주년 창립기념식</p>
                 <p className="esg-footer__col2">ESG 어워드</p>
                 <div className="esg-footer__col3 esg-footer__col3--multi">
                   <div className="esg-footer__sub-row">
@@ -87,18 +78,15 @@ export function Footer() {
                 </div>
               </div>
 
-              {/* 행 2: Cup & Reduce day */}
+              {/* 행 2: 종이컵 없는 날 + Cup & Reduce day + 일자 */}
               <div className="esg-footer__row esg-footer__row--bordered">
-                <p className="esg-footer__col1">Cup & Reduce day</p>
                 <p className="esg-footer__col2">종이컵 없는 날</p>
-                <div className="esg-footer__col3">
-                  <p className="esg-footer__value-single">6월 30일 화요일</p>
-                </div>
+                <p className="esg-footer__label">Cup & Reduce day</p>
+                <p className="esg-footer__value">6월 30일 화요일</p>
               </div>
 
               {/* 행 3: 나눔 순환 자원 위크 (서브행 2개: C&R 바자회 / C&R 경매) */}
-              <div className="esg-footer__row">
-                <p className="esg-footer__col1">나눔 순환 자원 위크</p>
+              <div className="esg-footer__row esg-footer__row--last">
                 <div className="esg-footer__col-rest">
                   {/* 서브행 1: C&R 바자회 */}
                   <div className="esg-footer__sub-block">
@@ -139,7 +127,7 @@ export function Footer() {
         </div>
       </div>
 
-      {/* ── 하단: 회사 정보 ── */}
+      {/* ── 하단: 회사 정보 + 로고 ── */}
       <div className="esg-footer__bottom">
         <div className="esg-footer__company">
           <p className="esg-footer__company-name">(주)씨엔알리서치</p>
@@ -148,7 +136,13 @@ export function Footer() {
             <p>829-87-01755</p>
           </div>
         </div>
-        <p className="esg-footer__copyright">© C&amp;R RESEARCH</p>
+        <img
+          src="/icons/footer_logo.svg"
+          alt="C&R RESEARCH"
+          className="esg-footer__logo"
+          width={175}
+          height={24}
+        />
       </div>
     </footer>
   );
