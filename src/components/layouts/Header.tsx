@@ -475,11 +475,9 @@ function DesktopMenu({
     <nav style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <NavMenuItem to="/posts/zero-waste" label="제로 웨이스트" badge={zeroWasteBadge} tokens={tokens} activityKey="zero_waste" />
       <NavMenuItem to="/posts/wise-life" label="슬기로운 사회생활" badge={wiseLifeBadge} tokens={tokens} activityKey="wise_life" />
-      <NavMenuItem to="/bazaar" label="ESG 바자회" badge={bazaarBadge} tokens={tokens} activityKey="bazaar" />
-      <NavMenuItem to="/auction" label="ESG 경매" badge={auctionBadge} tokens={tokens} activityKey="auction" />
+      <NavMenuItem to="/bazaar" label="C&amp;R 바자회" badge={bazaarBadge} tokens={tokens} activityKey="bazaar" />
+      <NavMenuItem to="/auction" label="C&amp;R 경매" badge={auctionBadge} tokens={tokens} activityKey="auction" />
       <NavMenuItem to="/donate" label="기부하기" tokens={tokens} />
-      <NavMenuItem to="/faq" label="FAQ" tokens={tokens} />
-      <NavMenuItem to="/qna" label="Q&amp;A" tokens={tokens} />
       {isAdmin && <AdminMenuItem tokens={tokens} />}
     </nav>
   );
@@ -937,11 +935,9 @@ function MobileMenu({
     >
       <MobileLink to="/posts/zero-waste" label="제로 웨이스트" badge={zeroWasteBadge} onClick={onClose} tokens={tokens} activityKey="zero_waste" />
       <MobileLink to="/posts/wise-life" label="슬기로운 사회생활" badge={wiseLifeBadge} onClick={onClose} tokens={tokens} activityKey="wise_life" />
-      <MobileLink to="/bazaar" label="ESG 바자회" badge={bazaarBadge} onClick={onClose} tokens={tokens} activityKey="bazaar" />
-      <MobileLink to="/auction" label="ESG 경매" badge={auctionBadge} onClick={onClose} tokens={tokens} activityKey="auction" />
+      <MobileLink to="/bazaar" label="C&amp;R 바자회" badge={bazaarBadge} onClick={onClose} tokens={tokens} activityKey="bazaar" />
+      <MobileLink to="/auction" label="C&amp;R 경매" badge={auctionBadge} onClick={onClose} tokens={tokens} activityKey="auction" />
       <MobileLink to="/donate" label="기부하기" onClick={onClose} tokens={tokens} />
-      <MobileLink to="/faq" label="FAQ" onClick={onClose} tokens={tokens} />
-      <MobileLink to="/qna" label="Q&amp;A" onClick={onClose} tokens={tokens} />
       {isAdmin && (
         <Link
           to="/admin"
