@@ -78,11 +78,13 @@ export function Footer() {
                 </div>
               </div>
 
-              {/* 행 2: 종이컵 없는 날 + Cup & Reduce day + 일자 */}
+              {/* 행 2: 종이컵 없는 날 + (Cup & Reduce day + 6월 30일 화요일 sub-row gap-40) */}
               <div className="esg-footer__row esg-footer__row--bordered">
                 <p className="esg-footer__col2">종이컵 없는 날</p>
-                <p className="esg-footer__label">Cup & Reduce day</p>
-                <p className="esg-footer__value">6월 30일 화요일</p>
+                <div className="esg-footer__sub-row">
+                  <p className="esg-footer__label">Cup & Reduce day</p>
+                  <p className="esg-footer__value">6월 30일 화요일</p>
+                </div>
               </div>
 
               {/* 행 3: 나눔 순환 자원 위크 (서브행 2개: C&R 바자회 / C&R 경매) */}
