@@ -1,20 +1,24 @@
 // ============================================================================
 // ZeroGuide — 제로 웨이스터 어워드 모달 본문 (Figma 1042:34)
 //
-// 구조 (인트로 + 4섹션):
+// 구조 (인트로 + 5섹션):
 //   ⓪ 인트로 (구분선 없음)         — 24px Medium/Regular 2줄
 //   ① 인용 + 제로 웨이스터 상 정의   — 인용 박스(가운데 정렬 20px Medium) + 본문 18px
 //   ② 참여 방법                    — 18px Bold 제목 + ①②③
-//   ③ 참여 예시                    — 2×4 그리드 (8개 단순 카드, bg #fff height 170)
-//   ④ 마지막 안내                  — 가운데 정렬 16px Medium 2줄
+//   ③ 참여 예시                    — 2×4 그리드 (8개 단순 카드, bg #fff radius24 h170), pb-24
+//   ④ 참여 일정                    — 3행 표 (구분선 없는 plain 섹션, #a7a7a7 행선)
+//   ⑤ 마지막 안내                  — 가운데 정렬 16px Medium 2줄 (구분선 없음)
 //
 // 토큰:
 //   - 인용 박스: py-32, 가운데 정렬, 20px Medium, max-width 720
 //   - 카드: bg #fff, padding 16, radius 24, height 170, 텍스트 20px Medium 가운데
-//   - 섹션 구분선 #d2d7e1 (전부 동일)
+//   - 섹션 구분선 #d2d7e1 (참여 일정·마지막 안내는 구분선 없음)
+//   - 참여 일정 표: 행 py16 gap24, 라벨 190px, 행 구분선 #a7a7a7
 //
 // 변경 이력:
 //   2026-06-01  최초 작성 — Figma 1042:34 정밀 매핑
+//   2026-06-02  참여 일정 표 섹션 추가(1048:343), 마지막 안내 구분선 제거,
+//               참여 예시 pb 32→24 (Figma 재대조)
 // ============================================================================
 
 import './ZeroGuide.css';
@@ -64,8 +68,8 @@ export function ZeroGuide() {
         </div>
       </section>
 
-      {/* ③ 참여 예시 — 2×4 그리드 (8개 카드) */}
-      <section className="zero-section">
+      {/* ③ 참여 예시 — 2×4 그리드 (8개 카드), pb-24 (Figma 1042:74) */}
+      <section className="zero-section zero-section--examples">
         <h3 className="zero-section__title zero-section__title--bold">참여 예시</h3>
         <div className="zero-grid">
           <ExampleCard>매일 함께하는 나의 텀블러 인증샷</ExampleCard>
@@ -88,7 +92,26 @@ export function ZeroGuide() {
         </div>
       </section>
 
-      {/* ④ 마지막 안내 */}
+      {/* ④ 참여 일정 — 표 (구분선 없는 plain 섹션, Figma 1048:343) */}
+      <section className="zero-section zero-section--plain">
+        <h3 className="zero-section__title">참여 일정</h3>
+        <div className="zero-schedule">
+          <div className="zero-schedule__row">
+            <p className="zero-schedule__label">후보 게시물 업로드 기한</p>
+            <p className="zero-schedule__value">6/8(월) ~ 6/22(월)</p>
+          </div>
+          <div className="zero-schedule__row">
+            <p className="zero-schedule__label">좋아요 투표</p>
+            <p className="zero-schedule__value">업로드 기간 동안 좋아요 투표 진행</p>
+          </div>
+          <div className="zero-schedule__row">
+            <p className="zero-schedule__label">결과 발표 및 시상</p>
+            <p className="zero-schedule__value">6/30(화) 29주년 기념식에서 발표 및 시상(상패 및 선물)</p>
+          </div>
+        </div>
+      </section>
+
+      {/* ⑤ 마지막 안내 */}
       <section className="zero-section zero-section--final">
         <div className="zero-final">
           <p>"나는 이걸 꾸준히 하고 있어요"</p>

@@ -9,10 +9,16 @@
      - 카드 좌측 width 300px (모바일 auto)
      - 카드 좌측 아이콘 32×32 + 8px gap + 제목 20px Medium
      - 체크 항목 24px 아이콘 + 15px Regular line 1.8
-     - 섹션 구분선 #d2d7e1 (마지막은 #000)
+     - 섹션 구분선 #d2d7e1
+     - 참여 일정 표: 행 py16 gap24, 라벨 190px, 구분선 #a7a7a7
+     - 마지막 안내: 구분선 없음, 가운데 정렬, pb 32
 
    변경 이력:
      2026-06-01  최초 작성 — Figma 1041:49 매핑
+     2026-06-02  Figma 재대조 정밀 수정
+                 - 참여 일정 표 섹션 추가 (1048:361)
+                 - 섹션 구분선 처리 분리: --divider(있음) 기본, --plain(없음)
+                 - 마지막 안내 구분선 #000 → 없음, pb 24 → 32 (Figma 1047:498)
    ============================================================================ */
 
 .wise-guide {
@@ -47,16 +53,19 @@
   flex-direction: column;
   gap: 24px;
   padding-bottom: 32px;
-  border-bottom: 1px solid #d2d7e1;           /* Figma #d2d7e1 */
   width: 100%;
+  border-bottom: 1px solid #d2d7e1;           /* ← 기본: 구분선 있음 (#d2d7e1) */
 }
 .wise-section:first-of-type {
   padding-top: 32px;                          /* 첫 섹션만 pt-32 (Figma 1041:60 py-32) */
 }
+.wise-section--plain {
+  border-bottom: none;                        /* ← 참여 일정: Figma 1048:361 구분선 없음 */
+}
 .wise-section--final {
   align-items: center;                        /* 가운데 정렬 */
-  padding-bottom: 24px;
-  border-bottom-color: #000;                  /* 마지막은 #000 */
+  padding-bottom: 32px;                       /* ← 24 → 32 (Figma 1047:498 pb-32) */
+  border-bottom: none;                        /* ← #000 → 없음 (Figma 1047:498 구분선 없음) */
 }
 
 .wise-section__title {
@@ -148,6 +157,38 @@
   white-space: nowrap;                        /* Figma 카드 폭 안에 들어감 */
 }
 
+/* ── 참여 일정 표 (Figma 1048:361) ───────────────────────────
+   행 py16 gap24, 라벨 칸 190px, 구분선 #a7a7a7
+   첫 행만 위/아래 선, 나머지 아래 선만 */
+.wise-schedule {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  font-weight: 400;                           /* Regular */
+  font-size: 18px;
+  line-height: 1.6;
+  color: #111;
+}
+.wise-schedule__row {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  padding: 16px 0;
+  border-bottom: 1px solid #a7a7a7;
+}
+.wise-schedule__row:first-child {
+  border-top: 1px solid #a7a7a7;
+}
+.wise-schedule__label {
+  margin: 0;
+  width: 190px;
+  flex-shrink: 0;
+}
+.wise-schedule__value {
+  margin: 0;
+  /* Figma는 nowrap이나, 긴 값의 가로 오버플로 방지 위해 줄바꿈 허용 (폭 충분 시 1줄 유지) */
+}
+
 /* ── 마지막 안내 ──────────────────────────────────────────── */
 .wise-final {
   display: flex;
@@ -171,6 +212,7 @@
 
   .wise-section { padding-bottom: 24px; gap: 16px; }
   .wise-section:first-of-type { padding-top: 16px; }
+  .wise-section--final { padding-bottom: 16px; }   /* ← 모바일 마지막 안내 여백 통일 */
   .wise-section__title { font-size: 16px; white-space: normal; }
   .wise-section__body { font-size: 14px; line-height: 1.6; }
 
@@ -191,6 +233,12 @@
     line-height: 1.6;
     white-space: normal;
   }
+
+  /* 참여 일정 표 모바일: 라벨 축소 + 값 줄바꿈 */
+  .wise-schedule { font-size: 14px; }
+  .wise-schedule__row { gap: 12px; padding: 12px 0; }
+  .wise-schedule__label { width: 96px; }
+  .wise-schedule__value { white-space: normal; }
 
   .wise-final p { font-size: 14px; }
 }

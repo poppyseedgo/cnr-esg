@@ -1,14 +1,15 @@
 // ============================================================================
 // WiseGuide — 슬기로운 사회생활 어워드 모달 본문 (Figma 1041:49)
 //
-// 구조 (인트로 + 4섹션):
+// 구조 (인트로 + 5섹션):
 //   ⓪ 인트로 (구분선 없음)         — 24px Medium/Regular 2줄
 //   ① 슬기로운 사회생활, 슬사생 상이란? — 18px 본문, 인라인 SemiBold
 //   ② 참여 안내                    — 3단계 ①②③
 //   ③ 아이디어 항목                — 4개 카드 (bg #f0f5ff)
 //       각 카드: 좌측 [아이콘(32) + 제목(20px Medium, w-300)]
 //                우측 [check 리스트 (check_small 24 + 15px Regular line 1.8)]
-//   ④ 마지막 안내                  — 가운데 정렬 (구분선 #000)
+//   ④ 참여 일정                    — 3행 표 (구분선 없는 plain 섹션, #a7a7a7 행선)
+//   ⑤ 마지막 안내                  — 가운데 정렬 (구분선 없음)
 //
 // 토큰:
 //   - 섹션 제목 18px SemiBold line 1.3
@@ -16,11 +17,12 @@
 //   - 카드 bg #f0f5ff, padding 16, radius 16
 //   - 카드 좌측 width 300px (모바일 auto)
 //   - check 리스트 항목 15px Regular line 1.8
-//   - 섹션 구분선 #d2d7e1 (브랜드/바자회 #000과 다름)
-//   - 마지막 섹션 구분선 #000
+//   - 섹션 구분선 #d2d7e1 (참여 일정·마지막 안내는 구분선 없음)
+//   - 참여 일정 표: 행 py16 gap24, 라벨 190px, 행 구분선 #a7a7a7
 //
 // 변경 이력:
 //   2026-06-01  최초 작성 — Figma 1041:49 정밀 매핑
+//   2026-06-02  참여 일정 표 섹션 추가(1048:361), 마지막 안내 구분선 제거 (Figma 재대조)
 // ============================================================================
 
 import './WiseGuide.css';
@@ -156,7 +158,26 @@ export function WiseGuide() {
         </div>
       </section>
 
-      {/* ④ 마지막 안내 */}
+      {/* ④ 참여 일정 — 표 (구분선 없는 plain 섹션, Figma 1048:361) */}
+      <section className="wise-section wise-section--plain">
+        <h3 className="wise-section__title">참여 일정</h3>
+        <div className="wise-schedule">
+          <div className="wise-schedule__row">
+            <p className="wise-schedule__label">후보 게시물 업로드 기한</p>
+            <p className="wise-schedule__value">6/8(월) ~ 6/22(월)</p>
+          </div>
+          <div className="wise-schedule__row">
+            <p className="wise-schedule__label">좋아요 투표</p>
+            <p className="wise-schedule__value">업로드 기간 동안 좋아요 투표 진행</p>
+          </div>
+          <div className="wise-schedule__row">
+            <p className="wise-schedule__label">결과 발표 및 시상</p>
+            <p className="wise-schedule__value">6/30(화) 29주년 기념식에서 발표 및 시상(상패 및 선물)</p>
+          </div>
+        </div>
+      </section>
+
+      {/* ⑤ 마지막 안내 */}
       <section className="wise-section wise-section--final">
         <div className="wise-final">
           <p>거창하지 않아도 괜찮아요.</p>
