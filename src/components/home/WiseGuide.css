@@ -16,6 +16,7 @@
    변경 이력:
      2026-06-01  최초 작성 — Figma 1041:49 매핑
      2026-06-02  Figma 재대조 정밀 수정
+                 + 공용 모달 본문 마진(.esg-modal__body p) 누수 차단 — 문단 간격 12px 제거
                  - 참여 일정 표 섹션 추가 (1048:361)
                  - 섹션 구분선 처리 분리: --divider(있음) 기본, --plain(없음)
                  - 마지막 안내 구분선 #000 → 없음, pb 24 → 32 (Figma 1047:498)
@@ -29,6 +30,15 @@
   font-family: var(--font-sans);
   color: #111;
 }
+
+/* ── 공용 모달 본문 마진 누수 차단 (root cause) ──────────────────
+   EventModal 공용 규칙 `.esg-modal__body p { margin: 0 0 12px }` (specificity 0,0,1,1)이
+   가이드 내부 문단까지 적용되어 Figma보다 문단 간격이 12px씩 벌어지던 문제 해결.
+   가이드는 flex gap / line-height 로 간격을 관리하므로 문단 margin 0 으로 고정.
+   `.esg-modal__body` 를 앞에 둬 specificity 0,0,2,1 로 공용 규칙을 확실히 이김.
+   (brand 모달의 직접 자식 <p> 공용 규칙 0,0,1,1 은 영향 없이 그대로 유지) */
+.esg-modal__body .wise-guide p { margin: 0; }                  /* ← 문단 12px 누수 차단 */
+.esg-modal__body .wise-guide strong { font-weight: 600; }       /* ← 공용 strong 700 → Figma SemiBold(600) */
 
 /* ── 인트로 (구분선 없음) ─────────────────────────────────── */
 .wise-intro {
