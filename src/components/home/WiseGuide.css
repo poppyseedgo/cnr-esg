@@ -16,6 +16,7 @@
    변경 이력:
      2026-06-01  최초 작성 — Figma 1041:49 매핑
      2026-06-02  Figma 재대조 정밀 수정
+                 + 체크리스트 items-start 정렬 (Figma 1047:316)
                  + 공용 모달 본문 마진(.esg-modal__body p) 누수 차단 — 문단 간격 12px 제거
                  - 참여 일정 표 섹션 추가 (1048:361)
                  - 섹션 구분선 처리 분리: --divider(있음) 기본, --plain(없음)
@@ -146,6 +147,7 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  align-items: flex-start;                    /* ← Figma 1047:316 items-start */
   justify-content: center;
 }
 

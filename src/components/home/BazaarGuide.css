@@ -21,6 +21,7 @@
                  - 본문 인트로 1줄(헤더 부제 → 본문 이동)
                  - 공용 .esg-modal__body p 마진 누수 차단 (scoped reset)
                  - 카드 텍스트 nowrap → 줄바꿈(keep-all)로 오버플로 방지
+     2026-06-02  인트로 가운데 → 좌측 정렬 (Figma 1044:61 재확인)
    ============================================================================ */
 
 .bazaar-guide {
@@ -35,10 +36,10 @@
 /* 공용 모달 본문 마진 누수 차단 (wise/zero와 동일 사유) — 0,0,2,1 로 .esg-modal__body p(0,0,1,1) 이김 */
 .esg-modal__body .bazaar-guide p { margin: 0; }
 
-/* ── 인트로 (가운데 1줄, 구분선 없음) — Figma 1044:61 ───────── */
+/* ── 인트로 (좌측 1줄, 구분선 없음) — Figma 1044:61 ───────── */
 .bazaar-intro {
   width: 100%;
-  text-align: center;
+  text-align: left;                           /* ← center → left (Figma는 컬럼 items-start 좌측) */
   font-weight: 400;                           /* Regular */
   font-size: 20px;
   line-height: 1.6;

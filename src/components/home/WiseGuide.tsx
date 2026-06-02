@@ -7,7 +7,7 @@
 //   ② 참여 안내                    — 3단계 ①②③
 //   ③ 아이디어 항목                — 4개 카드 (bg #f0f5ff)
 //       각 카드: 좌측 [아이콘(32) + 제목(20px Medium, w-300)]
-//                우측 [check 리스트 (check_small 24 + 15px Regular line 1.8)]
+//                우측 [check 리스트 (check.svg 24 + 15px Regular line 1.8)]
 //   ④ 참여 일정                    — 3행 표 (구분선 없는 plain 섹션, #a7a7a7 행선)
 //   ⑤ 마지막 안내                  — 가운데 정렬 (구분선 없음)
 //
@@ -23,16 +23,17 @@
 // 변경 이력:
 //   2026-06-01  최초 작성 — Figma 1041:49 정밀 매핑
 //   2026-06-02  참여 일정 표 섹션 추가(1048:361), 마지막 안내 구분선 제거 (Figma 재대조)
+//   2026-06-02  체크 아이콘 check_small.svg → check.svg, 체크리스트 items-start 정렬 (Figma 1046:84)
 // ============================================================================
 
 import './WiseGuide.css';
 
-/** 체크 리스트 항목 (check_small 24 + 텍스트 15px) */
+/** 체크 리스트 항목 (check 24 + 텍스트 15px) */
 function CheckItem({ text }: { text: string }) {
   return (
     <li className="wise-check__item">
       <img
-        src="/icons/check_small.svg"
+        src="/icons/check.svg"                    // ← check_small.svg → check.svg (디자이너 제공 새 아이콘)
         alt=""
         aria-hidden="true"
         width={24}
