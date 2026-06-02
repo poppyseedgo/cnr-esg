@@ -22,6 +22,9 @@
                  - 공용 .esg-modal__body p 마진 누수 차단 (scoped reset)
                  - 카드 텍스트 nowrap → 줄바꿈(keep-all)로 오버플로 방지
      2026-06-02  인트로 가운데 → 좌측 정렬 (Figma 1044:61 재확인)
+     2026-06-02  Figma 1035:964 재대조 — 전 섹션 제목 SemiBold, 카드 배지 py-2,
+                 절차 배지 흰배경+검정테두리 원(32) / 행 items-center / 본문 18px,
+                 마무리 16px·pb-40·무경계
    ============================================================================ */
 
 .bazaar-guide {
@@ -63,20 +66,21 @@
 }
 .bazaar-section--center {
   align-items: center;                        /* 마지막 안내 가운데 */
-  padding-top: 32px;                          /* ← Figma 1036:185 py-32 */
-  padding-bottom: 32px;
+  padding-top: 32px;                          /* ← Figma 1036:185 pt-32 */
+  padding-bottom: 40px;                       /* ← 32 → 40 (Figma pb-40) */
+  border-bottom: none;                        /* ← Figma 마무리 섹션 무경계 */
 }
 
 .bazaar-section__title {
   margin: 0;
-  font-weight: 700;                           /* 기본 Bold (공통불가/품목별/절차) */
+  font-weight: 600;                           /* ← 700 → 600 (Figma: 전 섹션 제목 SemiBold) */
   font-size: 20px;
   line-height: 1.3;
   color: #111;
   white-space: nowrap;
 }
 .bazaar-section__title--semibold {
-  font-weight: 600;                           /* ← 기간·원칙 SemiBold (Figma 1035:993, 999) */
+  font-weight: 600;                           /* (기간·원칙 — 이제 기본과 동일, 호환 유지) */
 }
 
 .bazaar-section__body {
@@ -115,13 +119,16 @@
   color: #111;
   word-break: keep-all;
 }
+/* 절차 전용 — Figma 1036:164(items-center) / 1036:167(18px) */
+.bazaar-list--steps li { align-items: center; }
+.bazaar-list--steps .bazaar-list__text { font-size: 18px; }
 
 /* ── 배지 공통 ─────────────────────────────────────────────── */
 .bazaar-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 4px 12px;
+  padding: 2px 12px;                          /* ← 4 → 2 (Figma 카드 배지 py-2) */
   border-radius: 24px;
   font-family: var(--font-sans);
   font-weight: 500;                           /* Medium */
@@ -132,7 +139,26 @@
 }
 .bazaar-badge--ok { background: #b4ffa4; color: #111; }   /* 가능 (라임) */
 .bazaar-badge--ng { background: #111;    color: #fff; }   /* 불가 (검정) */
-.bazaar-badge--lg { font-size: 14px; }                    /* 공통불가 / 절차 숫자 */
+.bazaar-badge--lg { padding: 4px 12px; font-size: 14px; } /* 공통불가 (py-4 14px) */
+
+/* 절차 숫자 배지 — 흰 배경 + 검정 1px 테두리 원 32×32 (Figma 1036:165) */
+.bazaar-step-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 32px;
+  height: 32px;
+  border-radius: 24px;                        /* 32×32 → 완전 원 */
+  background: #fff;
+  border: 1px solid #000;
+  color: #000;
+  font-family: var(--font-sans);
+  font-weight: 500;                           /* Medium */
+  font-size: 14px;
+  line-height: 1.5;
+  flex-shrink: 0;
+}
 
 /* ── 그리드 (품목별 기준 2×5) ────────────────────────────────── */
 .bazaar-grid {
@@ -186,7 +212,7 @@
   margin: 0;
   text-align: center;
   font-weight: 500;                           /* Medium */
-  font-size: 18px;                            /* ← 20 → 18 (Figma) */
+  font-size: 16px;                            /* ← 18 → 16 (Figma 1036:186) */
   line-height: 1.3;
   color: #111;
   word-break: keep-all;

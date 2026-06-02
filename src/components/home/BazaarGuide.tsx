@@ -22,6 +22,8 @@
 //   2026-06-01  Figma 1035:964 전면 재작성 — 6섹션 + 배지/그리드 토큰
 //   2026-06-02  Figma 재대조 — 인트로 본문 이동, 구분선 #d2d7e1, 기간·원칙 SemiBold,
 //               품목별 pb-24, 마지막 py-32/18px, 절차① "1층 인포데스크" 추가
+//   2026-06-02  Figma 재대조 — 전 제목 SemiBold, 절차 배지 외곽선 원(흰바탕)·본문 18px,
+//               마무리 16px/pb-40/무경계
 // ============================================================================
 
 import './BazaarGuide.css';
@@ -41,9 +43,9 @@ function NgBadgeSm() {
   return <span className="bazaar-badge bazaar-badge--ng">불가</span>;
 }
 
-/** 숫자 배지 (검정, 14px — 절차 1/2/3) */
+/** 숫자 배지 (흰 배경 + 검정 1px 테두리 원, 32×32 — 절차 1/2/3) */
 function StepBadge({ n }: { n: number }) {
-  return <span className="bazaar-badge bazaar-badge--ng bazaar-badge--lg">{n}</span>;
+  return <span className="bazaar-step-badge">{n}</span>;
 }
 
 /** 그리드 카드 — 품목별 기준 */
