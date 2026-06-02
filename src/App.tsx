@@ -7,6 +7,8 @@
 //               - 변경: HomePage/NotFoundPage/가드만 eager 유지, 나머지 전 페이지 React.lazy
 //               - Suspense 경계 3곳: AppLayout(최상위) / MyPage(탭) / AdminPage(탭)
 //               - vite.config 의 chunkSizeWarningLimit 은 미변경 (임시방편 배제, 근본 분할로 해결)
+//   2026-06-02  청크 stale 복구: 전 lazy 를 lazyWithRetry 로 교체 (배포로 사라진 옛 청크
+//               요청 시 1회 자동 새로고침). main.tsx vite:preloadError + public/_headers 동반.
 //
 // 구조:
 //   <AuthProvider>           ← 인증 Context (전역)
@@ -17,7 +19,7 @@
 //   </AuthProvider>
 // ============================================================================
 
-import { lazy } from 'react'; // ← [코드 스플리팅] React.lazy 사용
+import { lazyWithRetry } from '@/lib/lazyWithRetry'; // ← 청크 로드 실패 시 1회 자동 새로고침 래퍼
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 import { AuthProvider } from '@/hooks/useCurrentUser';
 import { AppLayout } from '@/components/layouts/AppLayout';
@@ -39,45 +41,45 @@ import { NotFoundPage } from '@/pages/NotFoundPage';
 //   MyPage 계열은 모두 같은 파일(MyPage.tsx) → Rollup 이 단일 청크로 묶음
 //   admin/* 12개는 각각 독립 청크 → 어드민 미진입 사용자는 코드 다운로드 0
 // ----------------------------------------------------------------------------
-const PostsPage = lazy(() => import('@/pages/PostsPage').then((m) => ({ default: m.PostsPage })));
-const PostDetailPage = lazy(() => import('@/pages/PostDetailPage').then((m) => ({ default: m.PostDetailPage })));
-const BazaarPage = lazy(() => import('@/pages/BazaarPage').then((m) => ({ default: m.BazaarPage })));
-const BazaarProductPage = lazy(() => import('@/pages/BazaarProductPage').then((m) => ({ default: m.BazaarProductPage })));
-const AuctionPage = lazy(() => import('@/pages/AuctionPage').then((m) => ({ default: m.AuctionPage })));
-const AuctionDetailPage = lazy(() => import('@/pages/AuctionDetailPage').then((m) => ({ default: m.AuctionDetailPage })));
-const CartPage = lazy(() => import('@/pages/CartPage').then((m) => ({ default: m.CartPage })));
-const CheckoutPage = lazy(() => import('@/pages/CheckoutPage').then((m) => ({ default: m.CheckoutPage })));
-const OrderDetailPage = lazy(() => import('@/pages/OrderDetailPage').then((m) => ({ default: m.OrderDetailPage })));
-const DonatePage = lazy(() => import('@/pages/DonatePage').then((m) => ({ default: m.DonatePage })));
-const FaqPage = lazy(() => import('@/pages/FaqPage').then((m) => ({ default: m.FaqPage })));
-const QnaPage = lazy(() => import('@/pages/QnaPage').then((m) => ({ default: m.QnaPage })));
-const DonateOrderPage = lazy(() => import('@/pages/DonateOrderPage').then((m) => ({ default: m.DonateOrderPage })));
-const DonationCertificatePage = lazy(() => import('@/pages/DonationCertificatePage').then((m) => ({ default: m.DonationCertificatePage })));
-const NotificationsPage = lazy(() => import('@/pages/NotificationsPage').then((m) => ({ default: m.NotificationsPage })));
+const PostsPage = lazyWithRetry(() => import('@/pages/PostsPage').then((m) => ({ default: m.PostsPage })));
+const PostDetailPage = lazyWithRetry(() => import('@/pages/PostDetailPage').then((m) => ({ default: m.PostDetailPage })));
+const BazaarPage = lazyWithRetry(() => import('@/pages/BazaarPage').then((m) => ({ default: m.BazaarPage })));
+const BazaarProductPage = lazyWithRetry(() => import('@/pages/BazaarProductPage').then((m) => ({ default: m.BazaarProductPage })));
+const AuctionPage = lazyWithRetry(() => import('@/pages/AuctionPage').then((m) => ({ default: m.AuctionPage })));
+const AuctionDetailPage = lazyWithRetry(() => import('@/pages/AuctionDetailPage').then((m) => ({ default: m.AuctionDetailPage })));
+const CartPage = lazyWithRetry(() => import('@/pages/CartPage').then((m) => ({ default: m.CartPage })));
+const CheckoutPage = lazyWithRetry(() => import('@/pages/CheckoutPage').then((m) => ({ default: m.CheckoutPage })));
+const OrderDetailPage = lazyWithRetry(() => import('@/pages/OrderDetailPage').then((m) => ({ default: m.OrderDetailPage })));
+const DonatePage = lazyWithRetry(() => import('@/pages/DonatePage').then((m) => ({ default: m.DonatePage })));
+const FaqPage = lazyWithRetry(() => import('@/pages/FaqPage').then((m) => ({ default: m.FaqPage })));
+const QnaPage = lazyWithRetry(() => import('@/pages/QnaPage').then((m) => ({ default: m.QnaPage })));
+const DonateOrderPage = lazyWithRetry(() => import('@/pages/DonateOrderPage').then((m) => ({ default: m.DonateOrderPage })));
+const DonationCertificatePage = lazyWithRetry(() => import('@/pages/DonationCertificatePage').then((m) => ({ default: m.DonationCertificatePage })));
+const NotificationsPage = lazyWithRetry(() => import('@/pages/NotificationsPage').then((m) => ({ default: m.NotificationsPage })));
 
 // MyPage 계열 (단일 파일 → 단일 청크 공유)
-const MyPage = lazy(() => import('@/pages/MyPage').then((m) => ({ default: m.MyPage })));
-const MyPagePending = lazy(() => import('@/pages/MyPage').then((m) => ({ default: m.MyPagePending })));
-const MyPageCompleted = lazy(() => import('@/pages/MyPage').then((m) => ({ default: m.MyPageCompleted })));
-const MyPageBidding = lazy(() => import('@/pages/MyPage').then((m) => ({ default: m.MyPageBidding })));
-const MyPageAuctionWon = lazy(() => import('@/pages/MyPage').then((m) => ({ default: m.MyPageAuctionWon })));
-const MyPageWishlist = lazy(() => import('@/pages/MyPage').then((m) => ({ default: m.MyPageWishlist })));
-const MyPageDonations = lazy(() => import('@/pages/MyPage').then((m) => ({ default: m.MyPageDonations })));
+const MyPage = lazyWithRetry(() => import('@/pages/MyPage').then((m) => ({ default: m.MyPage })));
+const MyPagePending = lazyWithRetry(() => import('@/pages/MyPage').then((m) => ({ default: m.MyPagePending })));
+const MyPageCompleted = lazyWithRetry(() => import('@/pages/MyPage').then((m) => ({ default: m.MyPageCompleted })));
+const MyPageBidding = lazyWithRetry(() => import('@/pages/MyPage').then((m) => ({ default: m.MyPageBidding })));
+const MyPageAuctionWon = lazyWithRetry(() => import('@/pages/MyPage').then((m) => ({ default: m.MyPageAuctionWon })));
+const MyPageWishlist = lazyWithRetry(() => import('@/pages/MyPage').then((m) => ({ default: m.MyPageWishlist })));
+const MyPageDonations = lazyWithRetry(() => import('@/pages/MyPage').then((m) => ({ default: m.MyPageDonations })));
 
 // Admin 계열 (각 파일 독립 청크)
-const AdminPage = lazy(() => import('@/pages/AdminPage').then((m) => ({ default: m.AdminPage })));
-const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard').then((m) => ({ default: m.AdminDashboard })));
-const AdminSettings = lazy(() => import('@/pages/admin/AdminSettings').then((m) => ({ default: m.AdminSettings })));
-const AdminAuctions = lazy(() => import('@/pages/admin/AdminAuctions').then((m) => ({ default: m.AdminAuctions })));
-const AdminProducts = lazy(() => import('@/pages/admin/AdminProducts').then((m) => ({ default: m.AdminProducts })));
-const AdminOrders = lazy(() => import('@/pages/admin/AdminOrders').then((m) => ({ default: m.AdminOrders })));
-const AdminPosts = lazy(() => import('@/pages/admin/AdminPosts').then((m) => ({ default: m.AdminPosts })));
-const AdminEmails = lazy(() => import('@/pages/admin/AdminEmails').then((m) => ({ default: m.AdminEmails })));
-const AdminDonations = lazy(() => import('@/pages/admin/AdminDonations').then((m) => ({ default: m.AdminDonations })));
-const AdminQA = lazy(() => import('@/pages/admin/AdminQA').then((m) => ({ default: m.AdminQA })));
-const AdminBazaarGuide = lazy(() => import('@/pages/admin/AdminBazaarGuide').then((m) => ({ default: m.AdminBazaarGuide })));
-const AdminFaq = lazy(() => import('@/pages/admin/AdminFaq').then((m) => ({ default: m.AdminFaq })));
-const AdminQnaEvent = lazy(() => import('@/pages/admin/AdminQnaEvent').then((m) => ({ default: m.AdminQnaEvent })));
+const AdminPage = lazyWithRetry(() => import('@/pages/AdminPage').then((m) => ({ default: m.AdminPage })));
+const AdminDashboard = lazyWithRetry(() => import('@/pages/admin/AdminDashboard').then((m) => ({ default: m.AdminDashboard })));
+const AdminSettings = lazyWithRetry(() => import('@/pages/admin/AdminSettings').then((m) => ({ default: m.AdminSettings })));
+const AdminAuctions = lazyWithRetry(() => import('@/pages/admin/AdminAuctions').then((m) => ({ default: m.AdminAuctions })));
+const AdminProducts = lazyWithRetry(() => import('@/pages/admin/AdminProducts').then((m) => ({ default: m.AdminProducts })));
+const AdminOrders = lazyWithRetry(() => import('@/pages/admin/AdminOrders').then((m) => ({ default: m.AdminOrders })));
+const AdminPosts = lazyWithRetry(() => import('@/pages/admin/AdminPosts').then((m) => ({ default: m.AdminPosts })));
+const AdminEmails = lazyWithRetry(() => import('@/pages/admin/AdminEmails').then((m) => ({ default: m.AdminEmails })));
+const AdminDonations = lazyWithRetry(() => import('@/pages/admin/AdminDonations').then((m) => ({ default: m.AdminDonations })));
+const AdminQA = lazyWithRetry(() => import('@/pages/admin/AdminQA').then((m) => ({ default: m.AdminQA })));
+const AdminBazaarGuide = lazyWithRetry(() => import('@/pages/admin/AdminBazaarGuide').then((m) => ({ default: m.AdminBazaarGuide })));
+const AdminFaq = lazyWithRetry(() => import('@/pages/admin/AdminFaq').then((m) => ({ default: m.AdminFaq })));
+const AdminQnaEvent = lazyWithRetry(() => import('@/pages/admin/AdminQnaEvent').then((m) => ({ default: m.AdminQnaEvent })));
 
 // ============================================================================
 // Router 정의 (구조 동일 — element 참조만 eager→lazy 로 교체됨)

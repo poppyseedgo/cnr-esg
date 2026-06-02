@@ -11,6 +11,18 @@ import App from './App';
 import './index.css';
 import { initGA } from '@/lib/analytics'; // ← [2026-06-02 추가] GA4 초기화 함수
 
+// 동적 import(코드 스플리팅 청크) 프리로드 실패 시 1회 자동 새로고침.
+// 재배포로 옛 해시 청크가 사라진 탭을 최신 index.html 로 자동 복구한다.
+// (lazyWithRetry 와 동일한 sessionStorage 가드를 공유 → 새로고침은 최대 1회)
+window.addEventListener('vite:preloadError', (e) => {
+  const KEY = 'cnr-chunk-reloaded';
+  if (!sessionStorage.getItem(KEY)) {
+    sessionStorage.setItem(KEY, '1');
+    e.preventDefault(); // Vite 기본 throw 억제 후 직접 새로고침
+    window.location.reload();
+  }
+});
+
 initGA(); // ← [2026-06-02 추가] GA4 1회 초기화 (측정 ID 미설정 시 자동 no-op)
 
 const rootEl = document.getElementById('root');
