@@ -8,8 +8,9 @@
 // - 찜한상품: Phase 4-B 또는 Phase 6
 // ============================================================================
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react'; // ← [코드 스플리팅] Suspense 추가 (lazy 탭 경계)
 import { NavLink, Outlet, Link } from 'react-router-dom';
+import { LoadingScreen } from '@/components/routing/LoadingScreen'; // ← [코드 스플리팅] Suspense fallback
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import {
   loadMyOrders,
@@ -78,7 +79,10 @@ export function MyPage() {
           </NavLink>
         ))}
       </nav>
-      <Outlet />
+      {/* ← [코드 스플리팅] lazy 탭 로딩 중 탭바 유지, 탭 내용만 fallback 표시 */}
+      <Suspense fallback={<LoadingScreen />}>
+        <Outlet />
+      </Suspense>
     </div>
   );
 }

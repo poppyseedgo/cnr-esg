@@ -3,9 +3,11 @@
 // React Router v6의 Outlet을 사용해 자식 라우트 렌더
 // ============================================================================
 
+import { Suspense } from 'react'; // ← [코드 스플리팅] lazy 페이지 로딩 경계
 import { Outlet, ScrollRestoration } from 'react-router-dom';
 import { Header } from './Header';
 import { Footer } from './Footer';
+import { LoadingScreen } from '@/components/routing/LoadingScreen'; // ← [코드 스플리팅] Suspense fallback
 import { GlobalEventModal } from '@/components/home/GlobalEventModal';
 
 export function AppLayout() {
@@ -21,8 +23,11 @@ export function AppLayout() {
     >
       <Header />
       <main style={{ flex: 1, padding: '0 20px' }}>
-        <div style={{ maxWidth: 1360, margin: '0 auto', padding: '24px 0 320px' }}>
-          <Outlet />
+        <div style={{ maxWidth: 1360, margin: '0 auto', padding: '24px 0' }}>
+          {/* ← [코드 스플리팅] lazy 페이지 로딩 중 헤더/푸터 유지, 본문만 fallback 표시 */}
+          <Suspense fallback={<LoadingScreen />}>
+            <Outlet />
+          </Suspense>
         </div>
       </main>
       <Footer />

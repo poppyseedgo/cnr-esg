@@ -3,7 +3,9 @@
 // 자식 페이지: dashboard, posts, products, auctions, orders, settings
 // ============================================================================
 
+import { Suspense } from 'react'; // ← [코드 스플리팅] lazy 탭 경계
 import { NavLink, Outlet } from 'react-router-dom';
+import { LoadingScreen } from '@/components/routing/LoadingScreen'; // ← [코드 스플리팅] Suspense fallback
 
 const adminTabs = [
   { to: '/admin/dashboard', label: '대시보드', icon: '📊' },
@@ -83,7 +85,10 @@ export function AdminPage() {
           </NavLink>
         ))}
       </nav>
-      <Outlet />
+      {/* ← [코드 스플리팅] lazy 탭 로딩 중 탭바 유지, 탭 내용만 fallback 표시 */}
+      <Suspense fallback={<LoadingScreen />}>
+        <Outlet />
+      </Suspense>
     </div>
   );
 }
