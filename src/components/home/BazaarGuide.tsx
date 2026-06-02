@@ -1,24 +1,27 @@
 // ============================================================================
 // BazaarGuide — 바자회 모달 본문 (Figma 1035:964 정밀 매핑)
 //
-// 구조 (5섹션 + 마지막 안내):
-//   ① 바자회 물품 참여 기간      — 인라인 Bold (6월 8일, 6월 22일, 씨앗 키트)
-//   ② 물품 참여 원칙              — 2단락, 인라인 Bold
-//   ③ 공통 불가 물품              — 5개 항목, "불가" 배지 + 텍스트
-//   ④ 품목별 기준                 — 2×5 그리드 (10 카테고리 카드, 가능/불가 배지)
-//   ⑤ 기부 접수 절차              — 3단계 (숫자 배지 + 텍스트)
-//   ⑥ 마지막 안내                 — 가운데 정렬 안내 문구
+// 구조 (인트로 + 6섹션):
+//   ⓪ 인트로                      — 가운데 1줄 (헤더 부제에서 이동)
+//   ① 바자회 물품 참여 기간      — SemiBold 제목, 인라인 Bold (6월 8일/22일/씨앗 키트)
+//   ② 물품 참여 원칙              — SemiBold 제목, 2단락 인라인 Bold
+//   ③ 공통 불가 물품              — Bold 제목, 5개 항목 "불가" 배지(14px) + 텍스트
+//   ④ 품목별 기준                 — Bold 제목, 2×5 그리드 (10 카테고리, 가능/불가 배지 12px) pb-24
+//   ⑤ 기부 접수 절차              — Bold 제목, 3단계 숫자 배지 + 텍스트
+//   ⑥ 마지막 안내                 — 가운데 정렬 Medium 18px (py-32)
 //
 // 토큰:
-//   - 섹션 제목 20px Bold, line 1.3
+//   - 섹션 제목 20px line 1.3 — 기간·원칙 SemiBold(600) / 그 외 Bold(700)
 //   - 본문 20px Regular line 1.5
-//   - 배지: "가능"(라임 #b4ffa4) / "불가"(검정) / 숫자(검정), 모두 padding 4/12 radius 24
-//   - 그리드 카드: bg #fff, padding 16, radius 24, gap 16
-//   - 섹션 구분선: border-b 1px #000
+//   - 배지 padding 4/12 radius 24 — 가능(라임 #b4ffa4) / 불가·숫자(검정)
+//   - 그리드 카드 bg #fff padding 16 radius 24, 카드 gap 20 / 행 gap 8
+//   - 섹션 구분선 #d2d7e1
 //
 // 변경 이력:
-//   2026-05  초기 placeholder
-//   2026-06-01  Figma 1035:964 전면 재작성 — 5섹션 + 신규 배지/그리드 토큰
+//   2026-05     초기 placeholder
+//   2026-06-01  Figma 1035:964 전면 재작성 — 6섹션 + 배지/그리드 토큰
+//   2026-06-02  Figma 재대조 — 인트로 본문 이동, 구분선 #d2d7e1, 기간·원칙 SemiBold,
+//               품목별 pb-24, 마지막 py-32/18px, 절차① "1층 인포데스크" 추가
 // ============================================================================
 
 import './BazaarGuide.css';
@@ -73,9 +76,12 @@ function CategoryCard({
 export function BazaarGuide() {
   return (
     <div className="bazaar-guide">
+      {/* ⓪ 인트로 (가운데 1줄, 구분선 없음) — 헤더 부제에서 본문으로 이동 */}
+      <p className="bazaar-intro">임직원 여러분들의 적극적인 참여를 기다리고 있어요.</p>
+
       {/* ① 바자회 물품 참여 기간 */}
       <section className="bazaar-section bazaar-section--first">
-        <h3 className="bazaar-section__title">바자회 물품 참여 기간</h3>
+        <h3 className="bazaar-section__title bazaar-section__title--semibold">바자회 물품 참여 기간</h3>
         <div className="bazaar-section__body">
           <p>
             <strong>6월 8일</strong> 부터 <strong>6월 22일</strong> 까지 바자회 물품을 접수하세요.
@@ -88,7 +94,7 @@ export function BazaarGuide() {
 
       {/* ② 물품 참여 원칙 */}
       <section className="bazaar-section">
-        <h3 className="bazaar-section__title">물품 참여 원칙</h3>
+        <h3 className="bazaar-section__title bazaar-section__title--semibold">물품 참여 원칙</h3>
         <div className="bazaar-section__body">
           <p>
             <strong>다른 분들이 기분 좋게 사용할 수 있는 상태</strong>의 물품만 기부 받습니다.
@@ -109,8 +115,8 @@ export function BazaarGuide() {
         </ul>
       </section>
 
-      {/* ④ 품목별 기준 — 2×5 그리드 */}
-      <section className="bazaar-section">
+      {/* ④ 품목별 기준 — 2×5 그리드 (pb-24) */}
+      <section className="bazaar-section bazaar-section--grid">
         <h3 className="bazaar-section__title">품목별 기준</h3>
         <div className="bazaar-grid">
           <CategoryCard
@@ -170,14 +176,14 @@ export function BazaarGuide() {
       <section className="bazaar-section">
         <h3 className="bazaar-section__title">기부 접수 절차</h3>
         <ol className="bazaar-list bazaar-list--steps">
-          <li><StepBadge n={1} /><span className="bazaar-list__text">MS팀에게 물품 전달 → 검수 후 물품 판매 여부 판단</span></li>
+          <li><StepBadge n={1} /><span className="bazaar-list__text">1층 인포데스크 MS팀에게 물품 전달 → 검수 후 물품 판매 여부 판단</span></li>
           <li><StepBadge n={2} /><span className="bazaar-list__text">판매 확정 → 온라인 마켓 등록 완료</span></li>
           <li><StepBadge n={3} /><span className="bazaar-list__text">물품 기증자에게 인증서 및 씨앗키트 증정</span></li>
         </ol>
       </section>
 
-      {/* ⑥ 마지막 안내 (가운데 정렬) */}
-      <section className="bazaar-section bazaar-section--center bazaar-section--last">
+      {/* ⑥ 마지막 안내 (가운데 정렬, py-32) */}
+      <section className="bazaar-section bazaar-section--center">
         <p className="bazaar-final">
           기부된 물품의 판매 수익금은 29주년 기념 나무 심기 기부 재원으로 사용됩니다.
         </p>

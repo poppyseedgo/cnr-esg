@@ -67,13 +67,8 @@ export const EVENT_MODAL_CONTENT: Record<EventModalKey, EventModalContent> = {
   },
   bazaar: {
     title: '바자회 & 경매 참여안내',
-    subtitle: (
-      <>
-        <p>나눔 자원 순환 위크 동안 온라인 바자회와 경매를 진행합니다.</p>
-        <p>임직원 여러분들의 적극적인 참여를 기다리고 있어요.</p>
-      </>
-    ),
-    // hero 생략 → 이미지 영역 미표시 (Figma 1035:964 — 헤더+본문만)
+    // subtitle 없음 (Figma 1035:964 — 헤더는 제목만. "임직원…" 안내는 본문 인트로로 이동)
+    // hero 생략 → 이미지 영역 미표시
     body: <BazaarGuide />,
     contentsClassName: 'esg-modal__contents--gradient',  // Figma 1035:973 그라데이션
   },
