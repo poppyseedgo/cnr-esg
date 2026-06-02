@@ -25,6 +25,9 @@
 //   before: D-N / 내일 시작 / 오늘 시작
 //   active: 진행중 / 내일 마감 / 오늘 마감       // ← [award/commerce 구분 제거]
 //   closed: 시상완료(award) / 종료(commerce)
+//
+// 2026-06-02  헤더 장바구니·알림벨 아이콘을 채움 → 선(stroke) 아이콘으로 교체
+//             (Figma 1052:275 basket / 1052:279 bell, 둘 다 24×24, stroke=currentColor로 variant 색 적응)
 // ============================================================================
 
 import { useEffect, useState } from 'react';
@@ -634,8 +637,9 @@ function CartIcon({ cartCount, tokens }: { cartCount: number; tokens: VariantTok
       }}
       aria-label={`장바구니 ${cartCount}개`}
     >
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-        <path d="M19 6h-2c0-2.76-2.24-5-5-5S7 3.24 7 6H5c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-7-3c1.66 0 3 1.34 3 3H9c0-1.66 1.34-3 3-3zm0 10c-2.76 0-5-2.24-5-5h2c0 1.66 1.34 3 3 3s3-1.34 3-3h2c0 2.76-2.24 5-5 5z" />
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M22 10.1807H2L5.15789 20.1807H19.0385L22 10.1807Z" stroke="currentColor" />
+        <path d="M8 10L12 4L16 10" stroke="currentColor" />
       </svg>
       {cartCount > 0 && (
         <span
@@ -717,8 +721,8 @@ function NotificationBell({
           display: 'inline-flex',
           alignItems: 'center',
           justifyContent: 'center',
-          width: 20,
-          height: 20,
+          width: 24,
+          height: 24,
           color,
           background: 'transparent',
           border: 'none',
@@ -726,8 +730,9 @@ function NotificationBell({
           padding: 0,
         }}
       >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z" />
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2.68066C16.1421 2.68066 19.5 6.03853 19.5 10.1807V16.6807H4.5V10.1807C4.5 6.03853 7.85786 2.68066 12 2.68066Z" stroke="currentColor" />
+          <path d="M14 19.6807C14 19.9433 13.9483 20.2034 13.8478 20.446C13.7472 20.6887 13.5999 20.9092 13.4142 21.0949C13.2285 21.2806 13.008 21.4279 12.7654 21.5284C12.5227 21.6289 12.2626 21.6807 12 21.6807C11.7374 21.6807 11.4773 21.6289 11.2346 21.5284C10.992 21.4279 10.7715 21.2806 10.5858 21.0949C10.4001 20.9092 10.2528 20.6887 10.1522 20.446C10.0517 20.2034 10 19.9433 10 19.6807" stroke="currentColor" />
         </svg>
         {unread > 0 && (
           <span
