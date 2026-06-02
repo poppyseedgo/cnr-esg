@@ -196,6 +196,11 @@
 /* 인라인 Bold 키워드 (Figma 1015:153 내부 font-Bold 스팬) */
 .esg-modal__body strong { font-weight: 700; color: #111; }
 
+/* 브랜드 모달 본문 — Figma 1015:153 문단 사이 '한 줄 비움' 간격 재현.
+   공용 .esg-modal__body p { margin: 0 0 12px } 대신 flex gap 으로 ~한 줄(24px) 간격 적용. */
+.brand-body { display: flex; flex-direction: column; gap: 24px; }
+.esg-modal__body .brand-body p { margin: 0; }   /* ← 공용 p 12px 마진 무력화 (specificity 0,0,2,1) */
+
 /* ── Footer 위 스크롤 페이드 ────────────────────────────────── */
 .esg-modal__fade {
   position: absolute;
