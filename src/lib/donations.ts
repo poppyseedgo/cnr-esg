@@ -13,6 +13,7 @@
 
 import { supabase as _supabase } from './supabase';
 import { callRpc } from './supabase';
+import { trackDonate } from './analytics'; // ← [2026-06-02 추가] GA4 기부 완료 추적
 import type {
   EsgDonationRow,
   EsgDonationCertificateRow,
@@ -54,6 +55,13 @@ export async function createDonation(
   if (!result.success) {
     throw new Error(humanizeError(result.error));
   }
+
+  trackDonate({
+    amount: result.amount ?? amount,        // ← [2026-06-02 추가] value (RPC 반환액 우선, 없으면 입력액)
+    donationNumber: result.donation_number, // ← [2026-06-02 추가] transaction_id
+    isAnonymous: options.isAnonymous === true, // ← [2026-06-02 추가]
+  }); // ← [2026-06-02 추가] GA4 donate (성공 시에만)
+
   return result;
 }
 

@@ -18,6 +18,7 @@
 
 import { supabase as _supabase } from './supabase';
 import type { EsgCartItemRow, EsgProductRow } from '@/types/esg';
+import { trackAddToCart } from './analytics'; // ← [2026-06-02 추가] GA4 장바구니 담기 추적
 
 // supabase-js 2.49 타입 추론 한계 우회 (TODO #1)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -96,6 +97,7 @@ export async function addToCart(
     ]);
     if (error) throw error;
   }
+  trackAddToCart(productId, quantity); // ← [2026-06-02 추가] GA4 add_to_cart (성공 시에만)
   notifyCartChanged(); // ← 같은 탭 즉시 갱신
 }
 

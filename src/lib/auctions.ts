@@ -19,6 +19,7 @@
 
 import { supabase as _supabase } from './supabase';
 import { callRpc } from './supabase';
+import { trackBid } from './analytics'; // ← [2026-06-02 추가] GA4 입찰 추적
 import type {
   EsgAuctionRow,
   EsgAuctionBidPublicRow,
@@ -276,6 +277,8 @@ export async function placeBid(
 
   // 입찰 성공 시 같은 탭 즉시 신호 (Realtime 도착 전 갱신 보장)
   notifyAuctionChanged(auctionId);
+
+  trackBid({ auctionId, bidAmount, isAnonymous: options.isAnonymous === true }); // ← [2026-06-02 추가] GA4 place_bid (성공 시에만)
 
   return result;
 }

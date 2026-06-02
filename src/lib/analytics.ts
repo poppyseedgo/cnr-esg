@@ -3,6 +3,7 @@
 //
 // 변경 이력:
 //   2026-06-02  최초 작성 — GA4 gtag 동적 로드 + SPA page_view 수동 추적
+//   2026-06-02  행동(전환) 이벤트 헬퍼 추가 — trackAddToCart/trackBid/trackPurchase/trackDonate
 //
 // 설계 요약:
 //   - 측정 ID는 환경변수 VITE_GA_MEASUREMENT_ID 에서만 읽음 (코드 하드코딩 금지)
@@ -62,11 +63,73 @@ export function trackPageView(path: string): void {
   });
 }
 
-// 커스텀 이벤트 전송 (예: add_to_cart, place_bid, donate — 추후 확장용)
+// 커스텀 이벤트 전송 (저수준 — 아래 의미 헬퍼들이 이 함수를 사용)
 export function trackEvent(
   name: string,
   params: Record<string, unknown> = {}
 ): void {
   if (!isGAEnabled || !window.gtag) return; // ← 비활성/미초기화 시 무시
   window.gtag('event', name, params);
+}
+
+// ============================================================================
+// 행동(전환) 이벤트 헬퍼 — GA4 표준 스펙을 이 한 곳에 집중(SSOT)
+//   lib/* 함수들은 "무슨 행동인지"만 선언하고, "어떻게 보내는지"는 여기서 책임
+//   통화는 전 이벤트 'KRW' 고정 (단일 통화 사이트)
+// ============================================================================
+
+const CURRENCY = 'KRW'; // ← 사이트 단일 통화
+
+// 장바구니 담기 — GA4 표준 이벤트 add_to_cart
+//   금액 정보는 함수 호출 시점에 없으므로 value/currency 생략(0 오염 방지), 품목만 기록
+export function trackAddToCart(productId: string, quantity: number): void {
+  trackEvent('add_to_cart', {
+    items: [{ item_id: productId, quantity }],
+  });
+}
+
+// 경매 입찰 — 커스텀 이벤트 place_bid (GA4 표준에 없음)
+export function trackBid(params: {
+  auctionId: string;
+  bidAmount: number;
+  isAnonymous?: boolean;
+}): void {
+  trackEvent('place_bid', {
+    auction_id: params.auctionId,
+    value: params.bidAmount,
+    currency: CURRENCY,
+    is_anonymous: params.isAnonymous === true,
+  });
+}
+
+// 바자회 구매 완료 — GA4 표준 이벤트 purchase
+//   transaction_id(주문번호)/value(총액)는 GA4 거래 분석의 핵심 필드
+export function trackPurchase(params: {
+  orderNumber?: string;
+  totalAmount?: number;
+  items: Array<{ product_id: string; quantity: number }>;
+}): void {
+  trackEvent('purchase', {
+    transaction_id: params.orderNumber,
+    value: params.totalAmount,
+    currency: CURRENCY,
+    items: params.items.map((it) => ({
+      item_id: it.product_id,
+      quantity: it.quantity,
+    })),
+  });
+}
+
+// 기부 완료 — 커스텀 이벤트 donate (GA4 표준에 없음)
+export function trackDonate(params: {
+  amount: number;
+  donationNumber?: string;
+  isAnonymous?: boolean;
+}): void {
+  trackEvent('donate', {
+    transaction_id: params.donationNumber,
+    value: params.amount,
+    currency: CURRENCY,
+    is_anonymous: params.isAnonymous === true,
+  });
 }

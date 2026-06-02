@@ -17,6 +17,7 @@
 import { supabase as _supabase } from './supabase';
 import { callRpc } from './supabase';
 import { notifyCartChanged } from './cart';
+import { trackPurchase } from './analytics'; // ← [2026-06-02 추가] GA4 구매 완료 추적
 import type {
   CreateBazaarOrderInput,
   CreateBazaarOrderResult,
@@ -91,6 +92,12 @@ export async function createBazaarOrder(
   if (opts.clearCart !== false) {
     notifyCartChanged();
   }
+
+  trackPurchase({
+    orderNumber: result.order_number,   // ← [2026-06-02 추가] transaction_id
+    totalAmount: result.total_amount,   // ← [2026-06-02 추가] value (총액)
+    items,                              // ← [2026-06-02 추가] 주문 품목 [{product_id, quantity}]
+  }); // ← [2026-06-02 추가] GA4 purchase (성공 시에만)
 
   return result;
 }
