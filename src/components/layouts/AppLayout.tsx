@@ -30,7 +30,7 @@ export function AppLayout() {
     >
       <Header />
       <main style={{ flex: 1, padding: '0 20px' }}>
-        <div style={{ maxWidth: 1360, margin: '0 auto', padding: '24px 0' }}>
+        <div style={{ maxWidth: 1360, margin: '0 auto', padding: '24px 0 320px' }}>
           {/* ← [코드 스플리팅] lazy 페이지 로딩 중 헤더/푸터 유지, 본문만 fallback 표시 */}
           <Suspense fallback={<LoadingScreen />}>
             <Outlet />
