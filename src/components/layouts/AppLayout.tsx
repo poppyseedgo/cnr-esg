@@ -1,6 +1,10 @@
 // ============================================================================
 // AppLayout — 모든 페이지 공통 레이아웃
 // React Router v6의 Outlet을 사용해 자식 라우트 렌더
+//
+// 변경 이력:
+//   2026-06-02  GA4 SPA 페이지뷰 추적 추가 — usePageTracking() 호출
+//               (AppLayout 은 Router 컨텍스트 내부 → useLocation 사용 가능)
 // ============================================================================
 
 import { Suspense } from 'react'; // ← [코드 스플리팅] lazy 페이지 로딩 경계
@@ -9,8 +13,11 @@ import { Header } from './Header';
 import { Footer } from './Footer';
 import { LoadingScreen } from '@/components/routing/LoadingScreen'; // ← [코드 스플리팅] Suspense fallback
 import { GlobalEventModal } from '@/components/home/GlobalEventModal';
+import { usePageTracking } from '@/hooks/usePageTracking'; // ← [2026-06-02 추가] GA4 라우트 추적 훅
 
 export function AppLayout() {
+  usePageTracking(); // ← [2026-06-02 추가] 라우트 변경마다 GA4 page_view 전송
+
   return (
     <div
       style={{
