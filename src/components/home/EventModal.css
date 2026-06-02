@@ -109,8 +109,8 @@
   white-space: nowrap;                       /* 각 줄 nowrap (Figma 명시) */
 }
 
-/* Bazaar 모달 전용 Contents 배경 (Figma 1035:973 white → #e3e3e3 그라데이션) */
-.esg-modal__contents--bazaar {
+/* Bazaar/Zero 등 그라데이션 Contents 배경 (Figma 1035:973, 1042:42 white → #e3e3e3) */
+.esg-modal__contents--gradient {
   background: linear-gradient(to bottom, #fff, #e3e3e3) !important;  /* 기본 #fff override */
 }
 

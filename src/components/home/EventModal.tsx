@@ -45,11 +45,13 @@ export function EventModal({ modalKey, onClose }: Props) {
       header={
         <div className="esg-modal__title-group">
           <h2 className="esg-modal__title esg-modal__title--big">{content.title}</h2>
-          <div className="esg-modal__subtitle esg-modal__subtitle--big">
-            {typeof content.subtitle === 'string'
-              ? <p>{content.subtitle}</p>
-              : content.subtitle}
-          </div>
+          {content.subtitle != null && (
+            <div className="esg-modal__subtitle esg-modal__subtitle--big">
+              {typeof content.subtitle === 'string'
+                ? <p>{content.subtitle}</p>
+                : content.subtitle}
+            </div>
+          )}
         </div>
       }
       footer={buttons}

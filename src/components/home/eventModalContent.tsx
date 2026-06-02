@@ -24,27 +24,21 @@
 import type { ReactNode } from 'react';
 import type { EventModalButton } from './EventModal';
 import { BazaarGuide } from './BazaarGuide';
+import { WiseGuide } from './WiseGuide';
+import { ZeroGuide } from './ZeroGuide';
 
 export type EventModalKey = 'brand' | 'bazaar' | 'wise' | 'zero';
 
 export interface EventModalContent {
   title: string;
-  /** 단순 문자열(한 줄) 또는 ReactNode (다중 줄 <p> 또는 fragment) */
-  subtitle: ReactNode;
+  /** 단순 문자열(한 줄) 또는 ReactNode (다중 줄 <p> 또는 fragment). 생략 시 헤더에 부제 미표시 (wise). */
+  subtitle?: ReactNode;
   hero?: string | null;             // undefined: 영역 없음, null: placeholder, string: 이미지 URL
   body: ReactNode;                  // 디자인 확정 시 이 부분 교체
   buttons?: EventModalButton[];     // 생략 시 "닫기" 단독
   /** Contents div에 추가 클래스 (예: 'esg-modal__contents--bazaar' 그라데이션) */
   contentsClassName?: string;
 }
-
-// 모든 모달 공통 placeholder 본문 (lorem ipsum 더미)
-const PLACEHOLDER_BODY: ReactNode = (
-  <>
-    <p>Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book.</p>
-    <p>It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.</p>
-  </>
-);
 
 export const EVENT_MODAL_CONTENT: Record<EventModalKey, EventModalContent> = {
   brand: {
@@ -79,19 +73,20 @@ export const EVENT_MODAL_CONTENT: Record<EventModalKey, EventModalContent> = {
     ),
     // hero 생략 → 이미지 영역 미표시 (Figma 1035:964 — 헤더+본문만)
     body: <BazaarGuide />,
-    contentsClassName: 'esg-modal__contents--bazaar',  // Figma 1035:973 그라데이션
+    contentsClassName: 'esg-modal__contents--gradient',  // Figma 1035:973 그라데이션
   },
   wise: {
     title: '슬기로운 사회생활 어워드',
-    subtitle: '참여안내 및 어워드 투표안내',
-    hero: null,
-    body: PLACEHOLDER_BODY,
+    // subtitle 없음 (Figma 1041:49 — 부제 미표시)
+    // hero 생략 → 이미지 영역 미표시
+    body: <WiseGuide />,
   },
   zero: {
-    title: '제로 웨이스트 어워드',
-    subtitle: '참여안내 및 어워드 투표안내',
-    hero: null,
-    body: PLACEHOLDER_BODY,
+    title: '제로 웨이스터 어워드',
+    // subtitle 없음 (Figma 1042:34 — 부제 미표시)
+    // hero 생략 → 이미지 영역 미표시
+    body: <ZeroGuide />,
+    contentsClassName: 'esg-modal__contents--gradient',  // Figma 1042:42 그라데이션
   },
 };
 
