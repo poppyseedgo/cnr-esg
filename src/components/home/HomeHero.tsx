@@ -7,7 +7,7 @@
 //
 // 레이아웃/스케일/애니메이션은 전부 HomeHero.css (JS 0줄, cqw 비례 스케일).
 //
-// 일러스트: Figma export SVG (public/home/*.svg) — clover/arrow/zerobag.
+// 일러스트: Figma export SVG (public/home/*.svg) — arrow / zerowaste-logo / zerobin / cnr-research.
 //   색이 SVG 내부에 박혀 있어 <img>로 그대로 렌더. 곡선 텍스트만 인라인 SVG(텍스트).
 // 사진 타일: CSS background-image(/home/home-01~04.jpg). 없으면 크림(#f7eee2) 폴백.
 //
@@ -21,6 +21,11 @@
 //   2026-05-28  최초 작성
 //   2026-05-28  Figma 실측 전면 정정 + 일러스트 SVG 적용
 //   2026-05-28  포스터 클릭 → 모달 연결(useSearchParams URL 동기화, EventModal 주입)
+//   2026-06-02  포스터 디자인 갱신 (Figma 1052:46/168/176):
+//               · 브랜드  슬로건 문구·26px + 로고 위 "씨엔알리서치 29주년…" 줄 추가
+//               · 슬사생  상단 2줄 부제 추가 + 하단 우측 화살표(arrow.svg) 추가
+//               · 제로    상단 부제 추가, 캡션 "6/30 시상" 줄 삭제, 봉투→봉투통(zerobin.svg)
+//               · 바자회  변경 없음 (콘텐츠·레이아웃 동일, Figma만 텍스트 노드로 재구성)
 // ============================================================================
 
 import { useSearchParams } from 'react-router-dom';
@@ -69,10 +74,13 @@ export function HomeHero() {
           >
             <div className="esg-hero__fg">
               <div className="esg-hero__brand-slogan">
-                <div className="esg-hero__brand-ko">사람의 건강을 지원하는 나의 사명</div>
-                <div className="esg-hero__brand-ko">지구의 건강을 지키는 우리의 실천</div>
+                <p className="esg-hero__brand-ko">사람과 지구의</p>
+                <p className="esg-hero__brand-ko">건강을 지키는 우리의 사명</p>
               </div>
-              <img className="esg-hero__brand-logo esg-hero__zoom" src="/home/cnr-research.svg" alt="C&amp;R RESEARCH" />
+              <div className="esg-hero__brand-bottom">
+                <p className="esg-hero__brand-sub">씨엔알리서치 29주년 창립기념 행사 안내</p>
+                <img className="esg-hero__brand-logo esg-hero__zoom" src="/home/cnr-research.svg" alt="C&amp;R RESEARCH" />
+              </div>
             </div>
           </div>
 
@@ -123,8 +131,11 @@ export function HomeHero() {
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openModal('wise'); } }}
           >
             <div className="esg-hero__fg">
+              <p className="esg-hero__wise-sub">29주년 창립기념식에서 시상하는<br />임직원 참여형 이벤트</p>
               <p className="esg-hero__wise-h">슬기로운 사회생활<br />어워드</p>
             </div>
+            {/* 하단 우측 화살표 (Figma 1052:174, arrow.svg 재사용 — 바자회 화살표와 동일) */}
+            <img className="esg-hero__wise-arrow esg-hero__zoom" src="/home/arrow.svg" alt="" aria-hidden="true" />
           </div>
 
           {/* R2C2 — 사진 */}
@@ -144,24 +155,21 @@ export function HomeHero() {
             onClick={() => openModal('zero')}
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openModal('zero'); } }}
           >
-            {/* 봉투 SVG (Figma export) — fg 밖 절대배치라 텍스트와 겹침 */}
-            <img className="esg-hero__zero-bag esg-hero__zoom" src="/home/zerobag.svg" alt="" aria-hidden="true" />
+            {/* 봉투통 SVG (Figma 1052:191) — fg 밖 절대배치, 중앙 */}
+            <img className="esg-hero__zero-bag" src="/home/zerobin.svg" alt="" aria-hidden="true" />
             <div className="esg-hero__fg">
-              {/* 상단 제목 */}
-              <div>
-                <img className="esg-hero__zero-logo esg-hero__zoom" src="/home/zerowaste-logo.svg" alt="ZERO WASTE" />
-                <p className="esg-hero__zero-ko">제로 웨이스트 어워드</p>
-              </div>
-              {/* 하단 캡션 (봉투는 위에서 절대배치로 중앙 영역 채움) */}
-              <div className="esg-hero__zero-caps">
-                <div className="esg-hero__zero-cap-grp">
-                  <p className="esg-hero__zero-cap1">후보자 추천 및 좋아요 투표</p>
-                  <p className="esg-hero__zero-cap1-en">6/8 — 6/22</p>
+              {/* 상단: 부제 + (ZERO WASTE 로고 + 한글) */}
+              <div className="esg-hero__zero-top">
+                <p className="esg-hero__zero-sub">29주년 창립기념식에서 시상하는</p>
+                <div className="esg-hero__zero-title">
+                  <img className="esg-hero__zero-logo esg-hero__zoom" src="/home/zerowaste-logo.svg" alt="ZERO WASTE" />
+                  <p className="esg-hero__zero-ko">제로 웨이스트 어워드</p>
                 </div>
-                <p className="esg-hero__zero-cap2">
-                  <span className="d">6/30</span>
-                  <span className="k">창립기념일 행사에서 시상</span>
-                </p>
+              </div>
+              {/* 하단 캡션 2줄 (Figma 1052:187) */}
+              <div className="esg-hero__zero-caps">
+                <p className="esg-hero__zero-cap1">후보자 추천 및 좋아요 투표</p>
+                <p className="esg-hero__zero-cap1-en">6/8 — 6/22</p>
               </div>
             </div>
           </div>
