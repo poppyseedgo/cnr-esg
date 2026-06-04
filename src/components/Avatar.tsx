@@ -1,5 +1,7 @@
 // ============================================================================
 // CHANGELOG
+//   2026-06-04 (d)
+//     - [수정] 이니셜 글자 두께 700 → 400.
 //   2026-06-04 (c)
 //     - [변경] 무사진 아바타 색상을 브랜드 그린 3종(logover1/2/3) 랜덤(이름 해시)으로 교체.
 //     - [제거] 파란 isMe 강조 테두리(잘림·이질감) 제거. isMe prop은 호환 위해 유지(무동작).
@@ -146,7 +148,7 @@ export function Avatar({
               textAnchor="middle"
               dominantBaseline="central"
               fontSize="96"
-              fontWeight={700}
+              fontWeight={400}
               fill={fg}
               fontFamily="inherit"
             >
