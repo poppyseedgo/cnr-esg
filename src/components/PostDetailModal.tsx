@@ -159,6 +159,7 @@ export function PostDetailModal({ postId, open, onClose, onDeleted }: PostDetail
 
   return (
     <div
+      className="anim-backdrop"
       onClick={(e) => {
         // 백드롭 자체를 직접 클릭한 경우에만 닫기.
         // (중첩된 PostFormModal 내부 클릭이 버블되어 닫히던 버그 방지)
@@ -178,6 +179,7 @@ export function PostDetailModal({ postId, open, onClose, onDeleted }: PostDetail
       aria-modal="true"
     >
       <div
+        className="anim-modal"
         onClick={(e) => e.stopPropagation()}
         style={{
           background: '#fff',
@@ -278,7 +280,7 @@ export function PostDetailModal({ postId, open, onClose, onDeleted }: PostDetail
                   avatarUrl={authorAvatar}
                   size={28}
                   isMe={isOwner}
-                  anonymous={!showRealName}
+                  anonymous={!!post?.is_anonymous}
                   colorSeed={post.is_anonymous ? post.id : undefined}
                   nameSize={12}
                   nameColor="#444"

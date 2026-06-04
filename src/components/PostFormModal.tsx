@@ -184,6 +184,7 @@ export function PostFormModal({
 
   return (
     <div
+      className="anim-backdrop"
       style={{
         position: 'fixed',
         inset: 0,
@@ -199,6 +200,7 @@ export function PostFormModal({
       }}
     >
       <div
+        className="anim-modal"
         style={{
           background: '#fff',
           borderRadius: 16,

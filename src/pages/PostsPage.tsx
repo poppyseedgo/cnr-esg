@@ -15,7 +15,7 @@ import { useEffect, useMemo, useState, useCallback, createContext, useContext } 
 import { useParams, NavLink } from 'react-router-dom';
 import { useEventPhase } from '@/hooks/useEventPhase';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { loadPosts, subscribePostsChanges } from '@/lib/posts';
+import { loadPosts, subscribePostsChanges, loadMyLikes, toggleLike } from '@/lib/posts';
 import { loadAvatarMap } from '@/lib/profiles'; // ← [추가] 작성자 아바타 일괄 조회(SSOT)
 import { PostListCard } from '@/components/PostListCard'; // ← [추가] Figma 기반 리스트 카드
 import { formatKSTDate } from '@/utils/time';
@@ -183,6 +183,7 @@ function CategoryContent({ meta }: { meta: CategoryMeta }) {
   const [firstLoading, setFirstLoading] = useState(!cached);
   const [error, setError] = useState<string | null>(null);
   const [avatarMap, setAvatarMap] = useState<Map<string, string | null>>(new Map()); // ← [추가] 작성자 user_id→avatar_url
+  const [likedSet, setLikedSet] = useState<Set<string>>(new Set()); // ← [추가] 내가 좋아요 누른 post id
   const [showForm, setShowForm] = useState(false);
   /** 모달로 열 게시글 ID (게시글 카드 클릭 시 set) */
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
@@ -208,13 +209,20 @@ function CategoryContent({ meta }: { meta: CategoryMeta }) {
       // 작성자 아바타 일괄 조회 (익명은 user_id=null이라 자동 제외 → 유출 없음)
       const map = await loadAvatarMap(list.map((p) => p.user_id)); // ← [추가] N+1 아님
       setAvatarMap(map);                                           // ← [추가]
+      // 내가 좋아요 누른 글 집합 (로그인 시에만)
+      if (currentUser) {                                           // ← [추가]
+        const liked = await loadMyLikes(list.map((p) => p.id), currentUser.id); // ← [추가]
+        setLikedSet(liked);                                        // ← [추가]
+      } else {                                                     // ← [추가]
+        setLikedSet(new Set());                                    // ← [추가]
+      }                                                            // ← [추가]
     } catch (e) {
       console.error('[PostsPage] load error:', e);
       setError(e instanceof Error ? e.message : '게시글을 불러오지 못했습니다.');
     } finally {
       setFirstLoading(false);
     }
-  }, [meta.key, setCacheFor]);
+  }, [meta.key, setCacheFor, currentUser]);
 
   // 탭 전환 시: 캐시 있으면 백그라운드 refresh, 없으면 skeleton 표시 후 로드
   useEffect(() => {
@@ -235,6 +243,38 @@ function CategoryContent({ meta }: { meta: CategoryMeta }) {
     return cleanup;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [meta.key]);
+
+  // 리스트에서 좋아요 토글 (낙관적 업데이트 → 실패 시 reload 복구)
+  const handleToggleLike = useCallback(
+    async (postId: string) => {
+      if (!currentUser) {
+        signInWithMicrosoft().catch(console.error); // 비로그인 → 로그인 유도
+        return;
+      }
+      const wasLiked = likedSet.has(postId);
+      setLikedSet((prev) => {
+        const next = new Set(prev);
+        if (wasLiked) next.delete(postId);
+        else next.add(postId);
+        return next;
+      });
+      setCacheFor(
+        meta.key,
+        posts.map((p) =>
+          p.id === postId
+            ? { ...p, like_count: Math.max(0, p.like_count + (wasLiked ? -1 : 1)) }
+            : p
+        )
+      );
+      try {
+        await toggleLike(postId, { id: currentUser.id, email: currentUser.email });
+      } catch (e) {
+        console.error('[PostsPage] toggleLike error:', e);
+        void reload(); // 서버 상태로 복구
+      }
+    },
+    [currentUser, likedSet, posts, meta.key, setCacheFor, reload]
+  );
 
   return (
     <div>
@@ -312,6 +352,8 @@ function CategoryContent({ meta }: { meta: CategoryMeta }) {
           avatarMap={avatarMap}
           currentUserId={currentUser?.id ?? null}
           isAdmin={isAdmin}
+          likedSet={likedSet}
+          onToggleLike={handleToggleLike}
           onPostClick={(id) => setSelectedPostId(id)}
         />
       )}
@@ -416,12 +458,16 @@ function PostGrid({
   avatarMap,
   currentUserId,
   isAdmin,
+  likedSet,
+  onToggleLike,
   onPostClick,
 }: {
   posts: EsgPostWithImagesRow[];
   avatarMap: Map<string, string | null>; // ← [추가] user_id→avatar_url
   currentUserId: string | null;
   isAdmin: boolean;
+  likedSet: Set<string>; // ← [추가]
+  onToggleLike: (postId: string) => void; // ← [추가]
   onPostClick: (id: string) => void;
 }) {
   return (
@@ -439,6 +485,9 @@ function PostGrid({
           avatarUrl={p.user_id ? avatarMap.get(p.user_id) ?? null : null}
           isMine={!!currentUserId && p.user_id === currentUserId}
           isAdmin={isAdmin}
+          liked={likedSet.has(p.id)}
+          likeCount={p.like_count}
+          onToggleLike={onToggleLike}
           onClick={() => onPostClick(p.id)}
         />
       ))}

@@ -1,5 +1,10 @@
 // ============================================================================
 // CHANGELOG
+//   2026-06-04 (b)
+//     - [기능추가] 리스트에서 하트(좋아요) 토글 가능 — onToggleLike/liked/likeCount
+//         제어형 props. 하트 버튼은 stopPropagation으로 카드 클릭(상세)과 분리.
+//     - [변경] 루트 button → div(role=button) + .card-pressable(hover 확대 모션).
+//         (button 안에 button 중첩 불가 문제 해소)
 //   2026-06-04
 //     - [수정] 카드 minHeight 추가(이미지 401 / 텍스트 320, Figma 기준).
 //         반응형 그리드에서 같은 행에 키 큰 카드가 없을 때(단독 행 등) 카드
@@ -42,12 +47,12 @@ const BADGE: Record<EsgPostCategory, BadgeSpec> = {
 };
 
 // ── 아이콘 (임시 placeholder — 공식 SVG로 교체 예정) ────────────────────────
-function LikeIcon({ size = 24 }: { size?: number }) {
+function LikeIcon({ size = 24, filled = false }: { size?: number; filled?: boolean }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={filled ? '#ff4d4f' : 'none'} aria-hidden="true">
       <path
         d="M12 20.5l-1.45-1.32C5.4 14.36 2 11.28 2 7.5 2 5.42 3.42 4 5.5 4c1.74 0 3.41 1.01 4.13 2.44h0.74C11.09 5.01 12.76 4 14.5 4 16.58 4 18 5.42 18 7.5c0 3.78-3.4 6.86-8.55 11.68L12 20.5z"
-        stroke="#111"
+        stroke={filled ? '#ff4d4f' : '#111'}
         strokeWidth="1.5"
         strokeLinejoin="round"
       />
@@ -73,9 +78,24 @@ interface PostListCardProps {
   isMine: boolean;
   isAdmin: boolean;
   onClick: () => void;
+  /** 내가 좋아요 눌렀는지(제어형) */
+  liked?: boolean;
+  /** 좋아요 수(제어형 — 미지정 시 post.like_count) */
+  likeCount?: number;
+  /** 하트 토글 (미지정 시 하트 비활성) */
+  onToggleLike?: (postId: string) => void;
 }
 
-export function PostListCard({ post, avatarUrl, isMine, isAdmin, onClick }: PostListCardProps) {
+export function PostListCard({
+  post,
+  avatarUrl,
+  isMine,
+  isAdmin,
+  onClick,
+  liked = false,
+  likeCount,
+  onToggleLike,
+}: PostListCardProps) {
   const hasImage = !!post.cover_image_url;
   const badge = BADGE[post.category];
 
@@ -84,9 +104,17 @@ export function PostListCard({ post, avatarUrl, isMine, isAdmin, onClick }: Post
   const authorName = maskAuthor ? '익명' : post.user_name;
 
   return (
-    <button
-      type="button"
+    <div
+      className="card-pressable" // ← [추가] hover 확대 모션 (전역 CSS)
+      role="button"
+      tabIndex={0}
       onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick();
+        }
+      }}
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -222,7 +250,7 @@ export function PostListCard({ post, avatarUrl, isMine, isAdmin, onClick }: Post
             avatarUrl={avatarUrl}
             size={24}
             isMe={isMine}
-            anonymous={maskAuthor}
+            anonymous={post.is_anonymous}
             colorSeed={post.is_anonymous ? post.id : undefined}
             gap={6}
             nameSize={14}
@@ -231,12 +259,29 @@ export function PostListCard({ post, avatarUrl, isMine, isAdmin, onClick }: Post
           />
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0 }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
-              <LikeIcon size={24} />
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation(); // 카드 클릭(상세 열기)과 분리
+                onToggleLike?.(post.id);
+              }}
+              disabled={!onToggleLike}
+              aria-label={liked ? '좋아요 취소' : '좋아요'}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 2,
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                cursor: onToggleLike ? 'pointer' : 'default',
+              }}
+            >
+              <LikeIcon size={24} filled={liked} />
               <span style={{ fontSize: 14, fontWeight: 400, lineHeight: 1.3, color: TITLE_COLOR }}>
-                {post.like_count}
+                {likeCount ?? post.like_count}
               </span>
-            </span>
+            </button>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
               <CommentIcon size={24} />
               <span style={{ fontSize: 14, fontWeight: 400, lineHeight: 1.3, color: TITLE_COLOR }}>
@@ -246,6 +291,6 @@ export function PostListCard({ post, avatarUrl, isMine, isAdmin, onClick }: Post
           </div>
         </div>
       </div>
-    </button>
+    </div>
   );
 }
