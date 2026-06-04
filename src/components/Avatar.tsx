@@ -1,5 +1,7 @@
 // ============================================================================
 // CHANGELOG
+//   2026-06-04 (g)
+//     - [변경] 프로필 사진 있는 아바타는 원형(circle)으로. 무사진(이니셜/익명)은 클로버 유지.
 //   2026-06-04 (f)
 //     - [수정] 사진 아바타 외곽선 색상 #111 → #AEB5C4 (연한 회청색).
 //   2026-06-04 (e)
@@ -104,17 +106,18 @@ export function Avatar({
       aria-label={anonymous ? '익명' : displayName}
     >
       <defs>
+        {/* 사진 아바타용 원형 clip (무사진은 클로버 path 직접 사용) */}
         <clipPath id={clipId}>
-          <path d={CLOVER_PATH} />
+          <circle cx="105" cy="105" r="104" />
         </clipPath>
       </defs>
 
       {showImage ? (
-        // 클립은 래퍼 <g>에 (클로버 모양 고정), 이미지에만 확대 transform
+        // 프로필 사진 있는 경우: 원형. clip은 래퍼 <g>, 이미지에만 확대 transform
         <>
           <g clipPath={`url(#${clipId})`}>
             {/* 투명 이미지 대비 흰 배경 */}
-            <path d={CLOVER_PATH} fill="#fff" />
+            <circle cx="105" cy="105" r="104" fill="#fff" />
             {/* 사진: cover + 얼굴 부각 확대 */}
             <image
               href={avatarUrl ?? undefined}
@@ -127,9 +130,11 @@ export function Avatar({
               onError={() => setImgError(true)}
             />
           </g>
-          {/* 사진 아바타 경계 명확화 — #111 1px (크기 무관 1px 유지) */}
-          <path
-            d={CLOVER_PATH}
+          {/* 경계 명확화 — #AEB5C4 0.5px (크기 무관) */}
+          <circle
+            cx="105"
+            cy="105"
+            r="104"
             fill="none"
             stroke="#AEB5C4"
             strokeWidth="0.5"
