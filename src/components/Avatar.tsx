@@ -1,5 +1,7 @@
 // ============================================================================
 // CHANGELOG
+//   2026-06-04 (e)
+//     - [수정] 사진 아바타 외곽선 1px → 0.5px (상단 노치가 두껍게 보이던 문제 완화).
 //   2026-06-04 (d)
 //     - [수정] 이니셜 글자 두께 700 → 400.
 //   2026-06-04 (c)
@@ -128,7 +130,7 @@ export function Avatar({
             d={CLOVER_PATH}
             fill="none"
             stroke="#111"
-            strokeWidth="1"
+            strokeWidth="0.5"
             vectorEffect="non-scaling-stroke"
           />
         </>
