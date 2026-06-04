@@ -26,6 +26,8 @@ interface UserChipProps {
   isMe?: boolean;
   /** 익명 — 아바타를 마스크로 표시 */
   anonymous?: boolean;
+  /** 색 해시 시드(미지정 시 name). 익명 통일용 */
+  colorSeed?: string;
   /** 아바타-텍스트 간격(px). 기본 8 */
   gap?: number;
   nameSize?: number;
@@ -44,6 +46,7 @@ export function UserChip({
   size = 28,
   isMe = false,
   anonymous = false,
+  colorSeed,
   gap = 8,
   nameSize = 13,
   nameWeight = 600,
@@ -70,6 +73,7 @@ export function UserChip({
         size={size}
         isMe={isMe}
         anonymous={anonymous}
+        colorSeed={colorSeed}
       />
       <span style={{ display: 'inline-flex', alignItems: 'baseline', gap: 4, minWidth: 0 }}>
         <span

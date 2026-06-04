@@ -1,5 +1,9 @@
 // ============================================================================
 // CHANGELOG
+//   2026-06-04 (j)
+//     - [변경] 익명 아바타도 그린 3종 사용(회색 제거), 이니셜('익') 미표시.
+//     - [추가] colorSeed prop — 색 해시 시드를 이름 대신 외부 키로 지정 가능.
+//         익명 게시물은 post.id를 시드로 넘겨 리스트·상세 색을 일치시킴.
 //   2026-06-04 (i)
 //     - [변경] 익명 아바타: 사람 실루엣 제거, 회색 클로버만 표시.
 //   2026-06-04 (h)
@@ -47,8 +51,10 @@ interface AvatarProps {
   size?: number;
   /** (호환용·무동작) 과거 본인 강조 테두리 — 제거됨 */
   isMe?: boolean;
-  /** 익명 모드 — 회색 배경 + 실루엣 */
+  /** 익명 모드 — 이니셜 미표시(색 클로버만) */
   anonymous?: boolean;
+  /** 색 해시 시드(미지정 시 name 사용). 익명 게시물은 post.id 등 안정적 키로 일치시킴 */
+  colorSeed?: string;
   /** 사진 확대 배율 (기본 1.2 — 증명사진 여백 줄이고 인물 부각) */
   zoom?: number;
   /** 세로 초점 0~1 (기본 0.32 — 작을수록 얼굴/상단을 부각) */
@@ -80,6 +86,7 @@ export function Avatar({
   avatarUrl,
   size = 36,
   anonymous = false,
+  colorSeed,
   zoom = 1.2,
   focusY = 0.32,
 }: AvatarProps) {
@@ -88,11 +95,12 @@ export function Avatar({
   const clipId = `clv${rawId.replace(/:/g, '')}`; // url(#..) 참조용 — 콜론 제거
   const displayName = name?.trim() || '?';
   const initial = displayName.slice(0, 1);
-  const palette = hashColor(displayName);
+  const palette = hashColor(colorSeed?.trim() || displayName); // 시드 우선, 없으면 이름
   const showImage = !anonymous && !!avatarUrl && !imgError;
 
-  const bg = anonymous ? '#e5e7eb' : palette.bg;
-  const fg = anonymous ? '#6b7280' : palette.color;
+  // 익명 포함 항상 그린 3종 (회색 없음)
+  const bg = palette.bg;
+  const fg = palette.color;
 
   // 사진 확대 + 얼굴(상단) 부각: 초점(가로 중앙, 세로 focusY) 기준으로 scale
   // clip은 래퍼 <g>에 두고 이미지에만 transform → 클로버 모양은 그대로, 사진만 확대
@@ -135,7 +143,7 @@ export function Avatar({
         </g>
       ) : (
         <>
-          {/* 익명: 회색 클로버만 (실루엣 없음) / 그 외: 이니셜 */}
+          {/* 익명: 색 클로버만 (이니셜 없음) / 그 외: 이니셜 */}
           <path d={CLOVER_PATH} fill={bg} />
           {!anonymous && (
             <text

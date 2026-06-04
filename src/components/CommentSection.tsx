@@ -370,6 +370,7 @@ function CommentItem({
         size={36}
         isMe={isMine}
         anonymous={comment.is_anonymous}
+        colorSeed={comment.is_anonymous ? comment.id : undefined}
       />{/* ← [수정] 손수 만든 이니셜 원 제거 → 프로필 이미지 적용 */}
 
       {/* 내용 */}
@@ -386,20 +387,6 @@ function CommentItem({
         >
           <strong style={{ color: '#222' }}>{displayName}</strong>
           {displayDept && <span style={{ color: '#888' }}>· {displayDept}</span>}
-          {comment.is_anonymous && (isMine || isAdmin) && (
-            <span
-              style={{
-                padding: '1px 6px',
-                background: '#dbeafe',
-                color: '#1e40af',
-                borderRadius: 4,
-                fontSize: 10,
-                fontWeight: 600,
-              }}
-            >
-              익명
-            </span>
-          )}
           <span style={{ color: '#aaa', fontSize: 11, marginLeft: 'auto' }}>
             {formatKSTFull(comment.created_at)}
             {comment.updated_at !== comment.created_at && (

@@ -279,23 +279,12 @@ export function PostDetailModal({ postId, open, onClose, onDeleted }: PostDetail
                   size={28}
                   isMe={isOwner}
                   anonymous={!showRealName}
+                  colorSeed={post.is_anonymous ? post.id : undefined}
                   nameSize={12}
                   nameColor="#444"
                 />{/* ← [수정] 공통 UserChip */}
                 <span>·</span>
                 <span>{formatKSTFull(post.created_at)}</span>
-                {post.is_anonymous && (
-                  <span
-                    style={{
-                      padding: '1px 6px',
-                      background: '#f3f4f6',
-                      borderRadius: 4,
-                      fontSize: 10,
-                    }}
-                  >
-                    🔒 익명
-                  </span>
-                )}
               </div>
 
               {/* 이미지 */}

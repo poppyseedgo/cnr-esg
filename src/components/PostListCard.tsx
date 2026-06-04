@@ -223,6 +223,7 @@ export function PostListCard({ post, avatarUrl, isMine, isAdmin, onClick }: Post
             size={24}
             isMe={isMine}
             anonymous={maskAuthor}
+            colorSeed={post.is_anonymous ? post.id : undefined}
             gap={6}
             nameSize={14}
             nameWeight={400}
