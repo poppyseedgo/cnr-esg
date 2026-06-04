@@ -1,5 +1,10 @@
 // ============================================================================
 // CHANGELOG
+//   2026-06-04 (c)
+//     - [변경] 무사진 아바타 색상을 브랜드 그린 3종(logover1/2/3) 랜덤(이름 해시)으로 교체.
+//     - [제거] 파란 isMe 강조 테두리(잘림·이질감) 제거. isMe prop은 호환 위해 유지(무동작).
+//     - [수정] viewBox 패딩(-6) 추가 → 테두리 잘림 방지.
+//     - [추가] 사진 아바타에 #111 1px 외곽선(non-scaling) → 클로버 경계 명확화.
 //   2026-06-04 (clover)
 //     - [변경] 아바타 형태를 원형 → 클로버(canvas) 모양으로 교체 (clover.svg 기준).
 //         · 사진: 클로버 path로 clip + cover(잘림 없이 모양에 정확히 채움)
@@ -28,7 +33,7 @@ interface AvatarProps {
   name: string | null | undefined;
   avatarUrl?: string | null;
   size?: number;
-  /** 본인일 때 강조 테두리(클로버 외곽선) */
+  /** (호환용·무동작) 과거 본인 강조 테두리 — 제거됨 */
   isMe?: boolean;
   /** 익명 모드 — 회색 배경 + 실루엣 */
   anonymous?: boolean;
@@ -42,15 +47,11 @@ interface AvatarProps {
 const CLOVER_PATH =
   'M147.5 1C180.913 1 208 28.0868 208 61.5C208 78.8368 200.707 94.4695 189.022 105.5C200.707 116.531 208 132.163 208 149.5C208 182.913 180.913 210 147.5 210C131.186 210 116.381 203.542 105.5 193.044C94.6187 203.542 79.8139 210 63.5 210C30.0868 210 3 182.913 3 149.5C3 132.163 10.2924 116.53 21.9766 105.5C10.2924 94.4695 3 78.8365 3 61.5C3 28.0868 30.0868 1 63.5 1C79.8137 1 94.6187 7.45748 105.5 17.9551C116.381 7.45748 131.186 1 147.5 1Z';
 
-// 이름 해시 → 색깔 (일관성 + 다양성)
+// 이름 해시 → 브랜드 그린 3종 (logover1/2/3). 사용자별 항상 동일.
 const COLORS = [
-  { bg: '#dbeafe', color: '#1e40af' }, // blue
-  { bg: '#dcfce7', color: '#166534' }, // green
-  { bg: '#fef3c7', color: '#92400e' }, // amber
-  { bg: '#fce7f3', color: '#9d174d' }, // pink
-  { bg: '#ede9fe', color: '#6b21a8' }, // purple
-  { bg: '#cffafe', color: '#155e75' }, // cyan
-  { bg: '#fed7aa', color: '#9a3412' }, // orange
+  { bg: '#99F65D', color: '#14532D' }, // logover1 라이트 라임 → 진녹 글자
+  { bg: '#048859', color: '#FFFFFF' }, // logover2 딥그린 → 흰 글자
+  { bg: '#69F59F', color: '#0B5132' }, // logover3 민트 → 진녹 글자
 ];
 
 function hashColor(name: string): { bg: string; color: string } {
@@ -66,7 +67,6 @@ export function Avatar({
   name,
   avatarUrl,
   size = 36,
-  isMe = false,
   anonymous = false,
   zoom = 1.2,
   focusY = 0.32,
@@ -92,7 +92,7 @@ export function Avatar({
     <svg
       width={size}
       height={size}
-      viewBox="0 0 210 210"
+      viewBox="-6 -6 222 222"
       style={{ display: 'block', flexShrink: 0 }} // flex 내 찌그러짐 방지
       role="img"
       aria-label={anonymous ? '익명' : displayName}
@@ -105,21 +105,31 @@ export function Avatar({
 
       {showImage ? (
         // 클립은 래퍼 <g>에 (클로버 모양 고정), 이미지에만 확대 transform
-        <g clipPath={`url(#${clipId})`}>
-          {/* 투명 이미지 대비 흰 배경 */}
-          <path d={CLOVER_PATH} fill="#fff" />
-          {/* 사진: cover + 얼굴 부각 확대 */}
-          <image
-            href={avatarUrl ?? undefined}
-            x="0"
-            y="0"
-            width="210"
-            height="210"
-            preserveAspectRatio="xMidYMid slice"
-            transform={imageTransform}
-            onError={() => setImgError(true)}
+        <>
+          <g clipPath={`url(#${clipId})`}>
+            {/* 투명 이미지 대비 흰 배경 */}
+            <path d={CLOVER_PATH} fill="#fff" />
+            {/* 사진: cover + 얼굴 부각 확대 */}
+            <image
+              href={avatarUrl ?? undefined}
+              x="0"
+              y="0"
+              width="210"
+              height="210"
+              preserveAspectRatio="xMidYMid slice"
+              transform={imageTransform}
+              onError={() => setImgError(true)}
+            />
+          </g>
+          {/* 사진 아바타 경계 명확화 — #111 1px (크기 무관 1px 유지) */}
+          <path
+            d={CLOVER_PATH}
+            fill="none"
+            stroke="#111"
+            strokeWidth="1"
+            vectorEffect="non-scaling-stroke"
           />
-        </g>
+        </>
       ) : (
         <>
           <path d={CLOVER_PATH} fill={bg} />
@@ -145,9 +155,6 @@ export function Avatar({
           )}
         </>
       )}
-
-      {/* 본인 강조 — 클로버 외곽선 */}
-      {isMe && <path d={CLOVER_PATH} fill="none" stroke="#0ea5e9" strokeWidth="6" />}
     </svg>
   );
 }
