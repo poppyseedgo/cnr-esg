@@ -71,14 +71,22 @@ h1 {
      - .route-fade: 페이지(라우트) 진입
    ============================================================================ */
 
-/* 버튼 공통 트랜지션 (transform만 — 색/그림자엔 영향 없음) */
+/* 버튼 공통: 누름 효과 (C&R Space와 동일 — scale(0.97) / transform 0.1s / 즉시반응)
+   + 모바일 필수 속성(탭 하이라이트 제거, 더블탭 줌·지연 제거, 텍스트 선택 방지) */
 button {
-  transition: transform 0.08s ease;
+  transition: transform 0.1s ease; /* ← [2026-06-04] Space와 동일 'B 타이밍' */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 @media (prefers-reduced-motion: no-preference) {
+  /* .is-pressed = pointerdown 즉시 반응(Space usePressable 동등) / :active = 폴백.
+     비활성 버튼은 제외. (lib/buttonPress.ts가 document 위임으로 .is-pressed 토글) */
+  button:not(:disabled).is-pressed,
   button:not(:disabled):active {
-    transform: scale(0.96);
+    transform: scale(0.97); /* ← [2026-06-04] Space와 동일 값 */
   }
 
   /* 클릭 가능한 카드: hover 살짝 확대 + 떠오름, active 눌림 */
