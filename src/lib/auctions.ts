@@ -20,6 +20,7 @@
 import { supabase as _supabase } from './supabase';
 import { callRpc } from './supabase';
 import { trackBid } from './analytics'; // ← [2026-06-02 추가] GA4 입찰 추적
+import { loadPublicProfiles } from './profiles'; // ← [2026-06-04 추가] 공개 프로필 일괄 조회 SSOT
 import type {
   EsgAuctionRow,
   EsgAuctionBidPublicRow,
@@ -134,27 +135,8 @@ export async function loadBids(
 
   if (bids.length === 0) return [];
 
-  // 2) profile 일괄 조회 (user_id가 null이 아닌 경우만 = 본인 입찰 + 익명 아닌 입찰)
-  const visibleUserIds = Array.from(
-    new Set(bids.map((b) => b.user_id).filter((id): id is string => !!id))
-  );
-
-  let profileMap = new Map<
-    string,
-    Pick<EsgProfilePublicRow, 'id' | 'name' | 'dept' | 'avatar_url'>
-  >();
-  if (visibleUserIds.length > 0) {
-    const { data: profilesData, error: profilesErr } = await supabase
-      .from('esg_profile_public')
-      .select('id, name, dept, avatar_url')
-      .in('id', visibleUserIds);
-    if (profilesErr) throw profilesErr;
-    for (const p of (profilesData ?? []) as Array<
-      Pick<EsgProfilePublicRow, 'id' | 'name' | 'dept' | 'avatar_url'>
-    >) {
-      profileMap.set(p.id, p);
-    }
-  }
+  // 2) profile 일괄 조회 (SSOT) — 익명/타인은 view에서 user_id=null이라 자동 제외
+  const profileMap = await loadPublicProfiles(bids.map((b) => b.user_id)); // ← [2026-06-04 수정] 인라인 쿼리 → 공통 로더(중복 제거)
 
   // 3) JOIN (익명 + 타인은 user_id가 null이라 profile도 null)
   return bids.map((b) => ({

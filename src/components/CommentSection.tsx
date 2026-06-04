@@ -1,4 +1,13 @@
 // ============================================================================
+// CHANGELOG
+//   2026-06-04
+//     - [수정] 댓글 작성자 아바타 = profiles.avatar_url 적용 (C&R Space와 동일)
+//         · 손수 만든 이니셜 원 제거 → 공통 <Avatar> 컴포넌트로 교체
+//         · esg_profile_public에서 작성자 아바타 일괄 조회(loadAvatarMap, N+1 아님)
+//         · 익명 댓글은 view에서 user_id=null → 아바타 미조회(유출 없음)
+// ============================================================================
+
+// ============================================================================
 // CommentSection — 게시글 상세 페이지의 댓글 영역
 //
 // 기능:
@@ -20,6 +29,8 @@ import {
   deleteComment,
   subscribeComments,
 } from '@/lib/comments';
+import { loadAvatarMap } from '@/lib/profiles';  // ← [추가] 작성자 아바타 일괄 조회(SSOT)
+import { Avatar } from '@/components/Avatar';      // ← [추가] 공통 아바타 컴포넌트
 import { signInWithMicrosoft } from '@/lib/auth';
 import { formatKSTFull } from '@/utils/time';
 import type { EsgCommentPublicRow } from '@/types/esg';
@@ -35,6 +46,7 @@ export function CommentSection({ postId }: CommentSectionProps) {
   const { settings } = useEventPhase();
 
   const [comments, setComments] = useState<EsgCommentPublicRow[]>([]);
+  const [avatarMap, setAvatarMap] = useState<Map<string, string | null>>(new Map());  // ← [추가] user_id→avatar_url
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,6 +66,9 @@ export function CommentSection({ postId }: CommentSectionProps) {
       setError(null);
       const list = await loadComments(postId);
       setComments(list);
+      // 작성자 아바타 일괄 조회 (익명은 user_id=null이라 자동 제외 → 유출 없음)
+      const map = await loadAvatarMap(list.map((c) => c.user_id));  // ← [추가] 아바타 일괄 로드(N+1 아님)
+      setAvatarMap(map);                                            // ← [추가]
     } catch (e) {
       console.error('[CommentSection] load error:', e);
       setError(e instanceof Error ? e.message : '댓글을 불러오지 못했습니다.');
@@ -312,6 +327,7 @@ export function CommentSection({ postId }: CommentSectionProps) {
             <CommentItem
               key={c.id}
               comment={c}
+              avatarUrl={c.user_id ? avatarMap.get(c.user_id) ?? null : null}
               isMine={!!currentUser && c.user_id === currentUser.id}
               isAdmin={isAdmin}
               onDelete={handleDelete}
@@ -329,11 +345,13 @@ export function CommentSection({ postId }: CommentSectionProps) {
 
 function CommentItem({
   comment,
+  avatarUrl,
   isMine,
   isAdmin,
   onDelete,
 }: {
   comment: EsgCommentPublicRow;
+  avatarUrl: string | null;  // ← [추가] 작성자 아바타 URL (익명/없으면 null)
   isMine: boolean;
   isAdmin: boolean;
   onDelete: (id: string) => void;
@@ -345,24 +363,14 @@ function CommentItem({
 
   return (
     <div style={{ display: 'flex', gap: 12 }}>
-      {/* 아바타 placeholder */}
-      <div
-        style={{
-          width: 36,
-          height: 36,
-          borderRadius: '50%',
-          background: comment.is_anonymous ? '#e5e7eb' : '#dbeafe',
-          color: comment.is_anonymous ? '#6b7280' : '#1e40af',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: 13,
-          fontWeight: 700,
-          flexShrink: 0,
-        }}
-      >
-        {comment.is_anonymous ? '?' : displayName.slice(0, 1)}
-      </div>
+      {/* 아바타 — 공통 Avatar 컴포넌트 (이미지→실패시 이니셜→익명시 마스크) */}
+      <Avatar
+        name={displayName}
+        avatarUrl={avatarUrl}
+        size={36}
+        isMe={isMine}
+        anonymous={comment.is_anonymous}
+      />{/* ← [수정] 손수 만든 이니셜 원 제거 → 프로필 이미지 적용 */}
 
       {/* 내용 */}
       <div style={{ flex: 1, minWidth: 0 }}>
