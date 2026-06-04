@@ -1,5 +1,7 @@
 // ============================================================================
 // CHANGELOG
+//   2026-06-04 (f)
+//     - [수정] 사진 아바타 외곽선 색상 #111 → #AEB5C4 (연한 회청색).
 //   2026-06-04 (e)
 //     - [수정] 사진 아바타 외곽선 1px → 0.5px (상단 노치가 두껍게 보이던 문제 완화).
 //   2026-06-04 (d)
@@ -129,7 +131,7 @@ export function Avatar({
           <path
             d={CLOVER_PATH}
             fill="none"
-            stroke="#111"
+            stroke="#AEB5C4"
             strokeWidth="0.5"
             vectorEffect="non-scaling-stroke"
           />
