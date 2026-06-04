@@ -158,12 +158,8 @@ export function AuctionPage() {
         <EmptyState />
       ) : (
         <div
-          style={{
-            marginTop: 24,
-            display: 'grid',
-            gap: 16,
-            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-          }}
+          className="shop-grid"
+          style={{ marginTop: 24, display: 'grid', gap: 16 }}
         >
           {auctions.map((a) => (
             <AuctionCard key={a.id} auction={a} />
@@ -301,12 +297,8 @@ function AuctionCard({ auction }: { auction: EsgAuctionRow }) {
 function AuctionSkeleton() {
   return (
     <div
-      style={{
-        marginTop: 24,
-        display: 'grid',
-        gap: 16,
-        gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-      }}
+      className="shop-grid"
+      style={{ marginTop: 24, display: 'grid', gap: 16 }}
     >
       {[1, 2, 3].map((i) => (
         <div

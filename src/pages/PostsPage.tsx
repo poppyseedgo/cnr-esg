@@ -472,11 +472,8 @@ function PostGrid({
 }) {
   return (
     <div
-      style={{
-        display: 'grid',
-        gap: 16,
-        gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-      }}
+      className="post-grid"
+      style={{ display: 'grid', gap: 16 }}
     >
       {posts.map((p) => (
         <PostListCard
@@ -498,11 +495,8 @@ function PostGrid({
 function PostsSkeleton() {
   return (
     <div
-      style={{
-        display: 'grid',
-        gap: 16,
-        gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-      }}
+      className="post-grid"
+      style={{ display: 'grid', gap: 16 }}
     >
       {[1, 2, 3, 4].map((i) => (
         <div
@@ -514,7 +508,7 @@ function PostsSkeleton() {
             overflow: 'hidden',
           }}
         >
-          <div style={{ aspectRatio: '4 / 3', background: '#f5f5f5' }} />
+          <div style={{ aspectRatio: '16 / 9', background: '#f5f5f5' }} />
           <div style={{ padding: 16 }}>
             <div style={{ height: 14, background: '#f0f0f0', borderRadius: 4, marginBottom: 8 }} />
             <div style={{ height: 14, background: '#f0f0f0', borderRadius: 4, width: '70%' }} />

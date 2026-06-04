@@ -1,5 +1,9 @@
 // ============================================================================
 // CHANGELOG
+//   2026-06-04 (d)
+//     - [반응형] 고정 높이 → 유동화: 이미지 height:177px → aspect-ratio 16/9(폭 비례),
+//         카드 minHeight 401/320(고정) → clamp(모바일↓~데스크탑 401/320).
+//         모바일 2열에서 과도하게 길어지던 문제 해소(그리드는 .post-grid가 2열 유지).
 //   2026-06-04 (b)
 //     - [기능추가] 리스트에서 하트(좋아요) 토글 가능 — onToggleLike/liked/likeCount
 //         제어형 props. 하트 버튼은 stopPropagation으로 카드 클릭(상세)과 분리.
@@ -120,7 +124,9 @@ export function PostListCard({
         flexDirection: 'column',
         width: '100%',
         height: '100%',
-        minHeight: hasImage ? 401 : 320, // ← [추가] Figma 카드 높이(이미지 401/텍스트 320) 바닥값 — 단독 행 붕괴 방지
+        minHeight: hasImage
+          ? 'clamp(240px, 62vw, 401px)' // ← [2026-06-04] 유동 floor: 모바일↓ ~ 데스크탑 401(Figma)
+          : 'clamp(200px, 50vw, 320px)', // ← [2026-06-04] 텍스트 카드 유동 floor (데스크탑 320)
         padding: 0,
         border: 'none',
         background: '#fff',
@@ -135,7 +141,7 @@ export function PostListCard({
       {hasImage && (
         <div
           style={{
-            height: 177,
+            aspectRatio: '16 / 9', // ← [2026-06-04] 고정 177px → 폭 비례 유동(모바일 2열 대응)
             width: '100%',
             background: '#00422b',
             display: 'flex',

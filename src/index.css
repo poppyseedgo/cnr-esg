@@ -130,3 +130,32 @@ button {
 /* 주의: .route-fade에는 transform을 쓰지 않는다.
    transform/filter 조상은 position:fixed 자손의 컨테이닝 블록이 되어
    모달(fixed) 백드롭이 뷰포트 전체를 못 덮는 버그를 유발한다. (opacity 전용 유지) */
+
+/* ============================================================================
+   2026-06-04  반응형 카드 그리드 (모바일 2열 유지)
+     .post-grid : 게시판 — 모바일 2열 → 600px+ auto-fill(minmax 280) [데스크탑 기존 유지]
+     .shop-grid : 쇼핑몰(경매) — 모바일 2열 → 768px+ 3열 → 1024px+ 4열 [바자회와 통일]
+   고정 px 그리드 대신 클래스+미디어쿼리로 단일 소스화. 인라인 grid-template은 제거할 것.
+   ============================================================================ */
+.post-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(2, 1fr); /* 모바일 기본 2열 */
+}
+@media (min-width: 600px) {
+  .post-grid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  }
+}
+
+.shop-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(2, 1fr); /* 모바일 기본 2열 */
+}
+@media (min-width: 768px) {
+  .shop-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (min-width: 1024px) {
+  .shop-grid { grid-template-columns: repeat(4, 1fr); }
+}
