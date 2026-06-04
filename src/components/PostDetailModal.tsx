@@ -1,4 +1,13 @@
 // ============================================================================
+// CHANGELOG
+//   2026-06-04
+//     - [버그수정] 중첩된 수정모달(PostFormModal) 내부 클릭(이미지 X·＋·파일선택)이
+//         백드롭으로 버블되어 상세모달이 닫히던 문제: 백드롭 onClick에
+//         e.target===e.currentTarget 가드 추가(직접 클릭에만 닫힘).
+//     - [버그수정] 모달이 닫힐 때 showEditModal 미초기화 → 재오픈 시 수정모달이
+//         떠 있던 문제: open=false 시 showEditModal 초기화.
+// ============================================================================
+// ============================================================================
 // PostDetailModal — 게시글 상세 모달 (페이지 대신)
 //
 // 사양:
@@ -96,6 +105,11 @@ export function PostDetailModal({ postId, open, onClose, onDeleted }: PostDetail
     };
   }, [open, onClose]);
 
+  // 모달이 닫히면 편집 상태 초기화 (닫힌 뒤 재오픈 시 수정모달이 떠 있던 버그 방지)
+  useEffect(() => {
+    if (!open) setShowEditModal(false); // ← [추가]
+  }, [open]);
+
   if (!open) return null;
 
   const isOwner = !!(currentUser && post && currentUser.id === post.user_id);
@@ -145,7 +159,11 @@ export function PostDetailModal({ postId, open, onClose, onDeleted }: PostDetail
 
   return (
     <div
-      onClick={onClose}
+      onClick={(e) => {
+        // 백드롭 자체를 직접 클릭한 경우에만 닫기.
+        // (중첩된 PostFormModal 내부 클릭이 버블되어 닫히던 버그 방지)
+        if (e.target === e.currentTarget) onClose(); // ← [수정] 가드 추가
+      }}
       style={{
         position: 'fixed',
         inset: 0,
