@@ -1,4 +1,14 @@
 // ============================================================================
+// CHANGELOG
+//   2026-06-04
+//     - [추가] POST_IMAGE_POLICY: 카테고리별 사진 필수 여부 SSOT 정의
+//         · zero_waste(제로 웨이스트) → 사진 필수
+//         · wise_life(슬기로운 사회생활) → 사진 선택(글만 작성 가능)
+//     - [추가] createPost(): 모든 작성 경로 공통 진입점에서 정책 강제
+//         (UI 우회/직접 호출까지 방어하는 근본 가드)
+// ============================================================================
+
+// ============================================================================
 // posts.ts — 게시글 관련 API
 //
 // 함수:
@@ -41,6 +51,20 @@ import type {
 // .insert/.update/.delete 호출만 영향, .select는 supabase-js 2.49도 잘 추론함.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const supabase = _supabase as any;
+
+// ============================================================================
+// 카테고리별 이미지 정책 (SSOT)
+//
+// 게시판 작성 규칙의 단일 출처. 폼 UI(PostFormModal)와 API 가드(createPost)가
+// 모두 이 상수를 참조한다. 새 카테고리 추가 시 여기만 수정하면 됨.
+//   - imageRequired=true  → 사진 1장 이상 없으면 작성 불가
+//   - imageRequired=false → 사진 없이 글만 작성 가능
+// ============================================================================
+
+export const POST_IMAGE_POLICY: Record<EsgPostCategory, { imageRequired: boolean }> = {
+  zero_waste: { imageRequired: true },  // ← [추가] 제로 웨이스트: 사진 필수
+  wise_life: { imageRequired: false },  // ← [추가] 슬기로운 사회생활: 사진 선택(글만 가능)
+};
 
 // ============================================================================
 // 조회
@@ -114,6 +138,11 @@ export async function createPost(
   if (files.length > 3) {
     throw new Error('이미지는 최대 3장까지 업로드 가능합니다.');
   }
+
+  // 카테고리별 사진 필수 정책 강제 (SSOT 기반) — UI 우회/직접 호출까지 방어
+  if (POST_IMAGE_POLICY[input.category].imageRequired && files.length === 0) {  // ← [추가] 사진 필수 카테고리 가드
+    throw new Error('이 게시판은 사진을 최소 1장 이상 등록해야 합니다.');         // ← [추가]
+  }                                                                              // ← [추가]
 
   // 1) 이미지 업로드 (sort_order 0부터)
   const uploaded: Array<{ url: string; sort_order: number }> = [];

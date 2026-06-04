@@ -1,4 +1,12 @@
 // ============================================================================
+// CHANGELOG
+//   2026-06-04
+//     - [추가] 카테고리별 사진 정책 반영 (POST_IMAGE_POLICY 참조)
+//         · zero_waste → 사진 필수: 라벨 '*', 미첨부 시 등록 차단
+//         · wise_life  → 사진 선택: 라벨 '(선택)', '글만 등록 가능' 안내
+// ============================================================================
+
+// ============================================================================
 // PostFormModal — 게시글 작성/수정 모달
 //
 // 사용:
@@ -9,7 +17,7 @@
 // ============================================================================
 
 import { useState, useRef, useEffect } from 'react';
-import { createPost, updatePost } from '@/lib/posts';
+import { createPost, updatePost, POST_IMAGE_POLICY } from '@/lib/posts';  // ← [수정] 카테고리 이미지 정책(SSOT) import
 import type {
   EsgPostCategory,
   EsgPostWithImagesRow,
@@ -44,6 +52,7 @@ export function PostFormModal({
   onSaved,
 }: PostFormModalProps) {
   const isEdit = !!initial;
+  const imageRequired = POST_IMAGE_POLICY[category].imageRequired;  // ← [추가] 이 카테고리가 사진 필수인지 (zero_waste=true)
   const [title, setTitle] = useState(initial?.title ?? '');
   const [content, setContent] = useState(initial?.content ?? '');
   const [isAnonymous, setIsAnonymous] = useState(initial?.is_anonymous ?? false);
@@ -107,6 +116,11 @@ export function PostFormModal({
       setError(`내용은 ${MAX_CONTENT}자 이내여야 합니다.`);
       return;
     }
+    // 사진 필수 카테고리(zero_waste) 검증 — 작성 모드에서만 (수정은 기존 이미지 유지)
+    if (!isEdit && imageRequired && files.length === 0) {              // ← [추가] 제로 웨이스트 사진 미첨부 차단
+      setError('사진을 최소 1장 이상 첨부해야 등록할 수 있습니다.');     // ← [추가]
+      return;                                                          // ← [추가]
+    }                                                                  // ← [추가]
 
     setSubmitting(true);
     try {
@@ -285,7 +299,14 @@ export function PostFormModal({
               <label
                 style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}
               >
-                이미지 ({files.length}/{MAX_IMAGES})
+                {/* ← [수정] 카테고리 정책에 따라 필수(*)/선택 표기 분기 */}
+                사진{' '}
+                {imageRequired ? (
+                  <span style={{ color: '#ef4444' }}>*</span>
+                ) : (
+                  <span style={{ color: '#aaa', fontWeight: 400 }}>(선택)</span>
+                )}{' '}
+                ({files.length}/{MAX_IMAGES})
               </label>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {previews.map((url, i) => (
@@ -360,6 +381,10 @@ export function PostFormModal({
                 style={{ display: 'none' }}
               />
               <div style={{ fontSize: 11, color: '#aaa', marginTop: 6 }}>
+                {/* ← [수정] 정책별 안내 문구 분기 */}
+                {imageRequired
+                  ? '사진을 최소 1장 이상 등록해야 합니다 · '
+                  : '글만 등록해도 됩니다 · '}
                 JPG · PNG · WebP · GIF · 최대 10MB · 최대 {MAX_IMAGES}장
               </div>
             </div>
