@@ -32,6 +32,10 @@ interface AvatarProps {
   isMe?: boolean;
   /** 익명 모드 — 회색 배경 + 실루엣 */
   anonymous?: boolean;
+  /** 사진 확대 배율 (기본 1.2 — 증명사진 여백 줄이고 인물 부각) */
+  zoom?: number;
+  /** 세로 초점 0~1 (기본 0.32 — 작을수록 얼굴/상단을 부각) */
+  focusY?: number;
 }
 
 // 클로버(canvas) path — clover.svg 원본 (viewBox 0 0 210 210)
@@ -58,7 +62,15 @@ function hashColor(name: string): { bg: string; color: string } {
   return COLORS[Math.abs(hash) % COLORS.length];
 }
 
-export function Avatar({ name, avatarUrl, size = 36, isMe = false, anonymous = false }: AvatarProps) {
+export function Avatar({
+  name,
+  avatarUrl,
+  size = 36,
+  isMe = false,
+  anonymous = false,
+  zoom = 1.2,
+  focusY = 0.32,
+}: AvatarProps) {
   const [imgError, setImgError] = useState(false);
   const rawId = useId();
   const clipId = `clv${rawId.replace(/:/g, '')}`; // url(#..) 참조용 — 콜론 제거
@@ -69,6 +81,12 @@ export function Avatar({ name, avatarUrl, size = 36, isMe = false, anonymous = f
 
   const bg = anonymous ? '#e5e7eb' : palette.bg;
   const fg = anonymous ? '#6b7280' : palette.color;
+
+  // 사진 확대 + 얼굴(상단) 부각: 초점(가로 중앙, 세로 focusY) 기준으로 scale
+  // clip은 래퍼 <g>에 두고 이미지에만 transform → 클로버 모양은 그대로, 사진만 확대
+  const fx = 105;
+  const fy = 210 * focusY;
+  const imageTransform = `translate(${fx} ${fy}) scale(${zoom}) translate(${-fx} ${-fy})`;
 
   return (
     <svg
@@ -86,10 +104,11 @@ export function Avatar({ name, avatarUrl, size = 36, isMe = false, anonymous = f
       </defs>
 
       {showImage ? (
-        <>
+        // 클립은 래퍼 <g>에 (클로버 모양 고정), 이미지에만 확대 transform
+        <g clipPath={`url(#${clipId})`}>
           {/* 투명 이미지 대비 흰 배경 */}
           <path d={CLOVER_PATH} fill="#fff" />
-          {/* 사진을 클로버 모양으로 clip + cover (잘림 없이 모양에 정확히 채움) */}
+          {/* 사진: cover + 얼굴 부각 확대 */}
           <image
             href={avatarUrl ?? undefined}
             x="0"
@@ -97,10 +116,10 @@ export function Avatar({ name, avatarUrl, size = 36, isMe = false, anonymous = f
             width="210"
             height="210"
             preserveAspectRatio="xMidYMid slice"
-            clipPath={`url(#${clipId})`}
+            transform={imageTransform}
             onError={() => setImgError(true)}
           />
-        </>
+        </g>
       ) : (
         <>
           <path d={CLOVER_PATH} fill={bg} />
