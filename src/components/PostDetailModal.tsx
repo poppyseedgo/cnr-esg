@@ -1,5 +1,12 @@
 // ============================================================================
 // CHANGELOG
+//   2026-06-04 (c)
+//     - [근본수정] 모달을 createPortal로 document.body 직속 렌더.
+//         원인: 페이지 래퍼(.route-fade)의 transform 애니메이션이 fixed 자손의
+//         컨테이닝 블록이 되어, 백드롭(dim)이 뷰포트가 아닌 본문 컬럼만 덮고
+//         헤더/우측이 노출되던 z-index·dim 영역 버그. body 직속 렌더로 조상
+//         transform 영향 원천 차단(중첩 PostFormModal도 동일 처리).
+//     - [디자인] 백드롭에 frosted blur(3px, -webkit 포함) 추가 — 홈 모달과 톤 통일.
 //   2026-06-04
 //     - [버그수정] 중첩된 수정모달(PostFormModal) 내부 클릭(이미지 X·＋·파일선택)이
 //         백드롭으로 버블되어 상세모달이 닫히던 문제: 백드롭 onClick에
@@ -20,6 +27,7 @@
 // ============================================================================
 
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom'; // ← [추가] 모달을 body 직속으로 렌더(조상 transform 영향 차단)
 import { Link } from 'react-router-dom';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { loadPost, deletePost, toggleLike, isLikedByMe } from '@/lib/posts';
@@ -157,7 +165,7 @@ export function PostDetailModal({ postId, open, onClose, onDeleted }: PostDetail
   const images = post?.images ?? [];
   const hasMultiple = images.length > 1;
 
-  return (
+  return createPortal(
     <div
       className="anim-backdrop"
       onClick={(e) => {
@@ -169,6 +177,8 @@ export function PostDetailModal({ postId, open, onClose, onDeleted }: PostDetail
         position: 'fixed',
         inset: 0,
         background: 'rgba(0, 0, 0, 0.55)',
+        backdropFilter: 'blur(3px)', // ← [추가] frosted dim (홈 모달과 톤 통일)
+        WebkitBackdropFilter: 'blur(3px)', // ← [추가] Safari/iPad 대응
         zIndex: 1000,
         display: 'flex',
         alignItems: 'center',
@@ -480,6 +490,7 @@ export function PostDetailModal({ postId, open, onClose, onDeleted }: PostDetail
           }}
         />
       )}
-    </div>
+    </div>,
+    document.body
   );
 }

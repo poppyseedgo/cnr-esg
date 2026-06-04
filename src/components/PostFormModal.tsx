@@ -1,5 +1,9 @@
 // ============================================================================
 // CHANGELOG
+//   2026-06-04 (c)
+//     - [근본수정] createPortal로 document.body 직속 렌더 — 조상 transform
+//         (.route-fade)에 fixed가 갇혀 dim/z-index가 깨지던 문제 차단.
+//     - [디자인] 백드롭 frosted blur(3px, -webkit 포함) 추가.
 //   2026-06-04 (b)
 //     - [기능추가] 편집 모드 이미지 수정 지원 (기존 Phase 2-C 보류 해제)
 //         · 기존 이미지 유지/삭제 + 새 이미지 추가 (합계 최대 3장)
@@ -22,6 +26,7 @@
 // ============================================================================
 
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom'; // ← [추가] body 직속 렌더(조상 transform 영향 차단)
 import { createPost, updatePost, POST_IMAGE_POLICY } from '@/lib/posts';  // ← [수정] 카테고리 이미지 정책(SSOT) import
 import type {
   EsgPostCategory,
@@ -182,13 +187,15 @@ export function PostFormModal({
     }
   };
 
-  return (
+  return createPortal(
     <div
       className="anim-backdrop"
       style={{
         position: 'fixed',
         inset: 0,
         background: 'rgba(0,0,0,0.5)',
+        backdropFilter: 'blur(3px)', // ← [추가] frosted dim (홈 모달과 톤 통일)
+        WebkitBackdropFilter: 'blur(3px)', // ← [추가] Safari/iPad 대응
         zIndex: 1000,
         display: 'flex',
         alignItems: 'center',
@@ -532,6 +539,7 @@ export function PostFormModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

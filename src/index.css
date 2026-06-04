@@ -116,6 +116,9 @@ button {
   to { opacity: 1; transform: none; }
 }
 @keyframes cnrRouteIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: none; }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
+/* 주의: .route-fade에는 transform을 쓰지 않는다.
+   transform/filter 조상은 position:fixed 자손의 컨테이닝 블록이 되어
+   모달(fixed) 백드롭이 뷰포트 전체를 못 덮는 버그를 유발한다. (opacity 전용 유지) */
