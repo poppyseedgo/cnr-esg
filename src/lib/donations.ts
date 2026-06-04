@@ -3,7 +3,6 @@
 //
 // 함수:
 //   - createDonation(amount, options): 기부 신청 RPC
-//   - cancelDonation(donationId, reason?): 본인/어드민 취소
 //   - loadMyDonations(): 내 기부 내역
 //   - loadDonation(donationId): 단일 기부 조회 (본인 또는 어드민)
 //   - loadCertificate(donationId): 인증서 조회
@@ -84,18 +83,6 @@ function humanizeError(code: string | undefined): string {
     default:
       return code ?? '오류가 발생했습니다.';
   }
-}
-
-// ============================================================================
-// 취소 (본인 또는 어드민)
-// ============================================================================
-
-export async function cancelDonation(donationId: string, reason?: string): Promise<void> {
-  const result = (await callRpc('cancel_donation', {
-    p_donation_id: donationId,
-    p_reason: reason ?? null,
-  })) as { success: boolean; error?: string };
-  if (!result.success) throw new Error(humanizeError(result.error));
 }
 
 // ============================================================================

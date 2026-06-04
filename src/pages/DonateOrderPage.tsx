@@ -1,11 +1,18 @@
 // ============================================================================
+// CHANGELOG
+//   2026-06-04
+//     - [정책변경] 기부 신청 후 본인 취소 기능 제거. 입금기한 초과 시 자동 만료
+//         (expired) 처리되므로 사용자가 임의 취소할 수 없도록 함.
+//         (어드민 취소는 유지 — cancelDonationAdmin)
+// ============================================================================
+// ============================================================================
 // DonateOrderPage — 기부 입금 안내 / 결제 완료 페이지
 //
 // 상태별 화면:
-//   - pending: 계좌 안내 + 카운트다운 + 취소 버튼
+//   - pending: 계좌 안내 + 카운트다운 (본인 취소 불가 — 기한 초과 시 자동 만료)
 //   - paid: 결제 완료 + 인증서 보기 버튼
 //   - expired: 만료 안내 + 다시 기부하기
-//   - cancelled: 취소 안내
+//   - cancelled: 취소 안내 (어드민 취소 등)
 // ============================================================================
 
 import { useEffect, useState } from 'react';
@@ -13,7 +20,6 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import {
   loadDonation,
-  cancelDonation,
   getDonationTimeLeft,
   subscribeMyDonations,
 } from '@/lib/donations';
@@ -36,7 +42,6 @@ export function DonateOrderPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [, setTick] = useState(0);
-  const [cancelling, setCancelling] = useState(false);
 
   const reload = async () => {
     if (!id) return;
@@ -73,20 +78,6 @@ export function DonateOrderPage() {
     const t = setInterval(() => setTick((v) => v + 1), 1000);
     return () => clearInterval(t);
   }, []);
-
-  const handleCancel = async () => {
-    if (!donation) return;
-    if (!confirm('기부 신청을 취소하시겠습니까?')) return;
-    setCancelling(true);
-    try {
-      await cancelDonation(donation.id);
-      void reload();
-    } catch (e) {
-      alert(e instanceof Error ? e.message : '취소 실패');
-    } finally {
-      setCancelling(false);
-    }
-  };
 
   if (loading) {
     return <div style={{ padding: 48, textAlign: 'center', color: '#888' }}>불러오는 중…</div>;
@@ -174,27 +165,6 @@ export function DonateOrderPage() {
         </div>
       )}
 
-      {/* 본인 취소 (pending만) */}
-      {donation.payment_status === 'pending' && !isExpired && (
-        <button
-          type="button"
-          onClick={handleCancel}
-          disabled={cancelling}
-          style={{
-            width: '100%',
-            padding: '10px',
-            background: '#fff',
-            color: '#dc2626',
-            border: '1px solid #fecaca',
-            borderRadius: 6,
-            cursor: 'pointer',
-            fontSize: 13,
-            marginTop: 16,
-          }}
-        >
-          {cancelling ? '취소 중…' : '기부 신청 취소'}
-        </button>
-      )}
     </div>
   );
 }
