@@ -17,8 +17,8 @@ import { useEventPhase } from '@/hooks/useEventPhase';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { loadPosts, subscribePostsChanges } from '@/lib/posts';
 import { loadAvatarMap } from '@/lib/profiles'; // ← [추가] 작성자 아바타 일괄 조회(SSOT)
-import { UserChip } from '@/components/UserChip'; // ← [추가] 글쓴이 공통 컴포넌트
-import { formatKSTDate, formatKSTFull } from '@/utils/time';
+import { PostListCard } from '@/components/PostListCard'; // ← [추가] Figma 기반 리스트 카드
+import { formatKSTDate } from '@/utils/time';
 import { PostFormModal } from '@/components/PostFormModal';
 import { PostDetailModal } from '@/components/PostDetailModal';
 import { ActivityGate } from '@/components/ActivityGate';
@@ -433,151 +433,16 @@ function PostGrid({
       }}
     >
       {posts.map((p) => (
-        <PostCard
+        <PostListCard
           key={p.id}
           post={p}
-          avatarUrl={p.user_id ? avatarMap.get(p.user_id) ?? null : null} // ← [추가]
+          avatarUrl={p.user_id ? avatarMap.get(p.user_id) ?? null : null}
           isMine={!!currentUserId && p.user_id === currentUserId}
           isAdmin={isAdmin}
           onClick={() => onPostClick(p.id)}
         />
       ))}
     </div>
-  );
-}
-
-function PostCard({
-  post,
-  avatarUrl,
-  isMine,
-  isAdmin,
-  onClick,
-}: {
-  post: EsgPostWithImagesRow;
-  avatarUrl: string | null; // ← [추가] 작성자 아바타 (익명/없으면 null)
-  isMine: boolean;
-  isAdmin: boolean;
-  onClick: () => void;
-}) {
-  // 본인 게시글이거나 관리자면 익명이어도 실명 정보를 활용
-  // (다만 카드 표시는 view의 user_name 사용 - 익명이면 '익명')
-  const showName = isMine ? '본인' : post.user_name;
-  const showDept = post.is_anonymous && !isMine && !isAdmin ? null : post.user_dept;
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        textAlign: 'left',
-        background: '#fff',
-        borderRadius: 12,
-        padding: 0,
-        border: '1px solid #eee',
-        boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
-        cursor: 'pointer',
-        overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
-        transition: 'transform 0.15s, box-shadow 0.15s',
-      }}
-    >
-      {/* 썸네일 */}
-      {post.cover_image_url ? (
-        <div
-          style={{
-            width: '100%',
-            aspectRatio: '4 / 3',
-            background: '#f5f5f5',
-            backgroundImage: `url(${post.cover_image_url})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-          }}
-        />
-      ) : (
-        <div
-          style={{
-            width: '100%',
-            aspectRatio: '4 / 3',
-            background: 'linear-gradient(135deg, #e0f2fe, #ddd6fe)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 48,
-            opacity: 0.4,
-          }}
-        >
-          📝
-        </div>
-      )}
-
-      {/* 본문 */}
-      <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
-        <h3
-          style={{
-            margin: 0,
-            fontSize: 15,
-            fontWeight: 700,
-            lineHeight: 1.4,
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-          }}
-        >
-          {post.title}
-        </h3>
-        <p
-          style={{
-            margin: 0,
-            fontSize: 13,
-            color: '#666',
-            lineHeight: 1.5,
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-          }}
-        >
-          {post.content}
-        </p>
-        <div
-          style={{
-            marginTop: 'auto',
-            paddingTop: 8,
-            borderTop: '1px solid #f5f5f5',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            fontSize: 12,
-            color: '#999',
-          }}
-        >
-          <UserChip
-            name={showName}
-            dept={showDept}
-            avatarUrl={avatarUrl}
-            size={20}
-            anonymous={post.is_anonymous && !isMine && !isAdmin}
-            nameSize={12}
-            nameWeight={400}
-            nameColor="#999"
-            deptColor="#999"
-            trailing={
-              isMine && post.is_anonymous ? (
-                <span style={{ color: '#0ea5e9' }}>(익명)</span>
-              ) : null
-            }
-          />{/* ← [수정] 공통 UserChip으로 작성자 표시 통일 */}
-          <span>
-            ♥ {post.like_count} · 💬 {post.comment_count}
-          </span>
-        </div>
-        <div style={{ fontSize: 11, color: '#bbb' }}>
-          {formatKSTFull(post.created_at)}
-        </div>
-      </div>
-    </button>
   );
 }
 
