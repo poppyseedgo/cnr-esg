@@ -1,5 +1,10 @@
 // ============================================================================
 // CHANGELOG
+//   2026-06-04 (b)
+//     - [기능추가] 편집 모드 이미지 수정 지원 (기존 Phase 2-C 보류 해제)
+//         · 기존 이미지 유지/삭제 + 새 이미지 추가 (합계 최대 3장)
+//         · 제출 시 updatePost에 imagesOp 전달 → esg_post_images 재구성
+//         · 사진 필수(zero_waste)는 편집에서도 최소 1장 강제
 //   2026-06-04
 //     - [추가] 카테고리별 사진 정책 반영 (POST_IMAGE_POLICY 참조)
 //         · zero_waste → 사진 필수: 라벨 '*', 미첨부 시 등록 차단
@@ -58,6 +63,10 @@ export function PostFormModal({
   const [isAnonymous, setIsAnonymous] = useState(initial?.is_anonymous ?? false);
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
+  // 편집 모드: 기존 이미지(유지/삭제 대상). sort_order 순 정렬.  ← [추가]
+  const [existingImages, setExistingImages] = useState(
+    () => (initial?.images ?? []).slice().sort((a, b) => a.sort_order - b.sort_order)
+  );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -81,7 +90,7 @@ export function PostFormModal({
   // 이미지 추가
   const handleAddImages = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newFiles = Array.from(e.target.files ?? []);
-    const remaining = MAX_IMAGES - files.length;
+    const remaining = MAX_IMAGES - existingImages.length - files.length; // ← [수정] 기존 이미지 포함 잔여 계산
     if (remaining <= 0) {
       setError(`이미지는 최대 ${MAX_IMAGES}장까지 첨부할 수 있습니다.`);
       return;
@@ -95,6 +104,13 @@ export function PostFormModal({
   const handleRemoveImage = (idx: number) => {
     setFiles((prev) => prev.filter((_, i) => i !== idx));
   };
+
+  // 기존 이미지 제거 (편집 모드)  ← [추가]
+  const handleRemoveExisting = (idx: number) => {
+    setExistingImages((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const totalImages = existingImages.length + files.length; // ← [추가] 기존+신규 합계
 
   // 제출
   const handleSubmit = async () => {
@@ -116,21 +132,29 @@ export function PostFormModal({
       setError(`내용은 ${MAX_CONTENT}자 이내여야 합니다.`);
       return;
     }
-    // 사진 필수 카테고리(zero_waste) 검증 — 작성 모드에서만 (수정은 기존 이미지 유지)
-    if (!isEdit && imageRequired && files.length === 0) {              // ← [추가] 제로 웨이스트 사진 미첨부 차단
-      setError('사진을 최소 1장 이상 첨부해야 등록할 수 있습니다.');     // ← [추가]
+    // 사진 필수 카테고리(zero_waste) 검증 — 작성/수정 공통 (기존+신규 합계 기준)
+    if (imageRequired && totalImages === 0) {                          // ← [수정] 편집 모드도 적용
+      setError('사진을 최소 1장 이상 첨부해야 합니다.');                  // ← [수정]
       return;                                                          // ← [추가]
     }                                                                  // ← [추가]
 
     setSubmitting(true);
     try {
       if (isEdit && initial) {
-        // 수정: 본문만 (이미지 수정은 Phase 2-C)
-        const updated = await updatePost(initial.id, {
-          title: title.trim(),
-          content: content.trim(),
-          is_anonymous: isAnonymous,
-        });
+        // 수정: 본문 + 이미지 (유지할 기존 이미지 + 새 파일)
+        const updated = await updatePost(
+          initial.id,
+          {
+            title: title.trim(),
+            content: content.trim(),
+            is_anonymous: isAnonymous,
+          },
+          {
+            keepUrls: existingImages.map((im) => im.url), // ← [추가] 유지할 기존 이미지
+            newFiles: files,                              // ← [추가] 새로 추가한 파일
+            uploaderId: currentUser.id,                   // ← [추가] 업로드 경로용
+          }
+        );
         onSaved(updated);
       } else {
         // 작성
@@ -293,102 +317,138 @@ export function PostFormModal({
             </div>
           </div>
 
-          {/* 이미지 (작성 시에만, 수정 모드에서는 Phase 2-C까지 미지원) */}
-          {!isEdit && (
-            <div>
-              <label
-                style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}
-              >
-                {/* ← [수정] 카테고리 정책에 따라 필수(*)/선택 표기 분기 */}
-                사진{' '}
-                {imageRequired ? (
-                  <span style={{ color: '#ef4444' }}>*</span>
-                ) : (
-                  <span style={{ color: '#aaa', fontWeight: 400 }}>(선택)</span>
-                )}{' '}
-                ({files.length}/{MAX_IMAGES})
-              </label>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {previews.map((url, i) => (
-                  <div
-                    key={url}
-                    style={{ position: 'relative', width: 96, height: 96 }}
-                  >
-                    <img
-                      src={url}
-                      alt={`첨부 ${i + 1}`}
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                        borderRadius: 8,
-                        border: '1px solid #eee',
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveImage(i)}
-                      disabled={submitting}
-                      style={{
-                        position: 'absolute',
-                        top: -6,
-                        right: -6,
-                        width: 22,
-                        height: 22,
-                        borderRadius: '50%',
-                        border: 'none',
-                        background: '#1a1a1a',
-                        color: '#fff',
-                        fontSize: 12,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                      aria-label="이미지 삭제"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-                {files.length < MAX_IMAGES && (
+          {/* 이미지 (작성/수정 공통) — 편집 모드도 지원 */}
+          <div>
+            <label
+              style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}
+            >
+              사진{' '}
+              {imageRequired ? (
+                <span style={{ color: '#ef4444' }}>*</span>
+              ) : (
+                <span style={{ color: '#aaa', fontWeight: 400 }}>(선택)</span>
+              )}{' '}
+              ({totalImages}/{MAX_IMAGES})
+            </label>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {/* 기존 이미지 (편집 모드) — 유지/삭제 */}
+              {existingImages.map((im, i) => (
+                <div key={im.id} style={{ position: 'relative', width: 96, height: 96 }}>
+                  <img
+                    src={im.url}
+                    alt={`기존 이미지 ${i + 1}`}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      borderRadius: 8,
+                      border: '1px solid #eee',
+                    }}
+                  />
                   <button
                     type="button"
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={() => handleRemoveExisting(i)}
                     disabled={submitting}
                     style={{
-                      width: 96,
-                      height: 96,
-                      borderRadius: 8,
-                      border: '2px dashed #ccc',
-                      background: '#fafafa',
-                      color: '#888',
-                      fontSize: 24,
-                      cursor: submitting ? 'not-allowed' : 'pointer',
+                      position: 'absolute',
+                      top: -6,
+                      right: -6,
+                      width: 22,
+                      height: 22,
+                      borderRadius: '50%',
+                      border: 'none',
+                      background: '#1a1a1a',
+                      color: '#fff',
+                      fontSize: 12,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
                     }}
-                    aria-label="이미지 추가"
+                    aria-label="기존 이미지 삭제"
                   >
-                    +
+                    ×
                   </button>
-                )}
-              </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handleAddImages}
-                style={{ display: 'none' }}
-              />
-              <div style={{ fontSize: 11, color: '#aaa', marginTop: 6 }}>
-                {/* ← [수정] 정책별 안내 문구 분기 */}
-                {imageRequired
-                  ? '사진을 최소 1장 이상 등록해야 합니다 · '
-                  : '글만 등록해도 됩니다 · '}
-                JPG · PNG · WebP · GIF · 최대 10MB · 최대 {MAX_IMAGES}장
-              </div>
+                </div>
+              ))}
+
+              {/* 새로 추가한 파일 미리보기 */}
+              {previews.map((url, i) => (
+                <div key={url} style={{ position: 'relative', width: 96, height: 96 }}>
+                  <img
+                    src={url}
+                    alt={`첨부 ${i + 1}`}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      borderRadius: 8,
+                      border: '1px solid #eee',
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveImage(i)}
+                    disabled={submitting}
+                    style={{
+                      position: 'absolute',
+                      top: -6,
+                      right: -6,
+                      width: 22,
+                      height: 22,
+                      borderRadius: '50%',
+                      border: 'none',
+                      background: '#1a1a1a',
+                      color: '#fff',
+                      fontSize: 12,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                    aria-label="이미지 삭제"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+
+              {totalImages < MAX_IMAGES && ( // ← [수정] 기존+신규 합계 기준
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={submitting}
+                  style={{
+                    width: 96,
+                    height: 96,
+                    borderRadius: 8,
+                    border: '2px dashed #ccc',
+                    background: '#fafafa',
+                    color: '#888',
+                    fontSize: 24,
+                    cursor: submitting ? 'not-allowed' : 'pointer',
+                  }}
+                  aria-label="이미지 추가"
+                >
+                  +
+                </button>
+              )}
             </div>
-          )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleAddImages}
+              style={{ display: 'none' }}
+            />
+            <div style={{ fontSize: 11, color: '#aaa', marginTop: 6 }}>
+              {imageRequired
+                ? '사진을 최소 1장 이상 등록해야 합니다 · '
+                : '글만 등록해도 됩니다 · '}
+              JPG · PNG · WebP · GIF · 최대 10MB · 최대 {MAX_IMAGES}장
+            </div>
+          </div>
 
           {/* 익명 토글 */}
           <label

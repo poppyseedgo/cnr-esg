@@ -1,5 +1,12 @@
 // ============================================================================
 // CHANGELOG
+//   2026-06-04 (b)
+//     - [기능추가] updatePost(): 이미지 편집 지원 (기존 Phase 2-C 보류 해제)
+//         · 3번째 인자 imagesOp 전달 시: 유지할 기존 이미지 + 새 파일 재구성
+//         · esg_post_images delete-all + insert-all (sort_order CHECK 0..2 /
+//           UNIQUE(post_id,sort_order) 충돌 방지), cover_image_url 동기화
+//         · 카테고리 사진 필수 정책(zero_waste) 편집에서도 강제
+//         · imagesOp 없으면 기존처럼 본문 patch만 (하위 호환)
 //   2026-06-04
 //     - [추가] POST_IMAGE_POLICY: 카테고리별 사진 필수 여부 SSOT 정의
 //         · zero_waste(제로 웨이스트) → 사진 필수
@@ -205,13 +212,84 @@ export async function createPost(
   return final;
 }
 
-/** 게시글 본문 수정 (이미지는 별도 함수 — Phase 2-C에서) */
+/**
+ * 게시글 수정.
+ * - imagesOp 미전달: 본문 patch만 (하위 호환)
+ * - imagesOp 전달: 이미지까지 재구성 (유지할 기존 + 새 파일)
+ */
+export interface UpdatePostImagesOp {
+  /** 유지할 기존 이미지 URL (원하는 순서대로) */
+  keepUrls: string[];
+  /** 새로 추가할 파일 (keep 뒤에 append) */
+  newFiles: File[];
+  /** 새 파일 업로드 경로용 사용자 id */
+  uploaderId: string;
+}
+
 export async function updatePost(
   id: string,
-  patch: EsgPostUpdate
+  patch: EsgPostUpdate,
+  imagesOp?: UpdatePostImagesOp
 ): Promise<EsgPostWithImagesRow> {
-  const { error } = await supabase.from('esg_posts').update(patch).eq('id', id);
-  if (error) throw error;
+  // 이미지 변경 없음 → 기존처럼 본문 patch만
+  if (!imagesOp) {
+    const { error } = await supabase.from('esg_posts').update(patch).eq('id', id);
+    if (error) throw error;
+    const full = await loadPost(id);
+    if (!full) throw new Error('수정 후 조회 실패');
+    return full;
+  }
+
+  const { keepUrls, newFiles, uploaderId } = imagesOp;
+  if (keepUrls.length + newFiles.length > 3) {                          // ← [추가] 최대 3장
+    throw new Error('이미지는 최대 3장까지 업로드 가능합니다.');
+  }
+
+  // 카테고리 사진 필수 정책 강제 (zero_waste 등) — 최종 0장 차단
+  const { data: postRow, error: catErr } = await supabase               // ← [추가]
+    .from('esg_posts').select('category').eq('id', id).single();         // ← [추가]
+  if (catErr || !postRow) throw catErr ?? new Error('게시글 조회 실패');  // ← [추가]
+  const totalAfter = keepUrls.length + newFiles.length;                  // ← [추가]
+  if (POST_IMAGE_POLICY[(postRow as { category: EsgPostCategory }).category].imageRequired && totalAfter === 0) { // ← [추가]
+    throw new Error('이 게시판은 사진을 최소 1장 이상 유지해야 합니다.'); // ← [추가]
+  }
+
+  // 1) 새 파일 업로드 (실패 시 업로드분 cleanup)
+  const uploaded: string[] = [];                                         // ← [추가]
+  try {                                                                  // ← [추가]
+    for (const f of newFiles) uploaded.push(await uploadPostImage(f, uploaderId)); // ← [추가]
+  } catch (e) {                                                          // ← [추가]
+    await cleanupImages(uploaded);                                       // ← [추가]
+    throw e;                                                             // ← [추가]
+  }                                                                      // ← [추가]
+
+  // 2) 현재 이미지 행 조회 → 제거 대상 파악
+  const { data: curRows, error: curErr } = await supabase               // ← [추가]
+    .from('esg_post_images').select('image_url').eq('post_id', id);      // ← [추가]
+  if (curErr) { await cleanupImages(uploaded); throw curErr; }           // ← [추가]
+  const currentUrls = ((curRows ?? []) as Array<{ image_url: string }>).map((r) => r.image_url); // ← [추가]
+  const removedUrls = currentUrls.filter((u) => !keepUrls.includes(u));  // ← [추가] 더 이상 안 쓰는 파일
+
+  // 3) 최종 이미지 = 유지(순서) + 새 업로드
+  const finalUrls = [...keepUrls, ...uploaded];                          // ← [추가]
+
+  // 4) 이미지 행 재구성: delete-all + insert-all
+  //    (sort_order CHECK 0..2 / UNIQUE(post_id,sort_order)라 임시값 불가 → 전체 교체가 안전)
+  const { error: delErr } = await supabase.from('esg_post_images').delete().eq('post_id', id); // ← [추가]
+  if (delErr) { await cleanupImages(uploaded); throw delErr; }           // ← [추가]
+  if (finalUrls.length > 0) {                                            // ← [추가]
+    const rows = finalUrls.map((url, i) => ({ post_id: id, image_url: url, sort_order: i })); // ← [추가]
+    const { error: insErr } = await supabase.from('esg_post_images').insert(rows); // ← [추가]
+    if (insErr) { await cleanupImages(uploaded); throw insErr; }         // ← [추가]
+  }
+
+  // 5) esg_posts patch + cover_image_url 동기화(첫 이미지)
+  const { error: upErr } = await supabase                                // ← [추가]
+    .from('esg_posts').update({ ...patch, cover_image_url: finalUrls[0] ?? null }).eq('id', id); // ← [추가]
+  if (upErr) throw upErr;                                                // ← [추가]
+
+  // 6) DB 반영 성공 후, 제거된 파일 Storage 삭제 (마지막에)
+  if (removedUrls.length > 0) await cleanupImages(removedUrls);          // ← [추가]
 
   const full = await loadPost(id);
   if (!full) throw new Error('수정 후 조회 실패');
