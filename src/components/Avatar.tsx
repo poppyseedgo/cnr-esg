@@ -1,35 +1,42 @@
 // ============================================================================
 // CHANGELOG
+//   2026-06-04 (clover)
+//     - [변경] 아바타 형태를 원형 → 클로버(canvas) 모양으로 교체 (clover.svg 기준).
+//         · 사진: 클로버 path로 clip + cover(잘림 없이 모양에 정확히 채움)
+//         · 이니셜/익명: 클로버 배경 위 표시
+//         · 공통 컴포넌트라 사용처(카드·댓글·마이페이지·경매) 전체 일관 적용
 //   2026-06-04
-//     - [수정] 이미지 fit 정확도 개선: <img>에 display:block (inline baseline
-//         갭 제거 → 이미지가 원 안에서 줄어 보이던 현상 해결), width/height 100%,
-//         object-fit:cover (정사각 프로필 사진 기준 잘림 없이 정확히 채움).
-//     - [수정] flex 레이아웃에서 찌그러짐 방지: flexShrink 0 + min-w/h = size 고정.
+//     - [수정] 이미지 fit 정확도 개선(이전: <img> display:block 등) — SVG 전환으로 대체.
 // ============================================================================
 
 // ============================================================================
-// Avatar — 공통 아바타 컴포넌트
+// Avatar — 공통 아바타 컴포넌트 (클로버 canvas 형태)
 //
 // 사용:
 //   <Avatar name="고현정" avatarUrl="https://..." size={36} />
 //
 // 동작:
-//   - avatarUrl 있으면 이미지 표시
-//   - 없으면 이름 첫 글자 + 색깔 배경 (이름 해시 기반)
+//   - avatarUrl 있으면 클로버 모양으로 clip 한 사진 표시
+//   - 없으면 이름 첫 글자 + 색깔 배경(이름 해시 기반)
 //   - 이미지 로드 실패해도 이니셜 fallback
+//   - anonymous: 회색 클로버 + 사람 실루엣
 // ============================================================================
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 
 interface AvatarProps {
   name: string | null | undefined;
   avatarUrl?: string | null;
   size?: number;
-  /** 본인일 때 강조 테두리 */
+  /** 본인일 때 강조 테두리(클로버 외곽선) */
   isMe?: boolean;
-  /** 익명 모드 — 회색 배경 + 마스크 아이콘 */
+  /** 익명 모드 — 회색 배경 + 실루엣 */
   anonymous?: boolean;
 }
+
+// 클로버(canvas) path — clover.svg 원본 (viewBox 0 0 210 210)
+const CLOVER_PATH =
+  'M147.5 1C180.913 1 208 28.0868 208 61.5C208 78.8368 200.707 94.4695 189.022 105.5C200.707 116.531 208 132.163 208 149.5C208 182.913 180.913 210 147.5 210C131.186 210 116.381 203.542 105.5 193.044C94.6187 203.542 79.8139 210 63.5 210C30.0868 210 3 182.913 3 149.5C3 132.163 10.2924 116.53 21.9766 105.5C10.2924 94.4695 3 78.8365 3 61.5C3 28.0868 30.0868 1 63.5 1C79.8137 1 94.6187 7.45748 105.5 17.9551C116.381 7.45748 131.186 1 147.5 1Z';
 
 // 이름 해시 → 색깔 (일관성 + 다양성)
 const COLORS = [
@@ -53,77 +60,75 @@ function hashColor(name: string): { bg: string; color: string } {
 
 export function Avatar({ name, avatarUrl, size = 36, isMe = false, anonymous = false }: AvatarProps) {
   const [imgError, setImgError] = useState(false);
+  const rawId = useId();
+  const clipId = `clv${rawId.replace(/:/g, '')}`; // url(#..) 참조용 — 콜론 제거
   const displayName = name?.trim() || '?';
   const initial = displayName.slice(0, 1);
   const palette = hashColor(displayName);
   const showImage = !anonymous && !!avatarUrl && !imgError;
 
-  // 익명 모드: 회색 배경 + 마스크 아이콘
-  if (anonymous) {
-    return (
-      <div
-        style={{
-          width: size,
-          height: size,
-          minWidth: size,   // ← [추가] flex 내 축소 방지
-          minHeight: size,  // ← [추가]
-          borderRadius: '50%',
-          background: '#e5e7eb',
-          color: '#6b7280',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: Math.max(13, Math.floor(size * 0.5)),
-          lineHeight: 1,    // ← [추가]
-          flexShrink: 0,
-          boxSizing: 'border-box',  // ← [추가]
-          boxShadow: isMe ? '0 0 0 2px #0ea5e9' : undefined,
-        }}
-        aria-label="익명 입찰자"
-      >
-        🕶
-      </div>
-    );
-  }
+  const bg = anonymous ? '#e5e7eb' : palette.bg;
+  const fg = anonymous ? '#6b7280' : palette.color;
 
   return (
-    <div
-      style={{
-        width: size,
-        height: size,
-        minWidth: size,   // ← [추가] flex 내 가로 축소 방지
-        minHeight: size,  // ← [추가] flex 내 세로 축소 방지
-        borderRadius: '50%',
-        background: showImage ? '#fff' : palette.bg,
-        color: palette.color,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: Math.max(11, Math.floor(size * 0.4)),
-        fontWeight: 700,
-        lineHeight: 1,    // ← [추가] 이니셜 baseline 갭 제거
-        flexShrink: 0,
-        overflow: 'hidden',
-        boxSizing: 'border-box',  // ← [추가] isMe 테두리가 크기에 영향 주지 않도록
-        boxShadow: isMe ? '0 0 0 2px #0ea5e9' : undefined,
-      }}
-      aria-label={displayName}
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 210 210"
+      style={{ display: 'block', flexShrink: 0 }} // flex 내 찌그러짐 방지
+      role="img"
+      aria-label={anonymous ? '익명' : displayName}
     >
+      <defs>
+        <clipPath id={clipId}>
+          <path d={CLOVER_PATH} />
+        </clipPath>
+      </defs>
+
       {showImage ? (
-        <img
-          src={avatarUrl}
-          alt={displayName}
-          onError={() => setImgError(true)}
-          style={{
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',  // 정사각 프로필 사진 → 잘림 없이 원에 정확히 채움
-            display: 'block',    // ← [수정] inline 이미지 baseline 갭 제거 (줄어 보이던 현상 해결)
-          }}
-        />
+        <>
+          {/* 투명 이미지 대비 흰 배경 */}
+          <path d={CLOVER_PATH} fill="#fff" />
+          {/* 사진을 클로버 모양으로 clip + cover (잘림 없이 모양에 정확히 채움) */}
+          <image
+            href={avatarUrl ?? undefined}
+            x="0"
+            y="0"
+            width="210"
+            height="210"
+            preserveAspectRatio="xMidYMid slice"
+            clipPath={`url(#${clipId})`}
+            onError={() => setImgError(true)}
+          />
+        </>
       ) : (
-        initial
+        <>
+          <path d={CLOVER_PATH} fill={bg} />
+          {anonymous ? (
+            // 사람 실루엣 (익명)
+            <g fill={fg}>
+              <circle cx="105" cy="84" r="33" />
+              <path d="M52 170 C52 130 158 130 158 170 Z" />
+            </g>
+          ) : (
+            <text
+              x="105"
+              y="105"
+              textAnchor="middle"
+              dominantBaseline="central"
+              fontSize="96"
+              fontWeight={700}
+              fill={fg}
+              fontFamily="inherit"
+            >
+              {initial}
+            </text>
+          )}
+        </>
       )}
-    </div>
+
+      {/* 본인 강조 — 클로버 외곽선 */}
+      {isMe && <path d={CLOVER_PATH} fill="none" stroke="#0ea5e9" strokeWidth="6" />}
+    </svg>
   );
 }

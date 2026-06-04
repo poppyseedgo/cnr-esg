@@ -33,6 +33,7 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { Avatar } from '@/components/Avatar'; // ← [추가] 클로버 공통 아바타
 import { useEventPhase } from '@/hooks/useEventPhase';
 import { useEventGate } from '@/hooks/useEventGate';
 import type { EsgActivityKey } from '@/types/esg';
@@ -358,7 +359,6 @@ export function Header() {
               isAdmin={isAdmin}
               onSignOut={() => signOut().catch(console.error)}
               isMobile={isMobile}
-              tokens={T}
             />
           ) : (
             <button
@@ -770,13 +770,11 @@ function UserAvatar({
   isAdmin,
   onSignOut,
   isMobile,
-  tokens,
 }: {
   currentUser: { name: string; avatar_url: string | null };
   isAdmin: boolean;
   onSignOut: () => void;
   isMobile: boolean;
-  tokens: VariantTokens;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -790,8 +788,6 @@ function UserAvatar({
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
-  const initial = currentUser.name?.[0] ?? '?';
-
   return (
     <div data-user-avatar style={{ position: 'relative', flexShrink: 0 }}>
       <button
@@ -800,25 +796,17 @@ function UserAvatar({
         style={{
           width: 36,
           height: 36,
-          borderRadius: '50%',
-          background: currentUser.avatar_url
-            ? `url(${currentUser.avatar_url}) center/cover`
-            : tokens.badgeActive,
-          color: '#000000',
           border: 'none',
+          background: 'none',
           cursor: 'pointer',
-          fontSize: 14,
-          fontWeight: 700,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
           padding: 0,
-          overflow: 'hidden',
-          fontFamily: FONT_PRETENDARD,
+          display: 'block',
+          lineHeight: 0,
         }}
         aria-label="사용자 메뉴 열기"
       >
-        {!currentUser.avatar_url && initial}
+        {/* ← [수정] 별도 원형 구현 → 공통 Avatar(클로버) 통일 */}
+        <Avatar name={currentUser.name} avatarUrl={currentUser.avatar_url} size={36} />
       </button>
 
       {open && (
