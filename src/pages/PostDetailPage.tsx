@@ -13,6 +13,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { loadPost, deletePost, toggleLike, isLikedByMe } from '@/lib/posts';
+import { loadAvatarMap } from '@/lib/profiles'; // ← [추가] 작성자 아바타 조회(SSOT)
+import { Avatar } from '@/components/Avatar';     // ← [추가]
 import { formatKSTFull } from '@/utils/time';
 import { PostFormModal } from '@/components/PostFormModal';
 import { CommentSection } from '@/components/CommentSection';
@@ -42,6 +44,7 @@ export function PostDetailPage() {
   const [deleting, setDeleting] = useState(false);
   const [liked, setLiked] = useState(false);
   const [likeLoading, setLikeLoading] = useState(false);
+  const [authorAvatar, setAuthorAvatar] = useState<string | null>(null); // ← [추가] 작성자 아바타 URL
 
   const reload = async () => {
     if (!id) return;
@@ -55,7 +58,9 @@ export function PostDetailPage() {
       } else {
         setPost(p);
         setImageIdx(0);
-        // 내가 좋아요 눌렀는지 확인 (로그인 상태일 때만)
+        // 작성자 아바타 (익명이면 user_id=null → null = 마스크)
+        const avatarMap = await loadAvatarMap([p.user_id]);                  // ← [추가]
+        setAuthorAvatar(p.user_id ? avatarMap.get(p.user_id) ?? null : null); // ← [추가]
         if (currentUser) {
           try {
             const isLiked = await isLikedByMe(p.id, currentUser.id);
@@ -194,30 +199,39 @@ export function PostDetailPage() {
               borderBottom: '1px solid #f0f0f0',
             }}
           >
-            <div>
-              <strong style={{ color: '#222' }}>{displayName}</strong>
-              {displayDept && (
-                <span style={{ marginLeft: 6, color: '#888' }}>· {displayDept}</span>
-              )}
-              {post.is_anonymous && (isMine || isAdmin) && (
-                <span
-                  style={{
-                    marginLeft: 8,
-                    padding: '2px 6px',
-                    background: '#dbeafe',
-                    color: '#1e40af',
-                    borderRadius: 4,
-                    fontSize: 11,
-                  }}
-                >
-                  익명
-                </span>
-              )}
-              <div style={{ marginTop: 2, color: '#aaa', fontSize: 12 }}>
-                {formatKSTFull(post.created_at)}
-                {post.updated_at !== post.created_at && (
-                  <span style={{ marginLeft: 6 }}>(수정됨)</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Avatar
+                name={displayName}
+                avatarUrl={authorAvatar}
+                size={36}
+                isMe={isMine}
+                anonymous={post.is_anonymous && !isMine && !isAdmin}
+              />{/* ← [추가] 작성자 아바타 */}
+              <div>
+                <strong style={{ color: '#222' }}>{displayName}</strong>
+                {displayDept && (
+                  <span style={{ marginLeft: 6, color: '#888' }}>· {displayDept}</span>
                 )}
+                {post.is_anonymous && (isMine || isAdmin) && (
+                  <span
+                    style={{
+                      marginLeft: 8,
+                      padding: '2px 6px',
+                      background: '#dbeafe',
+                      color: '#1e40af',
+                      borderRadius: 4,
+                      fontSize: 11,
+                    }}
+                  >
+                    익명
+                  </span>
+                )}
+                <div style={{ marginTop: 2, color: '#aaa', fontSize: 12 }}>
+                  {formatKSTFull(post.created_at)}
+                  {post.updated_at !== post.created_at && (
+                    <span style={{ marginLeft: 6 }}>(수정됨)</span>
+                  )}
+                </div>
               </div>
             </div>
             {(canEdit || canDelete) && (

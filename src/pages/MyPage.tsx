@@ -30,6 +30,7 @@ import {
   type MyBidAuction,
 } from '@/lib/auctions';
 import { formatKSTFull } from '@/utils/time';
+import { Avatar } from '@/components/Avatar'; // ← [추가] 마이페이지 프로필 아바타
 import { loadMyDonations, getDonationTimeLeft, subscribeMyDonations } from '@/lib/donations';
 import type { EsgDonationRow } from '@/types/esg';
 
@@ -47,9 +48,21 @@ export function MyPage() {
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', width: '100%' }}>
       <h1>👤 마이페이지</h1>
-      <p style={{ color: '#666' }}>
-        {currentUser?.name}님 ({currentUser?.email})
-      </p>
+      {/* 프로필 — 아바타 + 이름/이메일 (공통 Avatar 사용) */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <Avatar
+          name={currentUser?.name}
+          avatarUrl={currentUser?.avatar_url}
+          size={48}
+          isMe
+        />
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#222' }}>
+            {currentUser?.name}님
+          </div>
+          <div style={{ fontSize: 13, color: '#666' }}>{currentUser?.email}</div>
+        </div>
+      </div>
       <nav
         style={{
           display: 'flex',

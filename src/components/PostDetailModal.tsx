@@ -14,6 +14,8 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { loadPost, deletePost, toggleLike, isLikedByMe } from '@/lib/posts';
+import { loadAvatarMap } from '@/lib/profiles'; // ← [추가] 작성자 아바타 조회(SSOT)
+import { UserChip } from '@/components/UserChip'; // ← [추가] 글쓴이 공통 컴포넌트
 import { formatKSTFull } from '@/utils/time';
 import { PostFormModal } from '@/components/PostFormModal';
 import { CommentSection } from '@/components/CommentSection';
@@ -37,6 +39,7 @@ export function PostDetailModal({ postId, open, onClose, onDeleted }: PostDetail
   const [deleting, setDeleting] = useState(false);
   const [liked, setLiked] = useState(false);
   const [likeLoading, setLikeLoading] = useState(false);
+  const [authorAvatar, setAuthorAvatar] = useState<string | null>(null); // ← [추가] 작성자 아바타 URL
 
   const reload = async () => {
     if (!postId) return;
@@ -50,6 +53,9 @@ export function PostDetailModal({ postId, open, onClose, onDeleted }: PostDetail
       } else {
         setPost(p);
         setImageIdx(0);
+        // 작성자 아바타 (익명이면 user_id=null → 조회 안 됨 → null = 마스크)
+        const map = await loadAvatarMap([p.user_id]);                  // ← [추가]
+        setAuthorAvatar(p.user_id ? map.get(p.user_id) ?? null : null); // ← [추가]
         if (currentUser) {
           try {
             const isLiked = await isLikedByMe(p.id, currentUser.id);
@@ -249,7 +255,15 @@ export function PostDetailModal({ postId, open, onClose, onDeleted }: PostDetail
                   color: '#666',
                 }}
               >
-                <span style={{ fontWeight: 600, color: '#444' }}>{authorName}</span>
+                <UserChip
+                  name={authorName}
+                  avatarUrl={authorAvatar}
+                  size={28}
+                  isMe={isOwner}
+                  anonymous={!showRealName}
+                  nameSize={12}
+                  nameColor="#444"
+                />{/* ← [수정] 공통 UserChip */}
                 <span>·</span>
                 <span>{formatKSTFull(post.created_at)}</span>
                 {post.is_anonymous && (

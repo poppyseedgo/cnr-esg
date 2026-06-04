@@ -16,6 +16,8 @@ import { useParams, NavLink } from 'react-router-dom';
 import { useEventPhase } from '@/hooks/useEventPhase';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { loadPosts, subscribePostsChanges } from '@/lib/posts';
+import { loadAvatarMap } from '@/lib/profiles'; // ← [추가] 작성자 아바타 일괄 조회(SSOT)
+import { UserChip } from '@/components/UserChip'; // ← [추가] 글쓴이 공통 컴포넌트
 import { formatKSTDate, formatKSTFull } from '@/utils/time';
 import { PostFormModal } from '@/components/PostFormModal';
 import { PostDetailModal } from '@/components/PostDetailModal';
@@ -180,6 +182,7 @@ function CategoryContent({ meta }: { meta: CategoryMeta }) {
   // 캐시 있으면 즉시 화면 노출 + 백그라운드 refresh
   const [firstLoading, setFirstLoading] = useState(!cached);
   const [error, setError] = useState<string | null>(null);
+  const [avatarMap, setAvatarMap] = useState<Map<string, string | null>>(new Map()); // ← [추가] 작성자 user_id→avatar_url
   const [showForm, setShowForm] = useState(false);
   /** 모달로 열 게시글 ID (게시글 카드 클릭 시 set) */
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
@@ -202,6 +205,9 @@ function CategoryContent({ meta }: { meta: CategoryMeta }) {
       setError(null);
       const list = await loadPosts(meta.key, { limit: 50 });
       setCacheFor(meta.key, list);
+      // 작성자 아바타 일괄 조회 (익명은 user_id=null이라 자동 제외 → 유출 없음)
+      const map = await loadAvatarMap(list.map((p) => p.user_id)); // ← [추가] N+1 아님
+      setAvatarMap(map);                                           // ← [추가]
     } catch (e) {
       console.error('[PostsPage] load error:', e);
       setError(e instanceof Error ? e.message : '게시글을 불러오지 못했습니다.');
@@ -303,6 +309,7 @@ function CategoryContent({ meta }: { meta: CategoryMeta }) {
       ) : (
         <PostGrid
           posts={posts}
+          avatarMap={avatarMap}
           currentUserId={currentUser?.id ?? null}
           isAdmin={isAdmin}
           onPostClick={(id) => setSelectedPostId(id)}
@@ -406,11 +413,13 @@ function StatusBanner({
 
 function PostGrid({
   posts,
+  avatarMap,
   currentUserId,
   isAdmin,
   onPostClick,
 }: {
   posts: EsgPostWithImagesRow[];
+  avatarMap: Map<string, string | null>; // ← [추가] user_id→avatar_url
   currentUserId: string | null;
   isAdmin: boolean;
   onPostClick: (id: string) => void;
@@ -427,6 +436,7 @@ function PostGrid({
         <PostCard
           key={p.id}
           post={p}
+          avatarUrl={p.user_id ? avatarMap.get(p.user_id) ?? null : null} // ← [추가]
           isMine={!!currentUserId && p.user_id === currentUserId}
           isAdmin={isAdmin}
           onClick={() => onPostClick(p.id)}
@@ -438,11 +448,13 @@ function PostGrid({
 
 function PostCard({
   post,
+  avatarUrl,
   isMine,
   isAdmin,
   onClick,
 }: {
   post: EsgPostWithImagesRow;
+  avatarUrl: string | null; // ← [추가] 작성자 아바타 (익명/없으면 null)
   isMine: boolean;
   isAdmin: boolean;
   onClick: () => void;
@@ -541,13 +553,22 @@ function PostCard({
             color: '#999',
           }}
         >
-          <span>
-            {showName}
-            {showDept && <span style={{ marginLeft: 4 }}>· {showDept}</span>}
-            {isMine && post.is_anonymous && (
-              <span style={{ marginLeft: 4, color: '#0ea5e9' }}>(익명)</span>
-            )}
-          </span>
+          <UserChip
+            name={showName}
+            dept={showDept}
+            avatarUrl={avatarUrl}
+            size={20}
+            anonymous={post.is_anonymous && !isMine && !isAdmin}
+            nameSize={12}
+            nameWeight={400}
+            nameColor="#999"
+            deptColor="#999"
+            trailing={
+              isMine && post.is_anonymous ? (
+                <span style={{ color: '#0ea5e9' }}>(익명)</span>
+              ) : null
+            }
+          />{/* ← [수정] 공통 UserChip으로 작성자 표시 통일 */}
           <span>
             ♥ {post.like_count} · 💬 {post.comment_count}
           </span>

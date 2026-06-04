@@ -29,6 +29,8 @@ import {
   subscribeQuestions,
 } from '@/lib/productQuestions';
 import { formatRelativeTime } from '@/lib/notifications';
+import { loadAvatarMap } from '@/lib/profiles'; // ← [추가] 질문 작성자 아바타 일괄 조회(SSOT)
+import { UserChip } from './UserChip';           // ← [추가] 글쓴이 공통 컴포넌트
 import { MarkdownRenderer } from './MarkdownRenderer';
 import type {
   EsgProductQuestionRow,
@@ -154,6 +156,7 @@ function DeliveryTab() {
 function QATab({ productType, productId }: { productType: ProductType; productId: string }) {
   const { currentUser, isAdmin } = useCurrentUser();
   const [items, setItems] = useState<EsgProductQuestionRow[]>([]);
+  const [avatarMap, setAvatarMap] = useState<Map<string, string | null>>(new Map()); // ← [추가] 질문자 user_id→avatar_url
   const [answersMap, setAnswersMap] = useState<Record<string, EsgProductQuestionAnswerRow[]>>({});
   const [loading, setLoading] = useState(true);
   const [newQuestion, setNewQuestion] = useState('');
@@ -164,6 +167,9 @@ function QATab({ productType, productId }: { productType: ProductType; productId
     try {
       const qs = await loadQuestions(productType, productId);
       setItems(qs);
+      // 질문 작성자 아바타 일괄 조회 (N+1 아님)
+      const avatars = await loadAvatarMap(qs.map((q) => q.user_id)); // ← [추가]
+      setAvatarMap(avatars);                                         // ← [추가]
       // 각 질문별 답변 로드 (병렬)
       const answersEntries = await Promise.all(
         qs.map(async (q): Promise<readonly [string, EsgProductQuestionAnswerRow[]]> => {
@@ -303,6 +309,7 @@ function QATab({ productType, productId }: { productType: ProductType; productId
             <QuestionItem
               key={q.id}
               question={q}
+              avatarUrl={q.user_id ? avatarMap.get(q.user_id) ?? null : null}
               answers={answersMap[q.id] ?? []}
               isOwner={currentUser?.id === q.user_id}
               isAdmin={isAdmin}
@@ -317,12 +324,14 @@ function QATab({ productType, productId }: { productType: ProductType; productId
 
 function QuestionItem({
   question,
+  avatarUrl,
   answers,
   isOwner,
   isAdmin,
   onChange,
 }: {
   question: EsgProductQuestionRow;
+  avatarUrl: string | null; // ← [추가] 질문 작성자 아바타
   answers: EsgProductQuestionAnswerRow[];
   isOwner: boolean;
   isAdmin: boolean;
@@ -393,7 +402,13 @@ function QuestionItem({
         {question.is_private && (
           <span style={{ fontSize: 11, color: '#888' }}>🔒 비공개</span>
         )}
-        <span style={{ fontSize: 12, fontWeight: 600 }}>{question.user_name_snapshot}</span>
+        <UserChip
+          name={question.user_name_snapshot}
+          avatarUrl={avatarUrl}
+          size={20}
+          isMe={isOwner}
+          nameSize={12}
+        />{/* ← [수정] 공통 UserChip */}
         <span style={{ fontSize: 11, color: '#999' }}>
           · {formatRelativeTime(question.created_at)}
         </span>
