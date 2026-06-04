@@ -9,10 +9,11 @@
 //   - 활동 기간 안내
 // ============================================================================
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useEventPhase } from '@/hooks/useEventPhase';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useInfiniteScroll } from '@/hooks/useInfiniteScroll'; // ← [2026-06-04] 무한 스크롤
 import {
   loadAuctions,
   subscribeAuctions,
@@ -24,6 +25,7 @@ import {
 import { formatTimeLeft } from '@/lib/orders';
 import { formatKSTDate, formatKSTFull } from '@/utils/time';
 import { FormModal } from '@/components/FormModal';
+import { InfiniteScrollFooter } from '@/components/InfiniteScrollFooter'; // ← [2026-06-04]
 import { CreateAuctionForm } from '@/components/admin/CreateAuctionForm';
 import type { EsgAuctionRow } from '@/types/esg';
 
@@ -32,43 +34,36 @@ export function AuctionPage() {
   const { period, status } = getActivity('auction');
   const { isAdmin } = useCurrentUser();
 
-  const [auctions, setAuctions] = useState<EsgAuctionRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // 무한 스크롤 — 12개씩 누적 로드 (sort_order, starts_at)
+  const fetchPage = useCallback(
+    (offset: number, limit: number) => loadAuctions({ offset, limit }),
+    []
+  );
+  const {
+    items: auctions,
+    initialLoading,
+    loadingMore,
+    error,
+    sentinelRef,
+    reload,
+  } = useInfiniteScroll<EsgAuctionRow>(fetchPage, { pageSize: 12 });
+
   const [, setTick] = useState(0);
   const [createOpen, setCreateOpen] = useState(false);
 
-  const reload = async () => {
-    try {
-      setError(null);
-      const list = await loadAuctions();
-      setAuctions(list);
-    } catch (e) {
-      console.error('[AuctionPage] load error:', e);
-      setError(e instanceof Error ? e.message : '경매를 불러오지 못했습니다.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    setLoading(true);
-    void reload();
-  }, []);
-
-  // Realtime + 같은 탭 즉시 신호
+  // Realtime + 같은 탭 즉시 신호 (처음부터 다시 로드)
   useEffect(() => {
     const cleanupRT = subscribeAuctions(() => {
-      void reload();
+      reload();
     });
     const cleanupEvent = onAuctionChanged(() => {
-      void reload();
+      reload();
     });
     return () => {
       cleanupRT();
       cleanupEvent();
     };
-  }, []);
+  }, [reload]);
 
   // 카운트다운 갱신 (1초)
   useEffect(() => {
@@ -150,9 +145,9 @@ export function AuctionPage() {
       )}
 
       {/* 그리드 */}
-      {loading ? (
+      {initialLoading ? (
         <AuctionSkeleton />
-      ) : error ? (
+      ) : error && auctions.length === 0 ? (
         <ErrorBox message={error} onRetry={reload} />
       ) : auctions.length === 0 ? (
         <EmptyState />
@@ -165,6 +160,14 @@ export function AuctionPage() {
             <AuctionCard key={a.id} auction={a} />
           ))}
         </div>
+      )}
+      {!initialLoading && auctions.length > 0 && (
+        <InfiniteScrollFooter
+          sentinelRef={sentinelRef}
+          loadingMore={loadingMore}
+          error={error}
+          onRetry={reload}
+        />
       )}
     </div>
   );

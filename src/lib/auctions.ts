@@ -80,11 +80,13 @@ function humanizeBidError(result: PlaceBidResult): string {
 
 export interface LoadAuctionsOptions {
   statuses?: EsgAuctionStatus[];
+  limit?: number;  // ← [2026-06-04] 무한 스크롤 페이징
+  offset?: number; // ← [2026-06-04]
 }
 
 /** 경매 목록 (sort_order 순). status 필터 없으면 cancelled 제외하고 전부 노출 */
 export async function loadAuctions(opts: LoadAuctionsOptions = {}): Promise<EsgAuctionRow[]> {
-  const { statuses } = opts;
+  const { statuses, limit, offset = 0 } = opts;
   let query = supabase
     .from('esg_auctions')
     .select('*')
@@ -96,6 +98,8 @@ export async function loadAuctions(opts: LoadAuctionsOptions = {}): Promise<EsgA
   } else {
     query = query.in('status', ['scheduled', 'active', 'ended']);
   }
+
+  if (typeof limit === 'number') query = query.range(offset, offset + limit - 1); // ← [2026-06-04] 페이징
 
   const { data, error } = await query;
   if (error) throw error;

@@ -11,13 +11,15 @@
 // 카테고리 선택 안 됐을 때는 안내 화면.
 // ============================================================================
 
-import { useEffect, useMemo, useState, useCallback, createContext, useContext } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useParams, NavLink } from 'react-router-dom';
 import { useEventPhase } from '@/hooks/useEventPhase';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useInfiniteScroll } from '@/hooks/useInfiniteScroll'; // ← [2026-06-04] 무한 스크롤
 import { loadPosts, subscribePostsChanges, loadMyLikes, toggleLike } from '@/lib/posts';
 import { loadAvatarMap } from '@/lib/profiles'; // ← [추가] 작성자 아바타 일괄 조회(SSOT)
 import { PostListCard } from '@/components/PostListCard'; // ← [추가] Figma 기반 리스트 카드
+import { InfiniteScrollFooter } from '@/components/InfiniteScrollFooter'; // ← [2026-06-04] 무한 스크롤 하단 UI
 import { formatKSTDate } from '@/utils/time';
 import { PostFormModal } from '@/components/PostFormModal';
 import { PostDetailModal } from '@/components/PostDetailModal';
@@ -43,81 +45,42 @@ const CATEGORIES: CategoryMeta[] = [
 ];
 
 // ============================================================================
-// 카테고리별 게시글 캐시 (탭 전환 시 깜빡임 방지)
-//
-// 전략:
-//   - 부모 PostsPage에서 Map으로 보관 → 탭 전환해도 캐시 유지
-//   - CategoryContent는 캐시 있으면 즉시 표시 + 백그라운드 refresh
-//   - 첫 로드 (캐시 미존재)일 때만 skeleton 표시
+// 무한 스크롤 페이지 크기 — 2·3·4열 그리드에 깔끔히 맞는 12개씩 로드
 // ============================================================================
-
-type PostsCache = Map<EsgPostCategory, EsgPostWithImagesRow[]>;
-
-interface PostsCacheContextValue {
-  cache: PostsCache;
-  setCacheFor: (key: EsgPostCategory, posts: EsgPostWithImagesRow[]) => void;
-}
-
-const PostsCacheContext = createContext<PostsCacheContextValue | null>(null);
-
-function usePostsCache() {
-  const ctx = useContext(PostsCacheContext);
-  if (!ctx) throw new Error('PostsCacheContext not provided');
-  return ctx;
-}
+const POSTS_PAGE_SIZE = 12;
 
 export function PostsPage() {
   const { category: slug } = useParams();
   const current = CATEGORIES.find((c) => c.slug === slug);
 
-  // 카테고리별 캐시 (탭 전환 시 깜빡임 방지)
-  const [cache, setCache] = useState<PostsCache>(() => new Map());
-  const setCacheFor = useCallback(
-    (key: EsgPostCategory, posts: EsgPostWithImagesRow[]) => {
-      setCache((prev) => {
-        const next = new Map(prev);
-        next.set(key, posts);
-        return next;
-      });
-    },
-    []
-  );
-
-  const cacheValue = useMemo<PostsCacheContextValue>(
-    () => ({ cache, setCacheFor }),
-    [cache, setCacheFor]
-  );
-
   return (
-    <PostsCacheContext.Provider value={cacheValue}>
-      <div>
-        <h1 style={{ margin: '0 0 8px' }}>📝 ESG 어워드 게시판</h1>
-        <p style={{ color: '#666', marginTop: 0 }}>카테고리별로 참여 기간이 다릅니다.</p>
+    <div>
+      <h1 style={{ margin: '0 0 8px' }}>📝 ESG 어워드 게시판</h1>
+      <p style={{ color: '#666', marginTop: 0 }}>카테고리별로 참여 기간이 다릅니다.</p>
 
-        {/* 카테고리 탭 */}
-        <CategoryTabs />
+      {/* 카테고리 탭 */}
+      <CategoryTabs />
 
-        {/* 선택된 카테고리 콘텐츠 */}
-        {current ? (
-          <ActivityGate activityKey={current.activityKey}>
-            <CategoryContent meta={current} />
-          </ActivityGate>
-        ) : (
-          <div
-            style={{
-              background: '#fff',
-              borderRadius: 12,
-              padding: 32,
-              textAlign: 'center',
-              color: '#999',
-              marginTop: 24,
-            }}
-          >
-            위 탭에서 카테고리를 선택해주세요.
-          </div>
-        )}
-      </div>
-    </PostsCacheContext.Provider>
+      {/* 선택된 카테고리 콘텐츠 */}
+      {current ? (
+        <ActivityGate activityKey={current.activityKey}>
+          <CategoryContent meta={current} />
+        </ActivityGate>
+      ) : (
+        <div
+          style={{
+            background: '#fff',
+            borderRadius: 12,
+            padding: 32,
+            textAlign: 'center',
+            color: '#999',
+            marginTop: 24,
+          }}
+        >
+          위 탭에서 카테고리를 선택해주세요.
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -172,25 +135,32 @@ function CategoryContent({ meta }: { meta: CategoryMeta }) {
   const { getActivity, settings } = useEventPhase();
   const { currentUser, isAdmin } = useCurrentUser();
   const { period, status } = getActivity(meta.activityKey);
-  const { cache, setCacheFor } = usePostsCache();
 
-  // 캐시에서 즉시 표시할 데이터 (탭 전환 시 깜빡임 없음)
-  const cached = cache.get(meta.key);
-  const posts = cached ?? [];
+  // 무한 스크롤 — 카테고리별 12개씩 누적 로드 (created_at desc)
+  const fetchPage = useCallback(
+    (offset: number, limit: number) => loadPosts(meta.key, { offset, limit }),
+    [meta.key]
+  );
+  const {
+    items: posts,
+    initialLoading,
+    loadingMore,
+    error,
+    sentinelRef,
+    reload,
+    setItems,
+  } = useInfiniteScroll<EsgPostWithImagesRow>(fetchPage, {
+    pageSize: POSTS_PAGE_SIZE,
+    deps: [meta.key],
+  });
 
-  // 첫 로드 (캐시 없음)일 때만 skeleton 표시
-  // 캐시 있으면 즉시 화면 노출 + 백그라운드 refresh
-  const [firstLoading, setFirstLoading] = useState(!cached);
-  const [error, setError] = useState<string | null>(null);
-  const [avatarMap, setAvatarMap] = useState<Map<string, string | null>>(new Map()); // ← [추가] 작성자 user_id→avatar_url
-  const [likedSet, setLikedSet] = useState<Set<string>>(new Set()); // ← [추가] 내가 좋아요 누른 post id
+  const [avatarMap, setAvatarMap] = useState<Map<string, string | null>>(new Map()); // 작성자 user_id→avatar_url
+  const [likedSet, setLikedSet] = useState<Set<string>>(new Set()); // 내가 좋아요 누른 post id
   const [showForm, setShowForm] = useState(false);
   /** 모달로 열 게시글 ID (게시글 카드 클릭 시 set) */
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
 
   // 작성 가능 여부 (프론트 가드)
-  // - 어드민은 기간/posts_enabled와 무관하게 항상 작성 가능
-  // - 일반 사용자: 로그인 + 카테고리 active + posts_enabled !== false
   const isAdminBypass = isAdmin;
   const canCreate = useMemo(() => {
     if (!currentUser) return false;
@@ -200,49 +170,38 @@ function CategoryContent({ meta }: { meta: CategoryMeta }) {
     return true;
   }, [currentUser, status, settings.posts_enabled, isAdminBypass]);
 
-  // 목록 로드 (캐시 갱신)
-  const reload = useCallback(async () => {
-    try {
-      setError(null);
-      const list = await loadPosts(meta.key, { limit: 50 });
-      setCacheFor(meta.key, list);
-      // 작성자 아바타 일괄 조회 (익명은 user_id=null이라 자동 제외 → 유출 없음)
-      const map = await loadAvatarMap(list.map((p) => p.user_id)); // ← [추가] N+1 아님
-      setAvatarMap(map);                                           // ← [추가]
-      // 내가 좋아요 누른 글 집합 (로그인 시에만)
-      if (currentUser) {                                           // ← [추가]
-        const liked = await loadMyLikes(list.map((p) => p.id), currentUser.id); // ← [추가]
-        setLikedSet(liked);                                        // ← [추가]
-      } else {                                                     // ← [추가]
-        setLikedSet(new Set());                                    // ← [추가]
-      }                                                            // ← [추가]
-    } catch (e) {
-      console.error('[PostsPage] load error:', e);
-      setError(e instanceof Error ? e.message : '게시글을 불러오지 못했습니다.');
-    } finally {
-      setFirstLoading(false);
-    }
-  }, [meta.key, setCacheFor, currentUser]);
-
-  // 탭 전환 시: 캐시 있으면 백그라운드 refresh, 없으면 skeleton 표시 후 로드
+  // 로드된 게시글의 아바타 + 내 좋아요 동기화.
+  // 게시글 "ID 집합"이 바뀔 때만 재조회 → 좋아요 토글(like_count만 변경) 시 재조회 안 함(깜빡임 방지).
+  const idsKey = posts.map((p) => p.id).join(',');
   useEffect(() => {
-    if (!cache.has(meta.key)) {
-      setFirstLoading(true);
-    } else {
-      setFirstLoading(false);
-    }
-    void reload();
+    let cancelled = false;
+    void (async () => {
+      try {
+        const map = await loadAvatarMap(posts.map((p) => p.user_id)); // N+1 아님
+        if (!cancelled) setAvatarMap(map);
+        if (currentUser) {
+          const liked = await loadMyLikes(posts.map((p) => p.id), currentUser.id);
+          if (!cancelled) setLikedSet(liked);
+        } else if (!cancelled) {
+          setLikedSet(new Set());
+        }
+      } catch (e) {
+        console.error('[PostsPage] meta(avatar/like) load error:', e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [meta.key]);
+  }, [idsKey, currentUser]);
 
-  // Realtime — 누가 글 쓰면 자동 갱신 (캐시도 자동 갱신)
+  // Realtime — 누가 글 쓰거나 지우면 처음부터 다시 로드
   useEffect(() => {
     const cleanup = subscribePostsChanges(() => {
-      void reload();
+      reload();
     });
     return cleanup;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [meta.key]);
+  }, [reload]);
 
   // 리스트에서 좋아요 토글 (낙관적 업데이트 → 실패 시 reload 복구)
   const handleToggleLike = useCallback(
@@ -258,9 +217,8 @@ function CategoryContent({ meta }: { meta: CategoryMeta }) {
         else next.add(postId);
         return next;
       });
-      setCacheFor(
-        meta.key,
-        posts.map((p) =>
+      setItems((prev) =>
+        prev.map((p) =>
           p.id === postId
             ? { ...p, like_count: Math.max(0, p.like_count + (wasLiked ? -1 : 1)) }
             : p
@@ -270,10 +228,10 @@ function CategoryContent({ meta }: { meta: CategoryMeta }) {
         await toggleLike(postId, { id: currentUser.id, email: currentUser.email });
       } catch (e) {
         console.error('[PostsPage] toggleLike error:', e);
-        void reload(); // 서버 상태로 복구
+        reload(); // 서버 상태로 복구
       }
     },
-    [currentUser, likedSet, posts, meta.key, setCacheFor, reload]
+    [currentUser, likedSet, setItems, reload]
   );
 
   return (
@@ -340,22 +298,31 @@ function CategoryContent({ meta }: { meta: CategoryMeta }) {
       </div>
 
       {/* 목록 */}
-      {firstLoading ? (
+      {initialLoading ? (
         <PostsSkeleton />
-      ) : error ? (
+      ) : error && posts.length === 0 ? (
         <ErrorBox message={error} onRetry={reload} />
       ) : posts.length === 0 ? (
         <EmptyState canCreate={canCreate} onCreate={() => setShowForm(true)} />
       ) : (
-        <PostGrid
-          posts={posts}
-          avatarMap={avatarMap}
-          currentUserId={currentUser?.id ?? null}
-          isAdmin={isAdmin}
-          likedSet={likedSet}
-          onToggleLike={handleToggleLike}
-          onPostClick={(id) => setSelectedPostId(id)}
-        />
+        <>
+          <PostGrid
+            posts={posts}
+            avatarMap={avatarMap}
+            currentUserId={currentUser?.id ?? null}
+            isAdmin={isAdmin}
+            likedSet={likedSet}
+            onToggleLike={handleToggleLike}
+            onPostClick={(id) => setSelectedPostId(id)}
+          />
+          {/* 무한 스크롤: 바닥 감지 sentinel + 로딩/에러 */}
+          <InfiniteScrollFooter
+            sentinelRef={sentinelRef}
+            loadingMore={loadingMore}
+            error={posts.length > 0 ? error : null}
+            onRetry={reload}
+          />
+        </>
       )}
 
       {/* 게시글 상세 모달 */}
@@ -376,11 +343,9 @@ function CategoryContent({ meta }: { meta: CategoryMeta }) {
           currentUser={currentUser}
           isAdminBypass={isAdminBypass && status !== 'active'}
           onClose={() => setShowForm(false)}
-          onSaved={(post) => {
+          onSaved={() => {
             setShowForm(false);
-            // 새 글이 상단에 보이도록 즉시 prepend (Realtime 갱신 전 빠른 반영)
-            // 캐시 직접 갱신 (다른 카테고리 탭으로 갔다 와도 유지)
-            setCacheFor(meta.key, [post, ...posts.filter((p) => p.id !== post.id)]);
+            reload(); // 처음부터 다시 로드 → 새 글이 최상단(created_at desc)에 노출
           }}
         />
       )}
@@ -492,6 +457,7 @@ function PostGrid({
   );
 }
 
+// 무한 스크롤 하단 로딩 표시
 function PostsSkeleton() {
   return (
     <div

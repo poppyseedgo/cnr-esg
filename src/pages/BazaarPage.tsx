@@ -7,12 +7,14 @@
 //   - Realtime 갱신 (재고 변경 즉시 반영)
 // ============================================================================
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useEventPhase } from '@/hooks/useEventPhase';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useInfiniteScroll } from '@/hooks/useInfiniteScroll'; // ← [2026-06-04] 무한 스크롤
 import { loadProducts, subscribeProducts } from '@/lib/products';
 import { formatKSTDate } from '@/utils/time';
 import { ProductCard } from '@/components/ProductCard';
+import { InfiniteScrollFooter } from '@/components/InfiniteScrollFooter'; // ← [2026-06-04]
 import { FormModal } from '@/components/FormModal';
 import { CreateProductForm } from '@/components/admin/CreateProductForm';
 import type { EsgProductRow } from '@/types/esg';
@@ -22,36 +24,29 @@ export function BazaarPage() {
   const { period, status } = getActivity('bazaar');
   const { isAdmin } = useCurrentUser();
 
-  const [products, setProducts] = useState<EsgProductRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // 무한 스크롤 — 12개씩 누적 로드 (sort_order, created_at)
+  const fetchPage = useCallback(
+    (offset: number, limit: number) => loadProducts({ scope: 'all', offset, limit }),
+    []
+  );
+  const {
+    items: products,
+    initialLoading,
+    loadingMore,
+    error,
+    sentinelRef,
+    reload,
+  } = useInfiniteScroll<EsgProductRow>(fetchPage, { pageSize: 12 });
+
   const [createOpen, setCreateOpen] = useState(false);
 
-  const reload = async () => {
-    try {
-      setError(null);
-      const list = await loadProducts({ scope: 'all' });
-      setProducts(list);
-    } catch (e) {
-      console.error('[BazaarPage] load error:', e);
-      setError(e instanceof Error ? e.message : '상품을 불러오지 못했습니다.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    setLoading(true);
-    void reload();
-  }, []);
-
-  // Realtime — 재고 변경 / 신규 상품 즉시 반영
+  // Realtime — 재고 변경 / 신규 상품 즉시 반영 (처음부터 다시 로드)
   useEffect(() => {
     const cleanup = subscribeProducts(() => {
-      void reload();
+      reload();
     });
     return cleanup;
-  }, []);
+  }, [reload]);
 
   return (
     <div>
@@ -128,9 +123,9 @@ export function BazaarPage() {
       )}
 
       {/* 상품 그리드 */}
-      {loading ? (
+      {initialLoading ? (
         <BazaarSkeleton />
-      ) : error ? (
+      ) : error && products.length === 0 ? (
         <ErrorBox message={error} onRetry={reload} />
       ) : products.length === 0 ? (
         <div
@@ -161,6 +156,14 @@ export function BazaarPage() {
             <ProductCard key={p.id} product={p} />
           ))}
         </div>
+      )}
+      {!initialLoading && products.length > 0 && (
+        <InfiniteScrollFooter
+          sentinelRef={sentinelRef}
+          loadingMore={loadingMore}
+          error={error}
+          onRetry={reload}
+        />
       )}
       {/* 반응형 그리드: 768px+ 3컬럼, 1024px+ 4컬럼 */}
       <style>{`

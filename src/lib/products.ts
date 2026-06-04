@@ -23,19 +23,25 @@ const supabase = _supabase as any;
 export interface LoadProductsOptions {
   /** 'all'이면 hidden 제외하고 on_sale + sold_out, 'on_sale_only'면 on_sale만 */
   scope?: 'all' | 'on_sale_only';
+  limit?: number;  // ← [2026-06-04] 무한 스크롤 페이징
+  offset?: number; // ← [2026-06-04]
 }
 
 /** 상품 목록 (정렬: sort_order ASC, 그 다음 created_at) */
 export async function loadProducts(opts: LoadProductsOptions = {}): Promise<EsgProductRow[]> {
-  const { scope = 'all' } = opts;
+  const { scope = 'all', limit, offset = 0 } = opts;
   const statuses: EsgProductStatus[] = scope === 'on_sale_only' ? ['on_sale'] : ['on_sale', 'sold_out'];
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('esg_products')
     .select('*')
     .in('status', statuses)
     .order('sort_order', { ascending: true })
     .order('created_at', { ascending: false });
+
+  if (typeof limit === 'number') query = query.range(offset, offset + limit - 1); // ← [2026-06-04] 페이징
+
+  const { data, error } = await query;
   if (error) throw error;
   return (data ?? []) as EsgProductRow[];
 }
