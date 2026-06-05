@@ -1,5 +1,9 @@
 // ============================================================================
 // CHANGELOG
+//   2026-06-05
+//     - [변경] 카드 높이 고정: 유동 minHeight(clamp) 제거 → .post-card 로
+//         모바일 300 / 데스크탑 380 고정. height:100%도 제거. (높이 균일 정렬)
+//         이미지는 aspect-ratio 유지(고정 높이 안에서 폭 비례), overflow:hidden 으로 클립.
 //   2026-06-04 (d)
 //     - [반응형] 고정 높이 → 유동화: 이미지 height:177px → aspect-ratio 16/9(폭 비례),
 //         카드 minHeight 401/320(고정) → clamp(모바일↓~데스크탑 401/320).
@@ -109,7 +113,7 @@ export function PostListCard({
 
   return (
     <div
-      className="card-pressable" // ← [추가] hover 확대 모션 (전역 CSS)
+      className="card-pressable post-card" // ← [2026-06-05] 고정 높이(.post-card) + hover 모션
       role="button"
       tabIndex={0}
       onClick={onClick}
@@ -123,10 +127,7 @@ export function PostListCard({
         display: 'flex',
         flexDirection: 'column',
         width: '100%',
-        height: '100%',
-        minHeight: hasImage
-          ? 'clamp(240px, 62vw, 401px)' // ← [2026-06-04] 유동 floor: 모바일↓ ~ 데스크탑 401(Figma)
-          : 'clamp(200px, 50vw, 320px)', // ← [2026-06-04] 텍스트 카드 유동 floor (데스크탑 320)
+        // 높이는 .post-card 에서 고정(모바일 300 / 데스크탑 380) — 카드 균일 정렬
         padding: 0,
         border: 'none',
         background: '#fff',

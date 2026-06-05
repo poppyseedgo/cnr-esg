@@ -467,6 +467,7 @@ function PostsSkeleton() {
       {[1, 2, 3, 4].map((i) => (
         <div
           key={i}
+          className="post-card"
           style={{
             background: '#fff',
             borderRadius: 12,
