@@ -451,16 +451,22 @@ export async function isLikedByMe(postId: string, userId: string): Promise<boole
  * 채널 이름 unique (StrictMode 이중 마운트 대응).
  * cleanup 함수 반환.
  */
-export function subscribePostsChanges(callback: () => void): () => void {
+export function subscribePostsChanges(
+  callback: () => void,
+  opts: { postId?: string } = {} // ← [2026-06-05] 단일 글만 구독(상세 모달용)
+): () => void {
   const channelName = `esg-posts-${Math.random().toString(36).slice(2, 11)}`;
+  const filterCfg: Record<string, string> = {
+    event: '*',
+    schema: 'public',
+    table: 'esg_posts',
+  };
+  if (opts.postId) filterCfg.filter = `id=eq.${opts.postId}`; // ← [2026-06-05] 해당 글 변경만
+
   const channel = supabase
     .channel(channelName)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .on(
-      'postgres_changes' as never,
-      { event: '*', schema: 'public', table: 'esg_posts' },
-      () => callback()
-    )
+    .on('postgres_changes' as never, filterCfg as never, () => callback())
     .subscribe();
 
   return () => {

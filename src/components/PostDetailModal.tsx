@@ -30,7 +30,7 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom'; // ← [추가] 모달을 body 직속으로 렌더(조상 transform 영향 차단)
 import { Link } from 'react-router-dom';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { loadPost, deletePost, toggleLike, isLikedByMe } from '@/lib/posts';
+import { loadPost, deletePost, toggleLike, isLikedByMe, subscribePostsChanges } from '@/lib/posts';
 import { loadAvatarMap } from '@/lib/profiles'; // ← [추가] 작성자 아바타 조회(SSOT)
 import { UserChip } from '@/components/UserChip'; // ← [추가] 글쓴이 공통 컴포넌트
 import { formatKSTFull } from '@/utils/time';
@@ -95,6 +95,16 @@ export function PostDetailModal({ postId, open, onClose, onDeleted }: PostDetail
     setLoading(true);
     setPost(null);
     void reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, postId, currentUser?.id]);
+
+  // 모달이 열린 동안 이 글의 변경(좋아요 수·댓글 수·내용 등) 실시간 반영
+  useEffect(() => {
+    if (!open || !postId) return;
+    const cleanup = subscribePostsChanges(() => {
+      void reload();
+    }, { postId });
+    return cleanup;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, postId, currentUser?.id]);
 
