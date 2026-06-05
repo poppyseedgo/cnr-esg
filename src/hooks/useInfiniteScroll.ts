@@ -29,6 +29,8 @@ export interface InfiniteScroll<T> {
   sentinelRef: (node: HTMLElement | null) => void;
   /** 처음부터 다시 로드(필터 변경/realtime/생성 후) */
   reload: () => void;
+  /** 조용한 갱신(실시간용) — 목록 비우지 않고 제자리 교체 */
+  refresh: () => void;
   /** 에러 후 현재 위치에서 재시도 */
   retry: () => void;
   /** 낙관적 업데이트용 */
@@ -102,6 +104,29 @@ export function useInfiniteScroll<T>(
     void loadMore();
   }, [loadMore]);
 
+  // 조용한 갱신(실시간용): 목록을 비우거나 스켈레톤을 띄우지 않고,
+  // 현재 로드된 개수만큼 1페이지로 다시 조회해 "제자리 교체"한다.
+  // 카드 key(=id) 기준으로 React가 재조정하므로 변하지 않은 카드는 깜빡이지 않음.
+  const refresh = useCallback(async () => {
+    if (loadingRef.current) return;
+    const count = Math.max(offsetRef.current, pageSize);
+    loadingRef.current = true;
+    try {
+      const list = await fetchRef.current(0, count);
+      setItems(list);
+      offsetRef.current = list.length;
+      const more = list.length === count; // 요청만큼 꽉 찼으면 더 있을 수 있음
+      hasMoreRef.current = more;
+      setHasMore(more);
+      setError(null);
+    } catch (e) {
+      // 실패 시 기존 목록 유지(빈 화면/깜빡임 방지)
+      console.error('[useInfiniteScroll] refresh error:', e);
+    } finally {
+      loadingRef.current = false;
+    }
+  }, [pageSize]);
+
   const retry = useCallback(() => {
     setError(null);
     void loadMore(); // 현재 offset 유지하고 재시도
@@ -159,6 +184,7 @@ export function useInfiniteScroll<T>(
     hasMore,
     sentinelRef,
     reload,
+    refresh,
     retry,
     setItems,
   };

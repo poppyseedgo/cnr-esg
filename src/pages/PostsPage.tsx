@@ -148,6 +148,7 @@ function CategoryContent({ meta }: { meta: CategoryMeta }) {
     error,
     sentinelRef,
     reload,
+    refresh,
     setItems,
   } = useInfiniteScroll<EsgPostWithImagesRow>(fetchPage, {
     pageSize: POSTS_PAGE_SIZE,
@@ -195,13 +196,13 @@ function CategoryContent({ meta }: { meta: CategoryMeta }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idsKey, currentUser]);
 
-  // Realtime — 누가 글 쓰거나 지우면 처음부터 다시 로드
+  // Realtime — 누가 글 쓰거나 지우면 조용히 제자리 갱신(깜빡임 없음)
   useEffect(() => {
     const cleanup = subscribePostsChanges(() => {
-      reload();
+      refresh();
     });
     return cleanup;
-  }, [reload]);
+  }, [refresh]);
 
   // 리스트에서 좋아요 토글 (낙관적 업데이트 → 실패 시 reload 복구)
   const handleToggleLike = useCallback(
@@ -228,10 +229,10 @@ function CategoryContent({ meta }: { meta: CategoryMeta }) {
         await toggleLike(postId, { id: currentUser.id, email: currentUser.email });
       } catch (e) {
         console.error('[PostsPage] toggleLike error:', e);
-        reload(); // 서버 상태로 복구
+        refresh(); // 서버 상태로 조용히 복구
       }
     },
-    [currentUser, likedSet, setItems, reload]
+    [currentUser, likedSet, setItems, refresh]
   );
 
   return (
@@ -332,7 +333,7 @@ function CategoryContent({ meta }: { meta: CategoryMeta }) {
         onClose={() => setSelectedPostId(null)}
         onDeleted={() => {
           setSelectedPostId(null);
-          void reload();
+          refresh();
         }}
       />
 
@@ -345,7 +346,7 @@ function CategoryContent({ meta }: { meta: CategoryMeta }) {
           onClose={() => setShowForm(false)}
           onSaved={() => {
             setShowForm(false);
-            reload(); // 처음부터 다시 로드 → 새 글이 최상단(created_at desc)에 노출
+            refresh(); // 새 글이 최상단(created_at desc)에 조용히 반영
           }}
         />
       )}

@@ -46,24 +46,25 @@ export function AuctionPage() {
     error,
     sentinelRef,
     reload,
+    refresh,
   } = useInfiniteScroll<EsgAuctionRow>(fetchPage, { pageSize: 12 });
 
   const [, setTick] = useState(0);
   const [createOpen, setCreateOpen] = useState(false);
 
-  // Realtime + 같은 탭 즉시 신호 (처음부터 다시 로드)
+  // Realtime + 같은 탭 즉시 신호 — 조용히 제자리 갱신(깜빡임 없음)
   useEffect(() => {
     const cleanupRT = subscribeAuctions(() => {
-      reload();
+      refresh();
     });
     const cleanupEvent = onAuctionChanged(() => {
-      reload();
+      refresh();
     });
     return () => {
       cleanupRT();
       cleanupEvent();
     };
-  }, [reload]);
+  }, [refresh]);
 
   // 카운트다운 갱신 (1초)
   useEffect(() => {
@@ -109,7 +110,7 @@ export function AuctionPage() {
           onCancel={() => setCreateOpen(false)}
           onSuccess={() => {
             setCreateOpen(false);
-            void reload();
+            refresh();
           }}
         />
       </FormModal>

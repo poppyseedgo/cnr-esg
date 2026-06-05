@@ -36,17 +36,18 @@ export function BazaarPage() {
     error,
     sentinelRef,
     reload,
+    refresh,
   } = useInfiniteScroll<EsgProductRow>(fetchPage, { pageSize: 12 });
 
   const [createOpen, setCreateOpen] = useState(false);
 
-  // Realtime — 재고 변경 / 신규 상품 즉시 반영 (처음부터 다시 로드)
+  // Realtime — 재고 변경 / 신규 상품 조용히 제자리 갱신(깜빡임 없음)
   useEffect(() => {
     const cleanup = subscribeProducts(() => {
-      reload();
+      refresh();
     });
     return cleanup;
-  }, [reload]);
+  }, [refresh]);
 
   return (
     <div>
@@ -87,7 +88,7 @@ export function BazaarPage() {
           onCancel={() => setCreateOpen(false)}
           onSuccess={() => {
             setCreateOpen(false);
-            void reload();
+            refresh();
           }}
         />
       </FormModal>

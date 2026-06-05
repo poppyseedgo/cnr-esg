@@ -98,15 +98,25 @@ export function PostDetailModal({ postId, open, onClose, onDeleted }: PostDetail
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, postId, currentUser?.id]);
 
-  // 모달이 열린 동안 이 글의 변경(좋아요 수·댓글 수·내용 등) 실시간 반영
+  // 모달이 열린 동안 이 글의 변경(좋아요 수·댓글 수)만 조용히 반영.
+  // reload()는 imageIdx 리셋·아바타 재조회로 깜빡임이 생기므로 카운트만 제자리 갱신.
   useEffect(() => {
     if (!open || !postId) return;
-    const cleanup = subscribePostsChanges(() => {
-      void reload();
+    const cleanup = subscribePostsChanges(async () => {
+      try {
+        const p = await loadPost(postId);
+        if (p && p.status !== 'deleted') {
+          setPost((prev) =>
+            prev ? { ...prev, like_count: p.like_count, comment_count: p.comment_count } : prev
+          );
+        }
+      } catch {
+        /* 조용히 무시 */
+      }
     }, { postId });
     return cleanup;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, postId, currentUser?.id]);
+  }, [open, postId]);
 
   // ESC + body 스크롤 잠금
   useEffect(() => {
@@ -162,9 +172,12 @@ export function PostDetailModal({ postId, open, onClose, onDeleted }: PostDetail
     setLikeLoading(true);
     try {
       const result = await toggleLike(post.id, { id: currentUser.id, email: currentUser.email });
-      setLiked(result === 'liked');
-      // 카운트는 reload로 동기화 (간단)
-      void reload();
+      const nowLiked = result === 'liked';
+      setLiked(nowLiked);
+      // 카운트 제자리 갱신 (reload는 imageIdx 리셋·깜빡임 유발 → 사용 안 함)
+      setPost((prev) =>
+        prev ? { ...prev, like_count: Math.max(0, (prev.like_count ?? 0) + (nowLiked ? 1 : -1)) } : prev
+      );
     } catch (e) {
       console.error(e);
     } finally {
