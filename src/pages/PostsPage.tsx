@@ -307,7 +307,7 @@ function PostsHeader({
   onWrite: () => void;
 }) {
   return (
-    <div style={{ background: '#fff', borderRadius: 16, overflow: 'hidden', marginBottom: 8 }}>
+    <div style={{ marginBottom: 8 }}>
       {/* 타이틀 row */}
       <div style={{ padding: 20 }}>
         <h1
