@@ -277,7 +277,7 @@ export function PostListCard({
             <p
               style={{
                 margin: 0,
-                fontSize: 12,
+                fontSize: 14, // ← [2026-06-08] 12 → 14
                 fontWeight: 400,
                 lineHeight: 1.4,
                 letterSpacing: '-0.12px',
