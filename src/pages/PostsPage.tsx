@@ -20,7 +20,6 @@ import { loadPosts, subscribePostsChanges, loadMyLikes, toggleLike } from '@/lib
 import { loadAvatarMap } from '@/lib/profiles'; // ← [추가] 작성자 아바타 일괄 조회(SSOT)
 import { PostListCard } from '@/components/PostListCard'; // ← [추가] Figma 기반 리스트 카드
 import { InfiniteScrollFooter } from '@/components/InfiniteScrollFooter'; // ← [2026-06-04] 무한 스크롤 하단 UI
-import { formatKSTDate } from '@/utils/time';
 import { PostFormModal } from '@/components/PostFormModal';
 import { PostDetailModal } from '@/components/PostDetailModal';
 import { ActivityGate } from '@/components/ActivityGate';
@@ -90,7 +89,7 @@ export function PostsPage() {
 function CategoryContent({ meta }: { meta: CategoryMeta }) {
   const { getActivity, settings } = useEventPhase();
   const { currentUser, isAdmin } = useCurrentUser();
-  const { period, status } = getActivity(meta.activityKey);
+  const { status } = getActivity(meta.activityKey);
 
   // 무한 스크롤 — 카테고리별 12개씩 누적 로드 (created_at desc)
   const fetchPage = useCallback(
@@ -225,15 +224,6 @@ function CategoryContent({ meta }: { meta: CategoryMeta }) {
     <div>
       {/* Figma 헤더: 타이틀 + 탭 + (카운트 / 가이드·글쓰기) */}
       <PostsHeader meta={meta} count={posts.length} onGuide={handleGuide} onWrite={handleWriteClick} />
-
-      {/* 상태 안내 (기간 배너 — Figma 헤더와 별개로 유지) */}
-      {period && (
-        <StatusBanner
-          status={status}
-          period={period}
-          postsEnabled={settings.posts_enabled !== false}
-        />
-      )}
 
       {/* 목록 */}
       {initialLoading ? (
@@ -422,70 +412,6 @@ function PostsHeader({
           </button>
         </div>
       </div>
-    </div>
-  );
-}
-
-// ============================================================================
-// 상태 배너
-// ============================================================================
-function StatusBanner({
-  status,
-  period,
-  postsEnabled,
-}: {
-  status: 'before' | 'active' | 'closed';
-  period: { starts_at_utc: string; ends_at_utc: string; awards_date_kst?: string; note?: string };
-  postsEnabled: boolean;
-}) {
-  const bg = !postsEnabled
-    ? '#fee2e2'
-    : status === 'active'
-    ? '#dcfce7'
-    : status === 'before'
-    ? '#fef3c7'
-    : '#f0f0f0';
-  const color = !postsEnabled
-    ? '#991b1b'
-    : status === 'active'
-    ? '#166534'
-    : status === 'before'
-    ? '#92400e'
-    : '#666';
-
-  return (
-    <div
-      style={{
-        padding: 16,
-        background: bg,
-        color,
-        borderRadius: 8,
-        marginBottom: 0,
-        fontSize: 13,
-        lineHeight: 1.6,
-      }}
-    >
-      {!postsEnabled ? (
-        <>🚫 <strong>게시글 작성이 일시 중단되었습니다</strong> (어드민 설정)</>
-      ) : (
-        <>
-          {status === 'active' && (
-            <>✅ <strong>참여 진행 중</strong> · {formatKSTDate(period.ends_at_utc)}까지</>
-          )}
-          {status === 'before' && (
-            <>⏳ {formatKSTDate(period.starts_at_utc)}부터 참여 가능</>
-          )}
-          {status === 'closed' && (
-            <>
-              🏁 참여 기간이 종료되었습니다
-              {period.awards_date_kst && <> · 🏆 {period.awards_date_kst} 시상</>}
-            </>
-          )}
-          {period.note && (
-            <div style={{ marginTop: 6, fontSize: 12, opacity: 0.8 }}>{period.note}</div>
-          )}
-        </>
-      )}
     </div>
   );
 }
