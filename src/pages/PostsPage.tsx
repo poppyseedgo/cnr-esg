@@ -347,7 +347,7 @@ function PostsHeader({
                 whiteSpace: 'nowrap',
               }}
             >
-              {c.tab}
+              {c.tab} 어워드
             </NavLink>
           );
         })}
@@ -378,7 +378,7 @@ function PostsHeader({
               padding: '16px 24px',
               borderRadius: 16,
               border: '1px solid #000',
-              background: '#fff',
+              background: '#cbecff', // ← [2026-06-05] Figma 1197:50 연블루
               color: '#000',
               cursor: 'pointer',
               fontWeight: 500,
@@ -398,9 +398,9 @@ function PostsHeader({
               justifyContent: 'center',
               padding: '16px 24px',
               borderRadius: 16,
-              border: '1px solid #000',
-              background: '#000',
-              color: '#fff',
+              border: 'none', // ← [2026-06-05] Figma 1197:52 테두리 없음
+              background: '#99f75d', // ← [2026-06-05] 라임 그린
+              color: '#000', // ← [2026-06-05] 검정 글자
               cursor: 'pointer',
               fontWeight: 500,
               fontSize: 18,
