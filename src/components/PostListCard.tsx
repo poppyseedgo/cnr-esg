@@ -1,5 +1,14 @@
 // ============================================================================
 // CHANGELOG
+//   2026-06-07 (2)
+//     - 푸터 아이콘 교체(Figma 1200:81 + 업로드 SVG): 댓글 chat.svg 24px(카운트 #64748b),
+//         하트 heart.svg 32px(카운트 #111, liked=빨강). 순서 댓글→하트, 그룹 gap16.
+//   2026-06-07
+//     - [근본수정] 카드 하단 잘림 해결. 원인: 이미지 aspect-ratio가 넓은 카드에서
+//         세로로 커져 고정높이(380)를 잠식 → 본문/푸터가 overflow에 잘림.
+//         해결: 이미지 고정높이(.post-card__img 130/180), 콘텐츠 영역 내에서
+//         상단(배지/제목/본문)=flex:1+overflow:hidden(넘치면 여기서만 잘림),
+//         푸터=flex-shrink:0(구분선 borderTop 포함, 절대 잘리지 않음).
 //   2026-06-05
 //     - [변경] 카드 높이 고정: 유동 minHeight(clamp) 제거 → .post-card 로
 //         모바일 300 / 데스크탑 380 고정. height:100%도 제거. (높이 균일 정렬)
@@ -54,27 +63,41 @@ const BADGE: Record<EsgPostCategory, BadgeSpec> = {
   wise_life: { label: '슬기로운 사회생활', bg: '#33a457', color: '#fff' },
 };
 
-// ── 아이콘 (임시 placeholder — 공식 SVG로 교체 예정) ────────────────────────
-function LikeIcon({ size = 24, filled = false }: { size?: number; filled?: boolean }) {
+// ── 아이콘 (업로드된 공식 SVG: heart.svg 32 / chat.svg 24) ──────────────────
+// 하트: outline(미좋아요 stroke #111) / 좋아요 시 빨강(#ff4d4f) 채움. viewBox 32.
+function LikeIcon({ size = 32, filled = false }: { size?: number; filled?: boolean }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill={filled ? '#ff4d4f' : 'none'} aria-hidden="true">
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 32 32"
+      fill={filled ? '#ff4d4f' : 'none'}
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
       <path
-        d="M12 20.5l-1.45-1.32C5.4 14.36 2 11.28 2 7.5 2 5.42 3.42 4 5.5 4c1.74 0 3.41 1.01 4.13 2.44h0.74C11.09 5.01 12.76 4 14.5 4 16.58 4 18 5.42 18 7.5c0 3.78-3.4 6.86-8.55 11.68L12 20.5z"
+        d="M29 11.5192C29 19.6681 16.0022 27 16.0022 27C16.0022 27 3 19.6681 3 11.5192C3 8.13259 5.5185 5 9.29192 5C12.7778 5 16.0022 7.32828 16.0022 10.7021C16.0022 7.31558 19.2353 5 22.7124 5C26.4859 5 29 8.14528 29 11.5192Z"
         stroke={filled ? '#ff4d4f' : '#111'}
-        strokeWidth="1.5"
-        strokeLinejoin="round"
+        strokeWidth="2"
+        strokeMiterlimit="10"
       />
     </svg>
   );
 }
+// 댓글: chat.svg (filled #DFE5F1). viewBox 24.
 function CommentIcon({ size = 24 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
       <path
-        d="M4 5.5h16a1.5 1.5 0 011.5 1.5v8a1.5 1.5 0 01-1.5 1.5H9l-4 3.5V16.5H4A1.5 1.5 0 012.5 15V7A1.5 1.5 0 014 5.5z"
-        stroke="#111"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
+        d="M11.998 2C6.47527 2.00023 1.99805 6.47717 1.99805 12C1.99828 17.5226 6.47541 21.9998 11.998 22C12.2523 22 12.5044 21.9864 12.7539 21.9678C12.8327 21.9877 12.915 22 13 22H21C21.5523 22 22 21.5523 22 21V13C22 12.9133 21.9885 12.8292 21.9678 12.749C21.9861 12.5017 21.998 12.252 21.998 12C21.998 6.47703 17.521 2 11.998 2Z"
+        fill="#DFE5F1"
       />
     </svg>
   );
@@ -138,11 +161,11 @@ export function PostListCard({
         overflow: 'hidden',
       }}
     >
-      {/* 이미지 헤더 (이미지 있을 때만) */}
+      {/* 이미지 헤더 (이미지 있을 때만) — 고정 높이(.post-card__img)로 콘텐츠 영역 확정 */}
       {hasImage && (
         <div
+          className="post-card__img"
           style={{
-            aspectRatio: '16 / 9', // ← [2026-06-04] 고정 177px → 폭 비례 유동(모바일 2열 대응)
             width: '100%',
             background: '#00422b',
             display: 'flex',
@@ -160,20 +183,29 @@ export function PostListCard({
         </div>
       )}
 
-      {/* 콘텐츠 영역 */}
+      {/* 콘텐츠 영역 — 상단(배지/제목/본문)은 넘치면 잘림, 푸터는 항상 보존 */}
       <div
         style={{
           padding: 16,
           display: 'flex',
           flexDirection: 'column',
-          gap: 12,
           flex: 1,
           minWidth: 0,
-          justifyContent: 'space-between', // 텍스트 카드에서 푸터를 하단으로
+          minHeight: 0, // flex 자식 overflow 동작에 필수
         }}
       >
-        {/* 상단: 배지 + 제목 + 본문 */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
+        {/* 상단: 배지 + 제목 + 본문 (flex:1 + overflow:hidden → 길면 여기서 잘림) */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 12,
+            minWidth: 0,
+            flex: 1,
+            minHeight: 0,
+            overflow: 'hidden',
+          }}
+        >
           {/* 카테고리 배지 */}
           <span
             style={{
@@ -187,19 +219,18 @@ export function PostListCard({
               lineHeight: 1.3,
               letterSpacing: '-0.12px',
               whiteSpace: 'nowrap',
+              flexShrink: 0,
             }}
           >
             {badge.label}
           </span>
 
-          {/* 제목 + 본문 (하단 구분선) */}
+          {/* 제목 + 본문 */}
           <div
             style={{
               display: 'flex',
               flexDirection: 'column',
-              gap: 16,
-              borderBottom: `1px solid ${BORDER_DIVIDER}`,
-              paddingBottom: 24,
+              gap: 12,
               minWidth: 0,
             }}
           >
@@ -241,13 +272,16 @@ export function PostListCard({
           </div>
         </div>
 
-        {/* 푸터: 작성자 / 좋아요·댓글 */}
+        {/* 푸터: 작성자 / 좋아요·댓글 — 항상 보존(flexShrink:0) */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
+            flexShrink: 0,
+            marginTop: 12,
             paddingTop: 12,
+            borderTop: `1px solid ${BORDER_DIVIDER}`,
             gap: 8,
             minWidth: 0,
           }}
@@ -265,7 +299,16 @@ export function PostListCard({
             nameColor={TITLE_COLOR}
           />
 
+          {/* Figma 1200:95 — 댓글(좌, 24px) → 하트(우, 32px), 그룹 gap 16 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0 }}>
+            {/* 댓글 (gap 4, 카운트 #64748b) */}
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <CommentIcon size={24} />
+              <span style={{ fontSize: 14, fontWeight: 400, lineHeight: 1.3, color: '#64748b' }}>
+                {post.comment_count}
+              </span>
+            </span>
+            {/* 좋아요 (gap 2, 카운트 #111) */}
             <button
               type="button"
               onClick={(e) => {
@@ -284,17 +327,11 @@ export function PostListCard({
                 cursor: onToggleLike ? 'pointer' : 'default',
               }}
             >
-              <LikeIcon size={24} filled={liked} />
+              <LikeIcon size={32} filled={liked} />
               <span style={{ fontSize: 14, fontWeight: 400, lineHeight: 1.3, color: TITLE_COLOR }}>
                 {likeCount ?? post.like_count}
               </span>
             </button>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
-              <CommentIcon size={24} />
-              <span style={{ fontSize: 14, fontWeight: 400, lineHeight: 1.3, color: TITLE_COLOR }}>
-                {post.comment_count}
-              </span>
-            </span>
           </div>
         </div>
       </div>
