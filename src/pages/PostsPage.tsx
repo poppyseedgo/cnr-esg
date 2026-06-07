@@ -12,7 +12,7 @@
 // ============================================================================
 
 import { useEffect, useMemo, useState, useCallback } from 'react';
-import { useParams, NavLink } from 'react-router-dom';
+import { useParams, NavLink, useSearchParams } from 'react-router-dom';
 import { useEventPhase } from '@/hooks/useEventPhase';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll'; // ← [2026-06-04] 무한 스크롤
@@ -25,6 +25,7 @@ import { PostFormModal } from '@/components/PostFormModal';
 import { PostDetailModal } from '@/components/PostDetailModal';
 import { ActivityGate } from '@/components/ActivityGate';
 import { signInWithMicrosoft } from '@/lib/auth';
+import type { EventModalKey } from '@/components/home/eventModalContent'; // ← [2026-06-05] 가이드 모달 키
 import type {
   EsgActivityKey,
   EsgPostCategory,
@@ -37,11 +38,15 @@ interface CategoryMeta {
   slug: string;
   label: string;
   emoji: string;
+  /** Figma 헤더용 짧은 라벨(탭/타이틀/가이드 공통 어간) — 예: '제로 웨이스트' */
+  tab: string;
+  /** 가이드 버튼이 여는 행사안내 모달 키(포스터와 동일) */
+  modalKey: EventModalKey;
 }
 
 const CATEGORIES: CategoryMeta[] = [
-  { key: 'zero_waste', activityKey: 'zero_waste', slug: 'zero-waste', label: '제로 웨이스트 어워드', emoji: '♻️' },
-  { key: 'wise_life', activityKey: 'wise_life', slug: 'wise-life', label: '슬기로운 사회 생활 어워드', emoji: '🤝' },
+  { key: 'zero_waste', activityKey: 'zero_waste', slug: 'zero-waste', label: '제로 웨이스트 어워드', emoji: '♻️', tab: '제로 웨이스트', modalKey: 'zero' },
+  { key: 'wise_life', activityKey: 'wise_life', slug: 'wise-life', label: '슬기로운 사회 생활 어워드', emoji: '🤝', tab: '슬기로운 사회생활', modalKey: 'wise' },
 ];
 
 // ============================================================================
@@ -55,13 +60,7 @@ export function PostsPage() {
 
   return (
     <div>
-      <h1 style={{ margin: '0 0 8px' }}>📝 ESG 어워드 게시판</h1>
-      <p style={{ color: '#666', marginTop: 0 }}>카테고리별로 참여 기간이 다릅니다.</p>
-
-      {/* 카테고리 탭 */}
-      <CategoryTabs />
-
-      {/* 선택된 카테고리 콘텐츠 */}
+      {/* 선택된 카테고리 콘텐츠 (헤더=타이틀/탭/카운트/가이드/글쓰기는 CategoryContent 내부) */}
       {current ? (
         <ActivityGate activityKey={current.activityKey}>
           <CategoryContent meta={current} />
@@ -80,49 +79,6 @@ export function PostsPage() {
           위 탭에서 카테고리를 선택해주세요.
         </div>
       )}
-    </div>
-  );
-}
-
-// ============================================================================
-// 카테고리 탭
-// ============================================================================
-
-function CategoryTabs() {
-  const { getActivity } = useEventPhase();
-  return (
-    <div style={{ display: 'flex', gap: 8, margin: '24px 0', flexWrap: 'wrap' }}>
-      {CATEGORIES.map((c) => {
-        const info = getActivity(c.activityKey);
-        return (
-          <NavLink
-            key={c.key}
-            to={`/posts/${c.slug}`}
-            style={({ isActive }) => ({
-              padding: '8px 14px',
-              borderRadius: 20,
-              background: isActive ? '#1a1a1a' : '#fff',
-              color: isActive ? '#fff' : '#444',
-              textDecoration: 'none',
-              border: '1px solid',
-              borderColor: isActive ? '#1a1a1a' : '#ddd',
-              fontSize: 13,
-              fontWeight: 600,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-            })}
-          >
-            {c.emoji} {c.label}
-            {info.status === 'active' && (
-              <span style={{ width: 6, height: 6, borderRadius: 3, background: '#10b981' }} />
-            )}
-            {info.status === 'closed' && (
-              <span style={{ color: '#888', fontSize: 11 }}>· 종료</span>
-            )}
-          </NavLink>
-        );
-      })}
     </div>
   );
 }
@@ -235,9 +191,42 @@ function CategoryContent({ meta }: { meta: CategoryMeta }) {
     [currentUser, likedSet, setItems, refresh]
   );
 
+  // 가이드 버튼 → 포스터와 동일한 행사안내 모달 오픈 (?modal=zero|wise, GlobalEventModal이 렌더)
+  const [, setSearchParams] = useSearchParams();
+  const handleGuide = useCallback(() => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set('modal', meta.modalKey);
+        return next;
+      },
+      { replace: false } // history push → 뒤로가기로 닫힘
+    );
+  }, [setSearchParams, meta.modalKey]);
+
+  // 글쓰기 버튼 → 비로그인 로그인 유도 / 작성가능 폼 / 그 외 안내
+  const handleWriteClick = useCallback(() => {
+    if (!currentUser) {
+      signInWithMicrosoft().catch(console.error);
+      return;
+    }
+    if (canCreate) {
+      setShowForm(true);
+      return;
+    }
+    alert(
+      settings.posts_enabled === false
+        ? '현재 게시글 작성이 일시 중지되었습니다.'
+        : '지금은 글을 작성할 수 있는 기간이 아닙니다.'
+    );
+  }, [currentUser, canCreate, settings.posts_enabled]);
+
   return (
     <div>
-      {/* 상태 안내 */}
+      {/* Figma 헤더: 타이틀 + 탭 + (카운트 / 가이드·글쓰기) */}
+      <PostsHeader meta={meta} count={posts.length} onGuide={handleGuide} onWrite={handleWriteClick} />
+
+      {/* 상태 안내 (기간 배너 — Figma 헤더와 별개로 유지) */}
       {period && (
         <StatusBanner
           status={status}
@@ -245,58 +234,6 @@ function CategoryContent({ meta }: { meta: CategoryMeta }) {
           postsEnabled={settings.posts_enabled !== false}
         />
       )}
-
-      {/* 작성 버튼 / 로그인 안내 */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          margin: '16px 0',
-          flexWrap: 'wrap',
-          gap: 8,
-        }}
-      >
-        <div style={{ fontSize: 13, color: '#666' }}>
-          총 {posts.length}개의 게시글
-        </div>
-        {canCreate ? (
-          <button
-            type="button"
-            onClick={() => setShowForm(true)}
-            style={{
-              padding: '8px 16px',
-              background: isAdminBypass && status !== 'active' ? '#0ea5e9' : '#1a1a1a',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 8,
-              cursor: 'pointer',
-              fontSize: 13,
-              fontWeight: 600,
-            }}
-          >
-            {isAdminBypass && status !== 'active' ? '🔧 ADMIN · 글 쓰기' : '✏️ 글 쓰기'}
-          </button>
-        ) : (
-          !currentUser && status === 'active' && (
-            <button
-              type="button"
-              onClick={() => signInWithMicrosoft().catch(console.error)}
-              style={{
-                padding: '8px 16px',
-                background: '#fff',
-                color: '#444',
-                border: '1px solid #ddd',
-                borderRadius: 8,
-                cursor: 'pointer',
-                fontSize: 13,
-              }}
-            >
-              🔑 로그인하고 글쓰기
-            </button>
-          )
-        )}
-      </div>
 
       {/* 목록 */}
       {initialLoading ? (
@@ -358,6 +295,140 @@ function CategoryContent({ meta }: { meta: CategoryMeta }) {
 // 보조 컴포넌트
 // ============================================================================
 
+// ============================================================================
+// 게시판 헤더 (Figma node 1194:384 / 1194:455 정밀 반영)
+//   구조: 흰 컨테이너 > [타이틀 row | 탭 row | 카운트·액션 row], 각 row padding 20
+//   - 타이틀: Pretendard Regular 36 / lh 1.25 / #000  ("{카테고리} 어워드")
+//   - 탭(pill): px20 py12 radius999 border#000, 활성=검정배경+흰글씨 / Medium 16 lh1.2
+//   - 카운트: Medium 14 lh1.2 #000 (좌) / 액션: gap12 (우)
+//   - 버튼: px24 py16 radius16 border#000, 가이드=흰배경/글쓰기=검정배경 / Medium 18 lh1.2
+//   가이드 버튼 → 포스터와 동일한 행사안내 모달(?modal=zero|wise)
+// ============================================================================
+
+function PostsHeader({
+  meta,
+  count,
+  onGuide,
+  onWrite,
+}: {
+  meta: CategoryMeta;
+  count: number;
+  onGuide: () => void;
+  onWrite: () => void;
+}) {
+  return (
+    <div style={{ background: '#fff', borderRadius: 16, overflow: 'hidden', marginBottom: 8 }}>
+      {/* 타이틀 row */}
+      <div style={{ padding: 20 }}>
+        <h1
+          style={{
+            margin: 0,
+            fontWeight: 400,
+            fontSize: 'clamp(26px, 4.5vw, 36px)',
+            lineHeight: 1.25,
+            color: '#000',
+          }}
+        >
+          {meta.tab} 어워드
+        </h1>
+      </div>
+
+      {/* 탭 row */}
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', padding: 20, flexWrap: 'wrap' }}>
+        {CATEGORIES.map((c) => {
+          const active = c.key === meta.key;
+          return (
+            <NavLink
+              key={c.key}
+              to={`/posts/${c.slug}`}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '12px 20px',
+                borderRadius: 999,
+                border: '1px solid #000',
+                background: active ? '#000' : '#fff',
+                color: active ? '#fff' : '#000',
+                textDecoration: 'none',
+                fontWeight: 500,
+                fontSize: 16,
+                lineHeight: 1.2,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {c.tab}
+            </NavLink>
+          );
+        })}
+      </div>
+
+      {/* 카운트 / 액션 row */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: 20,
+          gap: 12,
+          flexWrap: 'wrap',
+        }}
+      >
+        <p style={{ margin: 0, fontWeight: 500, fontSize: 14, lineHeight: 1.2, color: '#000' }}>
+          총 {count}개의 게시글
+        </p>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={onGuide}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '16px 24px',
+              borderRadius: 16,
+              border: '1px solid #000',
+              background: '#fff',
+              color: '#000',
+              cursor: 'pointer',
+              fontWeight: 500,
+              fontSize: 18,
+              lineHeight: 1.2,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {meta.tab} 가이드
+          </button>
+          <button
+            type="button"
+            onClick={onWrite}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '16px 24px',
+              borderRadius: 16,
+              border: '1px solid #000',
+              background: '#000',
+              color: '#fff',
+              cursor: 'pointer',
+              fontWeight: 500,
+              fontSize: 18,
+              lineHeight: 1.2,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            글 쓰기
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// 상태 배너
+// ============================================================================
 function StatusBanner({
   status,
   period,
