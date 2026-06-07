@@ -41,11 +41,27 @@ interface CategoryMeta {
   tab: string;
   /** 가이드 버튼이 여는 행사안내 모달 키(포스터와 동일) */
   modalKey: EventModalKey;
+  /** 타이틀 아래 설명 문구(줄 단위) — Figma 1200:133 / 1200:154 */
+  desc: string[];
 }
 
 const CATEGORIES: CategoryMeta[] = [
-  { key: 'zero_waste', activityKey: 'zero_waste', slug: 'zero-waste', label: '제로 웨이스트 어워드', emoji: '♻️', tab: '제로 웨이스트', modalKey: 'zero' },
-  { key: 'wise_life', activityKey: 'wise_life', slug: 'wise-life', label: '슬기로운 사회 생활 어워드', emoji: '🤝', tab: '슬기로운 사회생활', modalKey: 'wise' },
+  {
+    key: 'zero_waste', activityKey: 'zero_waste', slug: 'zero-waste', label: '제로 웨이스트 어워드', emoji: '♻️', tab: '제로 웨이스트', modalKey: 'zero',
+    desc: [
+      '텀블러, 개인 용기, 장바구니, 에코백 사용 등',
+      '평소 실천하고 계신 제로 웨이스트 습관을 사진 한 장과 함께 올려 주세요.',
+      '가장 많은 좋아요를 받은 분은 6월 30일 29주년 창립기념식에서 수상하게 됩니다.',
+    ],
+  },
+  {
+    key: 'wise_life', activityKey: 'wise_life', slug: 'wise-life', label: '슬기로운 사회 생활 어워드', emoji: '🤝', tab: '슬기로운 사회생활', modalKey: 'wise',
+    desc: [
+      '개인이 일상에서 실천하거나 동참할 수 있는',
+      '사회적 가치를 지닌 아이디어를 업로드 해주세요.',
+      '가장 많은 좋아요를 받은 분은 6월 30일 29주년 창립기념식에서 수상하게 됩니다.',
+    ],
+  },
 ];
 
 // ============================================================================
@@ -295,6 +311,26 @@ function CategoryContent({ meta }: { meta: CategoryMeta }) {
 //   가이드 버튼 → 포스터와 동일한 행사안내 모달(?modal=zero|wise)
 // ============================================================================
 
+// 가이드 버튼 아이콘 (업로드 arrow_outward.svg) — 대각선 외향 화살표
+function ArrowOutwardIcon({ size = 24 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      style={{ flexShrink: 0 }}
+    >
+      <path
+        d="M6.1885 17.2885L5.5 16.6L15.5807 6.5H6.2885V5.5H17.2885V16.5H16.2885V7.20775L6.1885 17.2885Z"
+        fill="#1C1B1F"
+      />
+    </svg>
+  );
+}
+
 function PostsHeader({
   meta,
   count,
@@ -308,8 +344,8 @@ function PostsHeader({
 }) {
   return (
     <div style={{ marginBottom: 8 }}>
-      {/* 타이틀 row */}
-      <div style={{ padding: 20 }}>
+      {/* 타이틀 row (타이틀 + 설명, gap 20) */}
+      <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 20 }}>
         <h1
           style={{
             margin: 0,
@@ -321,6 +357,13 @@ function PostsHeader({
         >
           {meta.tab} 어워드
         </h1>
+        <div style={{ fontWeight: 400, fontSize: 16, lineHeight: 1.4, color: '#96a0b3' }}>
+          {meta.desc.map((line, i) => (
+            <span key={i} style={{ display: 'block' }}>
+              {line}
+            </span>
+          ))}
+        </div>
       </div>
 
       {/* 탭 row */}
@@ -375,19 +418,21 @@ function PostsHeader({
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
+              gap: 4, // ← [2026-06-07] 텍스트 ↔ 화살표 아이콘
               padding: '16px 24px',
               borderRadius: 16,
-              border: '1px solid #000',
-              background: '#fff', // ← [2026-06-05] 가이드 배경 화이트
+              border: 'none', // ← [2026-06-07] 테두리 제거
+              background: 'transparent', // ← [2026-06-07] 배경 투명
               color: '#000',
               cursor: 'pointer',
               fontWeight: 500,
-              fontSize: 16, // ← [2026-06-05] 18 → 16
+              fontSize: 16,
               lineHeight: 1.2,
               whiteSpace: 'nowrap',
             }}
           >
-            {meta.tab} 가이드
+            <span>{meta.tab} 가이드</span>
+            <ArrowOutwardIcon size={24} />
           </button>
           <button
             type="button"
