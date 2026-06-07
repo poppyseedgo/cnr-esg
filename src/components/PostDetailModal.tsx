@@ -216,7 +216,7 @@ export function PostDetailModal({ postId, open, onClose, onDeleted }: PostDetail
         onClick={(e) => e.stopPropagation()}
         style={{
           background: '#fff',
-          borderRadius: 12,
+          borderRadius: 20, // ← [2026-06-08] 12 → 20
           width: '100%',
           maxWidth: 720,
           maxHeight: '90vh',
@@ -293,7 +293,7 @@ export function PostDetailModal({ postId, open, onClose, onDeleted }: PostDetail
           ) : (
             <div>
               {/* 제목 */}
-              <h2 style={{ fontSize: 20, margin: '0 0 12px', fontWeight: 700 }}>
+              <h2 style={{ fontSize: 24, margin: '0 0 12px', fontWeight: 700 }}>
                 {post.title}
               </h2>
 
