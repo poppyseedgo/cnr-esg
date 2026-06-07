@@ -378,11 +378,11 @@ function PostsHeader({
               padding: '16px 24px',
               borderRadius: 16,
               border: '1px solid #000',
-              background: '#cbecff', // ← [2026-06-05] Figma 1197:50 연블루
+              background: '#fff', // ← [2026-06-05] 가이드 배경 화이트
               color: '#000',
               cursor: 'pointer',
               fontWeight: 500,
-              fontSize: 18,
+              fontSize: 16, // ← [2026-06-05] 18 → 16
               lineHeight: 1.2,
               whiteSpace: 'nowrap',
             }}
@@ -403,7 +403,7 @@ function PostsHeader({
               color: '#000', // ← [2026-06-05] 검정 글자
               cursor: 'pointer',
               fontWeight: 500,
-              fontSize: 18,
+              fontSize: 16, // ← [2026-06-05] 18 → 16
               lineHeight: 1.2,
               whiteSpace: 'nowrap',
             }}
