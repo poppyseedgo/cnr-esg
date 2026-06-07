@@ -473,7 +473,7 @@ function PostsSkeleton() {
             overflow: 'hidden',
           }}
         >
-          <div style={{ aspectRatio: '16 / 9', background: '#f5f5f5' }} />
+          <div className="post-card__img" style={{ background: '#f5f5f5' }} />
           <div style={{ padding: 16 }}>
             <div style={{ height: 14, background: '#f0f0f0', borderRadius: 4, marginBottom: 8 }} />
             <div style={{ height: 14, background: '#f0f0f0', borderRadius: 4, width: '70%' }} />

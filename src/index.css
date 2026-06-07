@@ -173,3 +173,14 @@ button {
     height: 380px; /* 데스크탑 고정 */
   }
 }
+
+/* 게시판 카드 이미지: 고정 높이(폭 비례 금지) — 넓은 카드에서 이미지가 커져
+   본문/푸터를 잠식·잘림 방지. 모바일 130 / 데스크탑 180. */
+.post-card__img {
+  height: 130px;
+}
+@media (min-width: 600px) {
+  .post-card__img {
+    height: 180px;
+  }
+}
