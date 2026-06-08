@@ -213,10 +213,10 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess }: BazaarIntakeF
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginTop: 4 }}>
         <Field label="물건 사진 (접수·검수 기록용)">
-          <ThumbnailUploader kind="bazaar" ownerId={ownerId} value={intakePhoto} onChange={setIntakePhoto} disabled={saving} />
+          <ThumbnailUploader kind="bazaar" ownerId={ownerId} value={intakePhoto} onChange={setIntakePhoto} disabled={saving} compress />
         </Field>
         <Field label="게시할 물건 사진 (상품 썸네일)">
-          <ThumbnailUploader kind="bazaar" ownerId={ownerId} value={publishPhoto} onChange={setPublishPhoto} disabled={saving} />
+          <ThumbnailUploader kind="bazaar" ownerId={ownerId} value={publishPhoto} onChange={setPublishPhoto} disabled={saving} compress />
         </Field>
       </div>
 

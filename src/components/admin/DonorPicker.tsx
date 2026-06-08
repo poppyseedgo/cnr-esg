@@ -4,23 +4,24 @@
 // 동작:
 //   - 이름 입력 → 디바운스(250ms) → esg_profile_public 부분일치 검색 → 인라인 결과 리스트
 //   - 항목 탭 → 아바타+이름+부서 칩으로 고정, donor_id/이름/부서 스냅샷 부모로 전달
-//   - 단일 선택(기증자는 1명). 다시 검색하려면 칩의 "변경"으로 해제
+//   - 단일 선택. 다시 검색하려면 칩의 "변경"으로 해제
 //
-// 외부(비임직원) 기증자:
-//   - "직접 입력" 토글을 켜면 이름/부서를 수동 입력 (donor_id=null + 스냅샷).
-//   - ※ 요구사항은 '임직원 검색'이 기본. 외부 기증자 허용이 불필요하면 이 토글은 제거 가능.
+// 모바일 클릭 안정화 (핵심):
+//   iOS Safari 는 소프트 키보드가 열린 상태에서 입력창 밖을 처음 탭하면 그 탭을
+//   '키보드 닫기' 제스처로 흡수해 click 이 발생하지 않는다(→ 첫 탭이 먹힘).
+//   onMouseDown preventDefault 는 합성 마우스이벤트라 이를 막지 못한다.
+//   → 그래서 선택을 실제 포인터이벤트(pointerup)에서 처리하고, 이동거리로
+//     '탭 vs 스크롤'을 구분한다. pointerup 은 손을 떼는 즉시(키보드 닫힘과 무관)
+//     발생하므로 첫 탭에 바로 선택된다. (마우스/펜도 PointerEvent 로 동일 처리)
+//   - 키보드 접근성(Enter)용으로 onClick 폴백도 유지(리스트가 선택 즉시 사라져 중복 없음).
 //
 // 변경 이력:
-//   2026-06-08  최초 작성 — 떠 있는 드롭다운 + document mousedown 바깥클릭 방식
-//   2026-06-08  [모바일 버그수정] 떠 있는 드롭다운/mousedown 감지 제거 → 인라인 결과 리스트.
-//               터치에서 키보드 dismiss·blur·ghost-click 레이스로 선택이 안 되던 문제 해결.
-//               결과 항목: onMouseDown preventDefault(포커스 유지)+onClick 선택, 터치타깃 48px.
-//
-// 사용:
-//   <DonorPicker value={donor} onChange={setDonor} disabled={saving} />
+//   2026-06-08  최초(떠있는 드롭다운+document mousedown)
+//   2026-06-08  인라인 결과 리스트로 전환
+//   2026-06-08  [모바일 클릭수정] 선택을 pointerup(탭 가드)로 처리 — iOS 첫 탭 흡수 해결
 // ============================================================================
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { searchDonorProfiles, type DonorProfile } from '@/lib/bazaarIntake';
 import { Avatar } from '@/components/Avatar';
 
@@ -37,6 +38,8 @@ interface DonorPickerProps {
   disabled?: boolean;
 }
 
+const TAP_MOVE_THRESHOLD = 12; // px — 이보다 많이 움직이면 스크롤로 간주(선택 안 함)
+
 export function DonorPicker({ value, onChange, disabled }: DonorPickerProps) {
   const [term, setTerm] = useState('');
   const [results, setResults] = useState<DonorProfile[]>([]);
@@ -45,7 +48,10 @@ export function DonorPicker({ value, onChange, disabled }: DonorPickerProps) {
   const [manualName, setManualName] = useState('');
   const [manualDept, setManualDept] = useState('');
 
-  // 디바운스 검색 (인라인 결과 — 떠 있는 드롭다운/바깥클릭 감지 없음 → 터치 안전)
+  // 탭 판정용: pointerdown 시작 좌표/대상 id 기록
+  const pressRef = useRef<{ id: string; x: number; y: number } | null>(null);
+
+  // 디바운스 검색 (인라인 결과)
   useEffect(() => {
     if (manual) return;
     const q = term.trim();
@@ -90,6 +96,20 @@ export function DonorPicker({ value, onChange, disabled }: DonorPickerProps) {
     onChange({ id: null, name: n, dept: manualDept.trim() || null, avatar_url: null });
   };
 
+  // ── 포인터 기반 선택 (탭 vs 스크롤 구분) ───────────────────────────────
+  const onItemPointerDown = (p: DonorProfile, e: React.PointerEvent) => {
+    pressRef.current = { id: p.id, x: e.clientX, y: e.clientY };
+  };
+  const onItemPointerUp = (p: DonorProfile, e: React.PointerEvent) => {
+    const start = pressRef.current;
+    pressRef.current = null;
+    if (!start || start.id !== p.id) return;
+    const moved = Math.hypot(e.clientX - start.x, e.clientY - start.y);
+    if (moved > TAP_MOVE_THRESHOLD) return; // 스크롤 → 선택 취소
+    e.preventDefault();
+    select(p);
+  };
+
   // ── 선택 완료 상태 (칩) ────────────────────────────────────────────────
   if (value) {
     return (
@@ -106,8 +126,8 @@ export function DonorPicker({ value, onChange, disabled }: DonorPickerProps) {
           }}
         >
           <Avatar name={value.name} avatarUrl={value.avatar_url} size={24} />
-          <span style={{ fontSize: 13, fontWeight: 600, color: '#0c4a6e' }}>{value.name}</span>
-          {value.dept && <span style={{ fontSize: 12, color: '#0369a1' }}>· {value.dept}</span>}
+          <span style={{ fontSize: 14, fontWeight: 600, color: '#0c4a6e' }}>{value.name}</span>
+          {value.dept && <span style={{ fontSize: 13, color: '#0369a1' }}>· {value.dept}</span>}
           {value.id === null && (
             <span style={{ fontSize: 10, color: '#92400e', background: '#fef3c7', padding: '1px 6px', borderRadius: 4 }}>
               외부
@@ -141,7 +161,7 @@ export function DonorPicker({ value, onChange, disabled }: DonorPickerProps) {
           />
 
           {showResults && (
-            <div style={resultsBox}>
+            <div style={resultsBox} role="listbox">
               {searching ? (
                 <div style={resultMuted}>검색 중…</div>
               ) : results.length === 0 ? (
@@ -151,15 +171,18 @@ export function DonorPicker({ value, onChange, disabled }: DonorPickerProps) {
                   <button
                     key={p.id}
                     type="button"
-                    // onMouseDown preventDefault: 입력 포커스 유지 → 모바일 blur/ghost-click 방지
-                    onMouseDown={(e) => e.preventDefault()}
+                    role="option"
+                    aria-selected={false}
+                    // 선택은 pointerup(탭 가드)에서. onClick 은 키보드/폴백.
+                    onPointerDown={(e) => onItemPointerDown(p, e)}
+                    onPointerUp={(e) => onItemPointerUp(p, e)}
                     onClick={() => select(p)}
                     style={resultItem}
                   >
                     <Avatar name={p.name} avatarUrl={p.avatar_url} size={32} />
                     <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minWidth: 0 }}>
-                      <span style={{ fontSize: 14, fontWeight: 600, color: '#222' }}>{p.name}</span>
-                      {p.dept && <span style={{ fontSize: 12, color: '#888' }}>{p.dept}</span>}
+                      <span style={{ fontSize: 15, fontWeight: 600, color: '#222' }}>{p.name}</span>
+                      {p.dept && <span style={{ fontSize: 13, color: '#888' }}>{p.dept}</span>}
                     </span>
                   </button>
                 ))
@@ -225,6 +248,8 @@ const resultsBox: React.CSSProperties = {
   maxHeight: 280,
   overflowY: 'auto',
   WebkitOverflowScrolling: 'touch',
+  // 결과 항목을 탭할 때 브라우저 기본 제스처(스크롤/줌)와의 충돌 최소화
+  touchAction: 'pan-y',
   padding: 4,
 };
 
@@ -233,8 +258,8 @@ const resultItem: React.CSSProperties = {
   alignItems: 'center',
   gap: 10,
   width: '100%',
-  minHeight: 48,          // 터치 타깃 충분히 크게
-  padding: '8px 10px',
+  minHeight: 52,          // 터치 타깃 충분히 크게
+  padding: '10px',
   background: 'transparent',
   border: 'none',
   borderRadius: 6,
@@ -249,30 +274,32 @@ const resultMuted: React.CSSProperties = {
 };
 
 const clearBtnStyle: React.CSSProperties = {
-  padding: '6px 12px',
-  minHeight: 36,
+  padding: '8px 14px',
+  minHeight: 40,
   background: '#fff',
   border: '1px solid #ddd',
   borderRadius: 6,
   cursor: 'pointer',
-  fontSize: 12,
+  fontSize: 13,
   color: '#555',
   whiteSpace: 'nowrap',
 };
 
 const linkBtnStyle: React.CSSProperties = {
   marginTop: 8,
+  minHeight: 40,
   background: 'none',
   border: 'none',
   color: '#0ea5e9',
-  fontSize: 13,
+  fontSize: 14,
   cursor: 'pointer',
-  padding: '4px 0',
+  padding: '6px 0',
   textAlign: 'left',
 };
 
 const applyBtnStyle: React.CSSProperties = {
   padding: '10px 18px',
+  minHeight: 44,
   background: '#0ea5e9',
   color: '#fff',
   border: 'none',

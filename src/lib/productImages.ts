@@ -29,6 +29,62 @@ export interface UploadProductImageOptions {
   kind: ProductKind;
   /** 상품/경매 ID. 새 등록 시점에는 임시 ID 사용 (예: `new-${Date.now()}`) */
   ownerId: string;
+  /** [2026-06-08 추가] 업로드 전 클라이언트 측 리사이즈/압축 여부. 기본 false(기존 동작 동일).
+   *   모바일에서 폰 사진(3~8MB)을 바로 올릴 때 업로드 지연을 줄이기 위함. */
+  compress?: boolean;
+  /** 압축 시 최대 변(px). 기본 1600 */
+  maxDimension?: number;
+  /** 압축 시 JPEG 품질(0~1). 기본 0.82 */
+  quality?: number;
+}
+
+/**
+ * [2026-06-08 추가] 캔버스 기반 이미지 리사이즈/압축.
+ * 안전 장치:
+ *   - 이미지가 아니거나 GIF(애니)면 원본 유지
+ *   - 600KB 미만이면 원본 유지(이미 가벼움)
+ *   - 디코딩/인코딩 실패하거나 결과가 더 크면 원본 유지
+ *   → 어떤 경우에도 "원본 업로드"로 안전하게 폴백.
+ */
+async function compressImage(
+  file: File,
+  maxDimension = 1600,
+  quality = 0.82
+): Promise<File> {
+  if (!file.type.startsWith('image/')) return file;
+  if (file.type === 'image/gif') return file;       // 애니메이션 보존
+  if (file.size < 600 * 1024) return file;          // 이미 가벼움
+
+  let bitmap: ImageBitmap | null = null;
+  try {
+    bitmap = await createImageBitmap(file);
+  } catch {
+    return file;                                    // 디코딩 실패 → 원본
+  }
+
+  const { width, height } = bitmap;
+  const scale = Math.min(1, maxDimension / Math.max(width, height));
+  const w = Math.max(1, Math.round(width * scale));
+  const h = Math.max(1, Math.round(height * scale));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    bitmap.close?.();
+    return file;
+  }
+  ctx.drawImage(bitmap, 0, 0, w, h);
+  bitmap.close?.();
+
+  const blob: Blob | null = await new Promise((resolve) =>
+    canvas.toBlob(resolve, 'image/jpeg', quality)
+  );
+  if (!blob || blob.size >= file.size) return file; // 효과 없으면 원본
+
+  const baseName = file.name.replace(/\.[^.]+$/, '') || 'image';
+  return new File([blob], `${baseName}.jpg`, { type: 'image/jpeg', lastModified: Date.now() });
 }
 
 /**
@@ -42,19 +98,27 @@ export async function uploadProductImage(
   if (!file.type.startsWith('image/')) {
     throw new Error('이미지 파일만 업로드할 수 있습니다.');
   }
-  if (file.size > 10 * 1024 * 1024) {
+
+  // [2026-06-08 추가] 옵션 시 업로드 전 압축(실패 시 원본). 10MB 검증은 압축 후에 수행
+  // → 모바일 폰 사진(>10MB)도 압축으로 통과 가능.
+  let outFile = file;
+  if (opts.compress) {
+    outFile = await compressImage(file, opts.maxDimension, opts.quality);
+  }
+
+  if (outFile.size > 10 * 1024 * 1024) {
     throw new Error('파일 크기는 10MB 이하여야 합니다.');
   }
 
   // 파일명 생성: timestamp-random.ext
-  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+  const ext = (outFile.name.split('.').pop() || 'jpg').toLowerCase();
   const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
   const path = `${opts.kind}/${opts.ownerId}/${filename}`;
 
-  const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, file, {
+  const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, outFile, {
     cacheControl: '3600',
     upsert: false,
-    contentType: file.type,
+    contentType: outFile.type,
   });
   if (upErr) {
     // 어드민 권한 없으면 RLS 차단

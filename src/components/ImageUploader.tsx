@@ -36,6 +36,8 @@ interface ThumbnailUploaderProps {
   value: string | null | undefined;
   onChange: (url: string | null) => void;
   disabled?: boolean;
+  /** [2026-06-08 추가] 업로드 전 압축(모바일 폰 사진 대비). 기본 false. */
+  compress?: boolean;
 }
 
 export function ThumbnailUploader({
@@ -44,6 +46,7 @@ export function ThumbnailUploader({
   value,
   onChange,
   disabled,
+  compress,
 }: ThumbnailUploaderProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -57,7 +60,7 @@ export function ThumbnailUploader({
       if (value) {
         await deleteProductImage(value).catch(() => {});
       }
-      const url = await uploadProductImage(file, { kind, ownerId });
+      const url = await uploadProductImage(file, { kind, ownerId, compress });
       onChange(url);
     } catch (err) {
       alert(err instanceof Error ? err.message : '업로드 실패');
@@ -162,6 +165,8 @@ interface DetailImagesUploaderProps {
   onChange: (urls: string[]) => void;
   maxCount?: number;
   disabled?: boolean;
+  /** [2026-06-08 추가] 업로드 전 압축(모바일 폰 사진 대비). 기본 false. */
+  compress?: boolean;
 }
 
 export function DetailImagesUploader({
@@ -171,6 +176,7 @@ export function DetailImagesUploader({
   onChange,
   maxCount = 5,
   disabled,
+  compress,
 }: DetailImagesUploaderProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -189,7 +195,7 @@ export function DetailImagesUploader({
     try {
       const uploaded: string[] = [];
       for (const file of files) {
-        const url = await uploadProductImage(file, { kind, ownerId });
+        const url = await uploadProductImage(file, { kind, ownerId, compress });
         uploaded.push(url);
       }
       onChange([...values, ...uploaded]);
