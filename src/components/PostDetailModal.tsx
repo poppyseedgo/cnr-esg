@@ -48,6 +48,8 @@ interface PostDetailModalProps {
   onClose: () => void;
   /** 삭제 후 호출 (목록 새로고침 등) */
   onDeleted?: () => void;
+  /** 좋아요 토글 시 호출 — 목록 카드 하트(likedSet) 동기화용 */
+  onLikeChanged?: (postId: string, liked: boolean) => void;
 }
 
 // 좋아요 하트 SVG (카드와 동일 에셋) — 미좋아요 outline(#111) / 좋아요 heart_filled(#FF2E65 + 흰 하이라이트)
@@ -78,7 +80,7 @@ function DetailLikeIcon({ filled, size = 18 }: { filled: boolean; size?: number 
   );
 }
 
-export function PostDetailModal({ postId, open, onClose, onDeleted }: PostDetailModalProps) {
+export function PostDetailModal({ postId, open, onClose, onDeleted, onLikeChanged }: PostDetailModalProps) {
   const { currentUser, isAdmin } = useCurrentUser();
   const [post, setPost] = useState<EsgPostWithImagesRow | null>(null);
   const [loading, setLoading] = useState(true);
@@ -210,6 +212,7 @@ export function PostDetailModal({ postId, open, onClose, onDeleted }: PostDetail
       setPost((prev) =>
         prev ? { ...prev, like_count: Math.max(0, (prev.like_count ?? 0) + (nowLiked ? 1 : -1)) } : prev
       );
+      onLikeChanged?.(post.id, nowLiked); // ← [2026-06-08] 목록 카드 하트(likedSet) 즉시 동기화
     } catch (e) {
       console.error(e);
     } finally {

@@ -278,6 +278,14 @@ function CategoryContent({ meta }: { meta: CategoryMeta }) {
           setSelectedPostId(null);
           refresh();
         }}
+        onLikeChanged={(postId, liked) =>
+          setLikedSet((prev) => {
+            const next = new Set(prev);
+            if (liked) next.add(postId);
+            else next.delete(postId);
+            return next;
+          })
+        }
       />
 
       {/* 작성 모달 */}
