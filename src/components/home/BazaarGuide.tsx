@@ -24,6 +24,8 @@
 //               품목별 pb-24, 마지막 py-32/18px, 절차① "1층 인포데스크" 추가
 //   2026-06-02  Figma 재대조 — 전 제목 SemiBold, 절차 배지 외곽선 원(흰바탕)·본문 18px,
 //               마무리 16px/pb-40/무경계
+//   2026-06-08  Figma 1035:964 재대조 — 섹션① "참여 기간"→"접수 방법": 접수 기간/장소/시간
+//               3카드(라임·회색 배지) 추가, 날짜 6/22→6/19, 선물문구 "나눔 인증서와 씨앗 키트"
 // ============================================================================
 
 import './BazaarGuide.css';
@@ -81,15 +83,46 @@ export function BazaarGuide() {
       {/* ⓪ 인트로 (가운데 1줄, 구분선 없음) — 헤더 부제에서 본문으로 이동 */}
       <p className="bazaar-intro">임직원 여러분들의 적극적인 참여를 기다리고 있어요.</p>
 
-      {/* ① 바자회 물품 참여 기간 */}
+      {/* ① 바자회 물품 접수 방법 (Figma 1035:997 + 1210:73) */}
       <section className="bazaar-section bazaar-section--first">
-        <h3 className="bazaar-section__title bazaar-section__title--semibold">바자회 물품 참여 기간</h3>
+        <h3 className="bazaar-section__title">바자회 물품 접수 방법</h3>
+
+        {/* 접수 정보 3카드: 기간 / 장소 / 시간 */}
+        <div className="bazaar-method">
+          <div className="bazaar-method__card">
+            <p className="bazaar-method__label">물품 접수 기간</p>
+            <p className="bazaar-method__value">
+              6/8(월) <span className="bazaar-method__muted">부터</span> 6/19(금){' '}
+              <span className="bazaar-method__muted">까지</span>
+            </p>
+          </div>
+          <div className="bazaar-method__card">
+            <p className="bazaar-method__label">물품 접수 장소</p>
+            <p className="bazaar-method__value">1층 안내데스크</p>
+          </div>
+          <div className="bazaar-method__card">
+            <p className="bazaar-method__label">물품 접수 시간</p>
+            <div className="bazaar-method__times">
+              <div className="bazaar-method__time-row">
+                <span className="bazaar-badge bazaar-badge--ok">접수 가능 시간</span>
+                <span className="bazaar-method__value">10:00~14:00</span>
+              </div>
+              <div className="bazaar-method__time-row">
+                <span className="bazaar-badge bazaar-badge--muted">접수 마지막 날</span>
+                <span className="bazaar-method__value">09:00~10:00</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 안내 문구 */}
         <div className="bazaar-section__body">
           <p>
-            <strong>6월 8일</strong> 부터 <strong>6월 22일</strong> 까지 바자회 물품을 접수하세요.
+            <strong>6월 8일</strong> 부터 <strong>6월 19일</strong> 까지 바자회 물품을 접수하세요.
           </p>
           <p>
-            바자회 물품에 참여하신 모든 분들에게는 <strong>씨앗 키트를 선물로 드립니다.</strong>
+            바자회 물품에 참여하신 모든 분들에게는{' '}
+            <strong>나눔 인증서와 씨앗 키트를 선물로 드립니다.</strong>
           </p>
         </div>
       </section>

@@ -139,7 +139,55 @@
 }
 .bazaar-badge--ok { background: #b4ffa4; color: #111; }   /* 가능 (라임) */
 .bazaar-badge--ng { background: #111;    color: #fff; }   /* 불가 (검정) */
+.bazaar-badge--muted { background: #e6e6e6; color: #111; } /* 접수 마지막 날 (회색) */
 .bazaar-badge--lg { padding: 4px 12px; font-size: 14px; } /* 공통불가 (py-4 14px) */
+
+/* ── 접수 방법 3카드 (기간 / 장소 / 시간) — Figma 1210:73 ────────
+   카드 row gap 12, 각 카드 동일 폭(flex 1)·동일 높이(stretch),
+   bg #fff, border #f5f5f5, radius 16, padding 16, 라벨↔값 gap 20 */
+.bazaar-method {
+  display: flex;
+  gap: 12px;
+  align-items: stretch;                       /* 카드 높이 균일(self-stretch) */
+  width: 100%;
+}
+.bazaar-method__card {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 16px;
+  background: #fff;
+  border: 1px solid #f5f5f5;
+  border-radius: 16px;
+}
+.bazaar-method__label {
+  margin: 0;
+  font-weight: 500;                           /* Medium */
+  font-size: 14px;
+  line-height: 1.5;
+  color: #000;
+}
+.bazaar-method__value {
+  margin: 0;
+  font-weight: 400;                           /* Regular */
+  font-size: 16px;
+  line-height: 1.5;
+  color: #111;
+  word-break: keep-all;
+}
+.bazaar-method__muted { color: #bababa; }     /* "부터 / 까지" 회색 */
+.bazaar-method__times {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bazaar-method__time-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
 /* 절차 숫자 배지 — 흰 배경 + 검정 1px 테두리 원 32×32 (Figma 1036:165) */
 .bazaar-step-badge {
@@ -237,6 +285,10 @@
   .bazaar-card { padding: 14px; gap: 14px; }
   .bazaar-card__title { font-size: 16px; }
   .bazaar-card__text { font-size: 12px; }
+
+  /* 접수 방법 3카드: 좁은 폭에서 세로 적층 */
+  .bazaar-method { flex-direction: column; gap: 12px; }
+  .bazaar-method__card { gap: 14px; }
 
   .bazaar-final { font-size: 14px; }
 }
