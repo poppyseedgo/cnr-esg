@@ -49,9 +49,11 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess }: BazaarIntakeF
       ? { id: initial.donor_id, name: initial.donor_name_snapshot, dept: initial.donor_dept_snapshot, avatar_url: null }
       : null
   );
+  // 숫자 입력은 number | '' 로 둬야 비우고(=공백) 자유롭게 타이핑 가능. // ← [모바일 버그수정]
+  // (이전 `Number(value) || 0` 패턴은 값을 지우면 즉시 0으로 되돌려 입력이 막혔음)
   const [originalPrice, setOriginalPrice] = useState<number | ''>(initial?.original_price ?? '');
-  const [listedPrice, setListedPrice] = useState<number>(initial?.listed_price ?? 0);
-  const [quantity, setQuantity] = useState<number>(initial?.quantity ?? 1);
+  const [listedPrice, setListedPrice] = useState<number | ''>(initial?.listed_price ?? ''); // ← [수정] 0 기본 → 빈값(타이핑 가능)
+  const [quantity, setQuantity] = useState<number | ''>(initial?.quantity ?? 1);             // ← [수정] number → number|''
   const [intakePhoto, setIntakePhoto] = useState<string | null>(initial?.intake_photo_url ?? null);
   const [publishPhoto, setPublishPhoto] = useState<string | null>(initial?.publish_photo_url ?? null);
   const [note, setNote] = useState(initial?.note ?? '');
@@ -67,8 +69,8 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess }: BazaarIntakeF
   const validate = (forPublish: boolean): string | null => {
     if (!name.trim()) return '물건 이름을 입력해주세요.';
     if (!donor || !donor.name.trim()) return '기증자를 선택(또는 직접 입력)해주세요.';
-    if (listedPrice < 0) return '책정 가격은 0 이상이어야 합니다.';
-    if (quantity < 1) return '수량은 1개 이상이어야 합니다.';
+    if (listedPrice === '' || Number(listedPrice) < 0) return '책정 가격을 0 이상으로 입력해주세요.'; // ← [수정] 빈값 검증
+    if (quantity === '' || Number(quantity) < 1) return '수량을 1개 이상으로 입력해주세요.';            // ← [수정] 빈값 검증
     if (originalPrice !== '' && Number(originalPrice) < 0) return '원래 가격은 0 이상이어야 합니다.';
     if (forPublish && !publishPhoto) return '게시하려면 "게시할 물건 사진"이 필요합니다.';
     return null;
@@ -85,6 +87,11 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess }: BazaarIntakeF
     try {
       let intakeId = initial?.id;
 
+      // validate()에서 빈값/음수는 이미 차단됨 → 여기서는 확정 숫자로 변환 // ← [수정]
+      const listedNum = Number(listedPrice);
+      const qtyNum = Number(quantity);
+      const originalNum = originalPrice === '' ? null : Number(originalPrice);
+
       if (isEdit && initial) {
         await updateIntake(initial.id, {
           name,
@@ -92,9 +99,9 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess }: BazaarIntakeF
           donor_id: donor!.id,
           donor_name_snapshot: donor!.name,
           donor_dept_snapshot: donor!.dept,
-          original_price: originalPrice === '' ? null : Number(originalPrice),
-          listed_price: listedPrice,
-          quantity,
+          original_price: originalNum,
+          listed_price: listedNum,
+          quantity: qtyNum,
           intake_photo_url: intakePhoto,
           publish_photo_url: publishPhoto,
           note: note.trim() || null,
@@ -106,9 +113,9 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess }: BazaarIntakeF
           donor_id: donor!.id,
           donor_name_snapshot: donor!.name,
           donor_dept_snapshot: donor!.dept,
-          original_price: originalPrice === '' ? null : Number(originalPrice),
-          listed_price: listedPrice,
-          quantity,
+          original_price: originalNum,
+          listed_price: listedNum,
+          quantity: qtyNum,
           intake_photo_url: intakePhoto,
           publish_photo_url: publishPhoto,
           note: note.trim() || null,
@@ -166,6 +173,7 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess }: BazaarIntakeF
         <Field label="원래 가격 (원)">
           <input
             type="number"
+            inputMode="numeric"
             value={originalPrice}
             onChange={(e) => setOriginalPrice(e.target.value === '' ? '' : Number(e.target.value))}
             placeholder="선택 입력"
@@ -178,8 +186,10 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess }: BazaarIntakeF
         <Field label="책정 가격 (원) *">
           <input
             type="number"
+            inputMode="numeric"
             value={listedPrice}
-            onChange={(e) => setListedPrice(Number(e.target.value) || 0)}
+            onChange={(e) => setListedPrice(e.target.value === '' ? '' : Number(e.target.value))}
+            placeholder="예: 5000"
             disabled={saving}
             step={500}
             min={0}
@@ -189,8 +199,10 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess }: BazaarIntakeF
         <Field label="수량 (개) *">
           <input
             type="number"
+            inputMode="numeric"
             value={quantity}
-            onChange={(e) => setQuantity(Number(e.target.value) || 1)}
+            onChange={(e) => setQuantity(e.target.value === '' ? '' : Number(e.target.value))}
+            placeholder="예: 1"
             disabled={saving}
             step={1}
             min={1}
@@ -288,10 +300,10 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess }: BazaarIntakeF
 // ============================================================================
 const inputStyle: React.CSSProperties = {
   width: '100%',
-  padding: '8px 10px',
+  padding: '10px 12px',
   border: '1px solid #ddd',
   borderRadius: 6,
-  fontSize: 13,
+  fontSize: 16,            // ← [모바일] 16px 미만이면 iOS가 입력 시 화면을 확대함 → 16px 고정
   boxSizing: 'border-box',
 };
 
