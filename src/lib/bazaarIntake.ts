@@ -19,6 +19,7 @@ import { supabase as _supabase } from './supabase';
 import type {
   EsgBazaarIntakeRow,
   EsgBazaarIntakeInsert,
+  EsgBazaarIntakePublishStatus,
   BazaarCategory,
 } from '@/types/esg';
 
@@ -82,7 +83,7 @@ export async function searchDonorProfiles(
 // 접수 목록 조회 (관리자 — RLS 통과)
 //   filter: 'all' | 'pending' | 'published' | 'unpublished'
 // ============================================================================
-export type IntakeFilter = 'all' | 'pending' | 'published' | 'unpublished';
+export type IntakeFilter = 'all' | EsgBazaarIntakePublishStatus;
 
 export async function loadIntakeList(filter: IntakeFilter = 'all'): Promise<EsgBazaarIntakeRow[]> {
   let query = supabase
@@ -196,6 +197,23 @@ export async function deleteIntake(row: EsgBazaarIntakeRow): Promise<void> {
     throw new Error('게시된 항목입니다. 먼저 "게시 중단"을 한 뒤 삭제하세요. (주문 이력 보존을 위해 상품은 자동 삭제하지 않습니다)');
   }
   const { error } = await supabase.from('esg_bazaar_intake').delete().eq('id', row.id);
+  if (error) throw error;
+}
+
+// ============================================================================
+// 검수 상태 전이 (pending ↔ passed ↔ rejected) — 일반 UPDATE
+//   ※ 이 함수는 "상품이 없는" 검수 단계 상태만 다룬다.
+//     게시/게시중단(published/unpublished)은 상품 동기화가 필요하므로
+//     반드시 publishIntake()/unpublishIntake() RPC를 사용한다. (오펀 상품 방지)
+//   ※ 호출부(UI)에서 published/unpublished 행에는 이 함수를 노출하지 않는다.
+// ============================================================================
+export type InspectionStatus = 'pending' | 'passed' | 'rejected';
+
+export async function setIntakeStatus(id: string, status: InspectionStatus): Promise<void> {
+  const { error } = await supabase
+    .from('esg_bazaar_intake')
+    .update({ publish_status: status, updated_at: new Date().toISOString() })
+    .eq('id', id);
   if (error) throw error;
 }
 

@@ -1,21 +1,29 @@
 // ============================================================================
 // AdminBazaarIntake — 바자회 물품 접수/검수/게시 관리 페이지 (관리자 전용)
 //
-// 흐름: 접수 등록 → 검수 → 게시(상품 페이지 공개) / 게시 중단
-//   - 등록/수정: BazaarIntakeForm 을 ModalShell(데스크탑 모달 / 모바일 바텀시트)로 표시
-//     · createPortal(document.body) — 조상 transform/overflow 영향 차단(PostDetailModal과 동일 패턴)
-//     · 모달은 body 스크롤을 잠그므로 폼 작업 중 페이지가 움직이지 않음(푸터로 내려가던 문제 해결)
-//   - 성공 시: 모달 닫기 + 토스트 + 페이지 상단으로 스크롤(새 항목이 리스트 맨 위에 보임)
-//   - 게시/게시중단/삭제: 목록 카드 액션 (DB RPC 호출) + 토스트
-//   - Realtime 구독으로 여러 접수 단말 동시 작업 시에도 목록 자동 갱신
+// 상태(상호배타적 — 한 행은 정확히 하나):
+//   pending 검수대기 · passed 검수완료 · rejected 검수탈락 · published 게시중 · unpublished 게시중단
+//   전체 개수 = 5개 상태 개수의 합.
+//
+// 숫자 정합성(섞임 방지)의 핵심:
+//   - 목록 전체를 한 번에 로드(loadIntakeList('all'))해서 rows 한 배열에 담는다.
+//   - 필터 탭 카운트도, 화면에 보이는 목록도 "모두 이 rows 한 배열에서" 파생.
+//     → 카운트와 표시 목록이 같은 소스라 절대 어긋나지 않음.
+//
+// 상태 전이:
+//   pending → passed/rejected         : setIntakeStatus (일반 UPDATE)
+//   passed/rejected → pending          : setIntakeStatus (재검토)
+//   passed → published                 : publishIntake (RPC, 상품 생성)
+//   published → unpublished            : unpublishIntake (RPC, 상품 hidden)
+//   unpublished → published(다시 게시)  : publishIntake (RPC)
+//   ※ 검수 상태(pending/passed/rejected)에는 상품이 없음 → UI에서 게시 액션 미노출.
 //
 // 변경 이력:
-//   2026-06-08  최초(인라인 아코디언 폼)
-//   2026-06-08  [요청] 폼을 ModalShell(모달/바텀시트)로 전환 + 성공 토스트 + 상단 스크롤.
-//               등록/수정 모두 모달화. 액션(게시/중단/삭제)에도 토스트 추가.
+//   2026-06-08  인라인→모달, 토스트, 상단 스크롤
+//   2026-06-08  [요청] 5단계 상태(검수완료/검수탈락 추가) + 필터별 카운트 배지 + 검수 액션
 // ============================================================================
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import {
@@ -23,32 +31,39 @@ import {
   publishIntake,
   unpublishIntake,
   deleteIntake,
+  setIntakeStatus,
   subscribeIntake,
   categoryLabel,
   type IntakeFilter,
+  type InspectionStatus,
 } from '@/lib/bazaarIntake';
 import { BazaarIntakeForm } from '@/components/admin/BazaarIntakeForm';
 import { ModalShell } from '@/components/modal/ModalShell';
-import '@/components/home/EventModal.css'; // ← .esg-modal__* 클래스 보장(이미 전역 로드되지만 명시)
+import '@/components/home/EventModal.css'; // ← .esg-modal__* 클래스 보장
 import type { EsgBazaarIntakeRow, EsgBazaarIntakePublishStatus } from '@/types/esg';
 
 const STATUS_META: Record<EsgBazaarIntakePublishStatus, { label: string; bg: string; color: string }> = {
   pending: { label: '검수 대기', bg: '#fef3c7', color: '#92400e' },
+  passed: { label: '검수 완료', bg: '#dbeafe', color: '#1e40af' },
+  rejected: { label: '검수 탈락', bg: '#fee2e2', color: '#991b1b' },
   published: { label: '게시 중', bg: '#dcfce7', color: '#166534' },
   unpublished: { label: '게시 중단', bg: '#f0f0f0', color: '#666' },
 };
 
+// 필터 순서 (요청 순서: 전체 → 검수대기 → 검수완료 → 게시중 → 검수탈락 → 게시중단)
 const FILTERS: Array<{ key: IntakeFilter; label: string }> = [
   { key: 'all', label: '전체' },
   { key: 'pending', label: '검수 대기' },
+  { key: 'passed', label: '검수 완료' },
   { key: 'published', label: '게시 중' },
+  { key: 'rejected', label: '검수 탈락' },
   { key: 'unpublished', label: '게시 중단' },
 ];
 
-// 폼 모달 상태
 type FormMode = { type: 'create' } | { type: 'edit'; row: EsgBazaarIntakeRow } | null;
 
 export function AdminBazaarIntake() {
+  // rows = "전체" 목록 한 배열 (카운트/표시의 단일 소스)
   const [rows, setRows] = useState<EsgBazaarIntakeRow[]>([]);
   const [filter, setFilter] = useState<IntakeFilter>('all');
   const [loading, setLoading] = useState(true);
@@ -65,10 +80,11 @@ export function AdminBazaarIntake() {
   };
   useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current); }, []);
 
-  const reload = async (f: IntakeFilter = filter) => {
+  // 항상 전체 로드 (필터는 클라이언트에서) → 카운트/목록 단일 소스
+  const reload = async () => {
     try {
       setError(null);
-      setRows(await loadIntakeList(f));
+      setRows(await loadIntakeList('all'));
     } catch (e) {
       console.error('[AdminBazaarIntake]', e);
       setError(e instanceof Error ? e.message : '접수 목록을 불러오지 못했습니다.');
@@ -79,31 +95,39 @@ export function AdminBazaarIntake() {
 
   useEffect(() => {
     setLoading(true);
-    void reload(filter);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter]);
+    void reload();
+  }, []);
 
   useEffect(() => {
-    const cleanup = subscribeIntake(() => void reload(filter));
+    const cleanup = subscribeIntake(() => void reload());
     return cleanup;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter]);
+  }, []);
+
+  // 상태별 카운트 — rows(전체) 한 배열에서만 계산 (섞임 없음)
+  const counts = useMemo(() => {
+    const c = { all: rows.length, pending: 0, passed: 0, rejected: 0, published: 0, unpublished: 0 };
+    for (const r of rows) c[r.publish_status] += 1;
+    return c;
+  }, [rows]);
+
+  // 표시 목록 — 같은 rows에서 필터링
+  const visible = useMemo(
+    () => (filter === 'all' ? rows : rows.filter((r) => r.publish_status === filter)),
+    [rows, filter]
+  );
 
   const closeForm = () => setFormMode(null);
 
-  // 폼 성공: 모달 닫기 → 토스트 → 상단 스크롤 → 목록 갱신
   const handleFormSuccess = (mode: FormMode) => {
     setFormMode(null);
     showToast(mode?.type === 'edit' ? '수정되었습니다.' : '접수 등록이 완료되었습니다.');
-    // 모달 닫힘(스크롤락 해제) 후 부드럽게 상단으로
     setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 60);
-    void reload(filter);
+    void reload();
   };
 
-  // 카드 액션(게시/중단/삭제) 공통: 토스트 + 갱신
   const notifyAndReload = (msg: string) => {
     showToast(msg);
-    void reload(filter);
+    void reload();
   };
 
   return (
@@ -115,46 +139,70 @@ export function AdminBazaarIntake() {
         </button>
       </div>
       <p style={{ fontSize: 12, color: '#888', margin: '0 0 16px' }}>
-        임직원이 가져온 물품을 받는 즉시 등록하세요. 검수 후 "게시"하면 바자회 상품 페이지에 공개됩니다.
+        임직원이 가져온 물품을 받는 즉시 등록하세요. 검수 → 게시 단계로 관리합니다.
       </p>
 
-      {/* 필터 탭 */}
+      {/* 필터 탭 (카운트 배지) */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
-        {FILTERS.map((f) => (
-          <button
-            key={f.key}
-            type="button"
-            onClick={() => setFilter(f.key)}
-            style={{
-              padding: '8px 14px',
-              minHeight: 40,
-              borderRadius: 999,
-              border: '1px solid',
-              borderColor: filter === f.key ? '#0ea5e9' : '#ddd',
-              background: filter === f.key ? '#0ea5e9' : '#fff',
-              color: filter === f.key ? '#fff' : '#555',
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
-          >
-            {f.label}
-          </button>
-        ))}
+        {FILTERS.map((f) => {
+          const active = filter === f.key;
+          const n = counts[f.key];
+          return (
+            <button
+              key={f.key}
+              type="button"
+              onClick={() => setFilter(f.key)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '8px 12px',
+                minHeight: 40,
+                borderRadius: 999,
+                border: '1px solid',
+                borderColor: active ? '#0ea5e9' : '#ddd',
+                background: active ? '#0ea5e9' : '#fff',
+                color: active ? '#fff' : '#555',
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              {f.label}
+              <span
+                style={{
+                  minWidth: 18,
+                  padding: '0 6px',
+                  height: 18,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: 999,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  background: active ? 'rgba(255,255,255,0.25)' : '#f1f5f9',
+                  color: active ? '#fff' : '#475569',
+                }}
+              >
+                {n}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {loading ? (
         <div style={{ padding: 48, textAlign: 'center', color: '#888' }}>불러오는 중…</div>
       ) : error ? (
         <div style={{ padding: 16, background: '#fee2e2', color: '#991b1b', borderRadius: 8 }}>⚠️ {error}</div>
-      ) : rows.length === 0 ? (
+      ) : visible.length === 0 ? (
         <div style={emptyStyle}>
           <div style={{ fontSize: 48, marginBottom: 12, opacity: 0.5 }}>📦</div>
-          <p style={{ margin: '0 0 8px', color: '#888' }}>해당 조건의 접수 물품이 없습니다.</p>
+          <p style={{ margin: '0 0 8px', color: '#888' }}>해당 분류의 접수 물품이 없습니다.</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {rows.map((r) => (
+          {visible.map((r) => (
             <IntakeCard
               key={r.id}
               row={r}
@@ -165,7 +213,7 @@ export function AdminBazaarIntake() {
         </div>
       )}
 
-      {/* 등록/수정 모달 (데스크탑 모달 / 모바일 바텀시트) — body 직속 포털 */}
+      {/* 등록/수정 모달 (데스크탑 모달 / 모바일 바텀시트) */}
       {formMode &&
         createPortal(
           <ModalShell
@@ -189,7 +237,7 @@ export function AdminBazaarIntake() {
           document.body
         )}
 
-      {/* 토스트 — 화면 상단 고정(스크롤 위치 무관) */}
+      {/* 토스트 */}
       {toast &&
         createPortal(
           <div style={toastWrap} role="status" aria-live="polite">
@@ -202,7 +250,7 @@ export function AdminBazaarIntake() {
 }
 
 // ============================================================================
-// 개별 접수 카드
+// 개별 접수 카드 — 상태별 액션
 // ============================================================================
 function IntakeCard({
   row,
@@ -215,52 +263,42 @@ function IntakeCard({
 }) {
   const [busy, setBusy] = useState(false);
   const meta = STATUS_META[row.publish_status];
-  const thumb = row.publish_photo_url || row.intake_photos[0]; // ← [수정] 배열 첫 장
+  const thumb = row.publish_photo_url || row.intake_photos[0];
+  const faded = row.publish_status === 'rejected' || row.publish_status === 'unpublished';
 
-  const doPublish = async () => {
+  // 공통 실행 래퍼 (busy 토글 + 에러 alert)
+  const run = async (fn: () => Promise<void>, successMsg: string) => {
+    setBusy(true);
+    try {
+      await fn();
+      onAction(successMsg);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '처리 실패');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const toStatus = (s: InspectionStatus, msg: string) => run(() => setIntakeStatus(row.id, s), msg);
+
+  const doPublish = () => {
     if (!row.publish_photo_url) {
       alert('게시할 물건 사진이 없습니다. 먼저 "수정"에서 게시 사진을 등록하세요.');
       return;
     }
-    setBusy(true);
-    try {
-      await publishIntake(row.id);
-      onAction('상품 페이지에 게시되었습니다.');
-    } catch (e) {
-      alert(e instanceof Error ? e.message : '게시 실패');
-    } finally {
-      setBusy(false);
-    }
+    void run(() => publishIntake(row.id).then(() => undefined), '상품 페이지에 게시되었습니다.');
   };
-
-  const doUnpublish = async () => {
+  const doUnpublish = () => {
     if (!confirm('게시를 중단하시겠습니까? 상품 페이지에서 숨겨집니다. (주문 이력은 보존)')) return;
-    setBusy(true);
-    try {
-      await unpublishIntake(row.id);
-      onAction('게시를 중단했습니다.');
-    } catch (e) {
-      alert(e instanceof Error ? e.message : '게시 중단 실패');
-    } finally {
-      setBusy(false);
-    }
+    void run(() => unpublishIntake(row.id), '게시를 중단했습니다.');
   };
-
-  const doDelete = async () => {
+  const doDelete = () => {
     if (!confirm('이 접수 기록을 삭제하시겠습니까?')) return;
-    setBusy(true);
-    try {
-      await deleteIntake(row);
-      onAction('삭제되었습니다.');
-    } catch (e) {
-      alert(e instanceof Error ? e.message : '삭제 실패');
-    } finally {
-      setBusy(false);
-    }
+    void run(() => deleteIntake(row), '삭제되었습니다.');
   };
 
   return (
-    <div style={{ ...cardBox, opacity: row.publish_status === 'unpublished' ? 0.7 : 1 }}>
+    <div style={{ ...cardBox, opacity: faded ? 0.7 : 1 }}>
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
         {/* 썸네일 */}
         <div
@@ -304,24 +342,40 @@ function IntakeCard({
           {row.note && <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>📝 {row.note}</div>}
         </div>
 
-        {/* 액션 */}
+        {/* 상태별 액션 */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
-          <button type="button" onClick={onEdit} disabled={busy} style={miniBtn('#0ea5e9')}>
-            ✏️ 수정
-          </button>
-          {row.publish_status === 'published' ? (
-            <button type="button" onClick={doUnpublish} disabled={busy} style={miniBtn('#d97706')}>
-              ⏸ 게시 중단
-            </button>
-          ) : (
-            <button type="button" onClick={doPublish} disabled={busy} style={miniBtn('#16a34a')}>
-              {row.publish_status === 'unpublished' ? '▶ 다시 게시' : '🚀 게시'}
-            </button>
+          {row.publish_status === 'pending' && (
+            <>
+              <button type="button" onClick={() => toStatus('passed', '검수 완료로 변경했습니다.')} disabled={busy} style={miniBtn('#16a34a')}>✅ 검수 통과</button>
+              <button type="button" onClick={() => toStatus('rejected', '검수 탈락 처리했습니다.')} disabled={busy} style={miniBtn('#dc2626')}>❌ 검수 탈락</button>
+            </>
           )}
+
+          {row.publish_status === 'passed' && (
+            <>
+              <button type="button" onClick={doPublish} disabled={busy} style={miniBtn('#0ea5e9')}>🚀 게시</button>
+              <button type="button" onClick={() => toStatus('rejected', '검수 탈락 처리했습니다.')} disabled={busy} style={miniBtn('#dc2626')}>❌ 검수 탈락</button>
+              <button type="button" onClick={() => toStatus('pending', '검수 대기로 되돌렸습니다.')} disabled={busy} style={miniBtn('#6b7280')}>↩︎ 검수 대기</button>
+            </>
+          )}
+
+          {row.publish_status === 'rejected' && (
+            <button type="button" onClick={() => toStatus('pending', '검수 대기로 되돌렸습니다.')} disabled={busy} style={miniBtn('#6b7280')}>↩︎ 검수 대기로</button>
+          )}
+
+          {row.publish_status === 'published' && (
+            <button type="button" onClick={doUnpublish} disabled={busy} style={miniBtn('#d97706')}>⏸ 게시 중단</button>
+          )}
+
+          {row.publish_status === 'unpublished' && (
+            <button type="button" onClick={doPublish} disabled={busy} style={miniBtn('#0ea5e9')}>▶ 다시 게시</button>
+          )}
+
+          <button type="button" onClick={onEdit} disabled={busy} style={miniBtn('#6b7280')}>✏️ 수정</button>
+
+          {/* 상품이 없는 검수 단계(pending/passed/rejected)만 삭제 가능 */}
           {!row.product_id && (
-            <button type="button" onClick={doDelete} disabled={busy} style={miniBtn('#dc2626')}>
-              🗑 삭제
-            </button>
+            <button type="button" onClick={doDelete} disabled={busy} style={miniBtn('#dc2626')}>🗑 삭제</button>
           )}
         </div>
       </div>

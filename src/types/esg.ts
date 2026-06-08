@@ -333,7 +333,12 @@ export type BazaarCategory =
   | 'kitchen';
 
 /** 접수 게시 상태 */   // ← [추가]
-export type EsgBazaarIntakePublishStatus = 'pending' | 'published' | 'unpublished';
+export type EsgBazaarIntakePublishStatus =
+  | 'pending'      // 검수 대기
+  | 'passed'       // 검수 완료(통과, 게시 전) // ← [추가 2026-06-08]
+  | 'rejected'     // 검수 탈락               // ← [추가 2026-06-08]
+  | 'published'    // 게시 중
+  | 'unpublished'; // 게시 중단
 
 export interface EsgBazaarIntakeRow {   // ← [추가]
   id: string;
