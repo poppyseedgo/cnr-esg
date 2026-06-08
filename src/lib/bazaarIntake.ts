@@ -109,7 +109,7 @@ export interface CreateIntakeInput {
   original_price: number | null;    // 원래 가격(선택)
   listed_price: number;             // 책정 가격
   quantity: number;                 // 수량
-  intake_photo_url: string | null;  // 물건 사진(접수/검수 기록)
+  intake_photos: string[];          // 물건 사진(접수/검수 기록) — 최대 5장 // ← [수정 2026-06-08]
   publish_photo_url: string | null; // 게시할 물건 사진(상품 썸네일)
   note: string | null;
   created_by: string | null;        // 접수 등록 관리자 id
@@ -134,7 +134,7 @@ export async function createIntake(input: CreateIntakeInput): Promise<EsgBazaarI
     original_price: input.original_price,
     listed_price: input.listed_price,
     quantity: input.quantity,
-    intake_photo_url: input.intake_photo_url,
+    intake_photos: input.intake_photos ?? [],
     publish_photo_url: input.publish_photo_url,
     note: input.note,
     created_by: input.created_by,
@@ -165,7 +165,7 @@ export type UpdateIntakePatch = Partial<
     | 'original_price'
     | 'listed_price'
     | 'quantity'
-    | 'intake_photo_url'
+    | 'intake_photos'
     | 'publish_photo_url'
     | 'note'
   >

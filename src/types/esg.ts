@@ -345,7 +345,7 @@ export interface EsgBazaarIntakeRow {   // ← [추가]
   original_price: number | null;      // 원래 가격(선택)
   listed_price: number;               // 책정 가격
   quantity: number;                   // 수량
-  intake_photo_url: string | null;    // 물건 사진(접수/검수 기록)
+  intake_photos: string[];            // 물건 사진(접수/검수 기록) — 최대 5장 // ← [수정 2026-06-08] 단일→배열
   publish_photo_url: string | null;   // 게시할 물건 사진(상품 썸네일)
   publish_status: EsgBazaarIntakePublishStatus;
   product_id: string | null;          // 게시 시 연결되는 esg_products.id
@@ -364,7 +364,7 @@ export interface EsgBazaarIntakeInsert {   // ← [추가]
   original_price: number | null;
   listed_price: number;
   quantity: number;
-  intake_photo_url: string | null;
+  intake_photos: string[];            // ← [수정 2026-06-08] 단일→배열
   publish_photo_url: string | null;
   note: string | null;
   created_by: string | null;
@@ -382,7 +382,7 @@ export type EsgBazaarIntakeUpdate = Partial<   // ← [추가]
     | 'original_price'
     | 'listed_price'
     | 'quantity'
-    | 'intake_photo_url'
+    | 'intake_photos'
     | 'publish_photo_url'
     | 'note'
     | 'publish_status'

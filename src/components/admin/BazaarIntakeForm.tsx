@@ -19,7 +19,7 @@
 
 import { useState } from 'react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { ThumbnailUploader } from '@/components/ImageUploader';
+import { ThumbnailUploader, DetailImagesUploader } from '@/components/ImageUploader';
 import { DonorPicker, type DonorValue } from '@/components/admin/DonorPicker';
 import {
   createIntake,
@@ -54,7 +54,7 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess }: BazaarIntakeF
   const [originalPrice, setOriginalPrice] = useState<number | ''>(initial?.original_price ?? '');
   const [listedPrice, setListedPrice] = useState<number | ''>(initial?.listed_price ?? ''); // ← [수정] 0 기본 → 빈값(타이핑 가능)
   const [quantity, setQuantity] = useState<number | ''>(initial?.quantity ?? 1);             // ← [수정] number → number|''
-  const [intakePhoto, setIntakePhoto] = useState<string | null>(initial?.intake_photo_url ?? null);
+  const [intakePhotos, setIntakePhotos] = useState<string[]>(initial?.intake_photos ?? []); // ← [수정] 단일→배열(최대 5장)
   const [publishPhoto, setPublishPhoto] = useState<string | null>(initial?.publish_photo_url ?? null);
   const [note, setNote] = useState(initial?.note ?? '');
 
@@ -102,7 +102,7 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess }: BazaarIntakeF
           original_price: originalNum,
           listed_price: listedNum,
           quantity: qtyNum,
-          intake_photo_url: intakePhoto,
+          intake_photos: intakePhotos,
           publish_photo_url: publishPhoto,
           note: note.trim() || null,
         });
@@ -116,7 +116,7 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess }: BazaarIntakeF
           original_price: originalNum,
           listed_price: listedNum,
           quantity: qtyNum,
-          intake_photo_url: intakePhoto,
+          intake_photos: intakePhotos,
           publish_photo_url: publishPhoto,
           note: note.trim() || null,
           created_by: currentUser?.id ?? null,
@@ -211,14 +211,24 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess }: BazaarIntakeF
         </Field>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginTop: 4 }}>
-        <Field label="물건 사진 (접수·검수 기록용)">
-          <ThumbnailUploader kind="bazaar" ownerId={ownerId} value={intakePhoto} onChange={setIntakePhoto} disabled={saving} compress />
-        </Field>
-        <Field label="게시할 물건 사진 (상품 썸네일)">
-          <ThumbnailUploader kind="bazaar" ownerId={ownerId} value={publishPhoto} onChange={setPublishPhoto} disabled={saving} compress />
-        </Field>
-      </div>
+      <Field label="물건 사진 (접수·검수 기록용) — 최대 5장">
+        <DetailImagesUploader
+          kind="bazaar"
+          ownerId={ownerId}
+          values={intakePhotos}
+          onChange={setIntakePhotos}
+          maxCount={5}
+          disabled={saving}
+          compress
+        />
+        <span style={{ fontSize: 11, color: '#888' }}>
+          폰으로 바로 촬영해 올릴 수 있어요. 업로드 시 자동으로 용량을 줄여 저장합니다.
+        </span>
+      </Field>
+
+      <Field label="게시할 물건 사진 (상품 썸네일)">
+        <ThumbnailUploader kind="bazaar" ownerId={ownerId} value={publishPhoto} onChange={setPublishPhoto} disabled={saving} compress />
+      </Field>
 
       <Field label="검수 메모 (선택)">
         <textarea

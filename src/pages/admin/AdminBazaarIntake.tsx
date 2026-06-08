@@ -215,7 +215,7 @@ function IntakeCard({
 }) {
   const [busy, setBusy] = useState(false);
   const meta = STATUS_META[row.publish_status];
-  const thumb = row.publish_photo_url || row.intake_photo_url;
+  const thumb = row.publish_photo_url || row.intake_photos[0]; // ← [수정] 배열 첫 장
 
   const doPublish = async () => {
     if (!row.publish_photo_url) {
