@@ -167,6 +167,9 @@ interface DetailImagesUploaderProps {
   disabled?: boolean;
   /** [2026-06-08 추가] 업로드 전 압축(모바일 폰 사진 대비). 기본 false. */
   compress?: boolean;
+  /** [2026-06-08 추가] 압축 강도 조절(미지정 시 uploadProductImage 기본값 1600/0.82). */
+  compressMaxDimension?: number;
+  compressQuality?: number;
 }
 
 export function DetailImagesUploader({
@@ -177,6 +180,8 @@ export function DetailImagesUploader({
   maxCount = 5,
   disabled,
   compress,
+  compressMaxDimension,
+  compressQuality,
 }: DetailImagesUploaderProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -195,7 +200,13 @@ export function DetailImagesUploader({
     try {
       const uploaded: string[] = [];
       for (const file of files) {
-        const url = await uploadProductImage(file, { kind, ownerId, compress });
+        const url = await uploadProductImage(file, {
+          kind,
+          ownerId,
+          compress,
+          maxDimension: compressMaxDimension,
+          quality: compressQuality,
+        });
         uploaded.push(url);
       }
       onChange([...values, ...uploaded]);

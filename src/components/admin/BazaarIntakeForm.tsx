@@ -211,18 +211,20 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess }: BazaarIntakeF
         </Field>
       </div>
 
-      <Field label="물건 사진 (접수·검수 기록용) — 최대 5장">
+      <Field label="물건 사진 (접수·검수 기록용) — 최대 3장">
         <DetailImagesUploader
           kind="bazaar"
           ownerId={ownerId}
           values={intakePhotos}
           onChange={setIntakePhotos}
-          maxCount={5}
+          maxCount={3}
           disabled={saving}
           compress
+          compressMaxDimension={1280}
+          compressQuality={0.75}
         />
         <span style={{ fontSize: 11, color: '#888' }}>
-          폰으로 바로 촬영해 올릴 수 있어요. 업로드 시 자동으로 용량을 줄여 저장합니다.
+          폰으로 바로 촬영해 올릴 수 있어요. 내부 검수 기록용이라 더 가볍게(최대 1280px) 저장합니다.
         </span>
       </Field>
 
