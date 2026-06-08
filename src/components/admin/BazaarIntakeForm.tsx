@@ -68,7 +68,7 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess }: BazaarIntakeF
 
   const validate = (forPublish: boolean): string | null => {
     if (!name.trim()) return '물건 이름을 입력해주세요.';
-    if (!donor || !donor.name.trim()) return '기증자를 선택(또는 직접 입력)해주세요.';
+    if (!donor || !donor.name.trim()) return '기증자를 선택해주세요.';
     if (listedPrice === '' || Number(listedPrice) < 0) return '책정 가격을 0 이상으로 입력해주세요.'; // ← [수정] 빈값 검증
     if (quantity === '' || Number(quantity) < 1) return '수량을 1개 이상으로 입력해주세요.';            // ← [수정] 빈값 검증
     if (originalPrice !== '' && Number(originalPrice) < 0) return '원래 가격은 0 이상이어야 합니다.';
