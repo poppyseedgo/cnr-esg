@@ -232,6 +232,61 @@ export async function createQuestion(input: CreateQuestionInput): Promise<EsgQna
 }
 
 // ============================================================================
+// 내 질문 (마이페이지) — 작성자 본인 조회/수정/삭제
+//   RLS: SELECT(공개·비hidden), UPDATE/DELETE는 auth.uid()=author_id 정책 필요
+//        (마이그레이션 20260608_001_qna_author_rls.sql 참조)
+// ============================================================================
+
+/**
+ * 내가 작성한 Q&A 질문 + 답변 결합 조회 (최신순, hidden 제외).
+ * author_id = 현재 로그인 사용자.
+ */
+export async function loadMyQuestions(authorId: string): Promise<EsgQnaQuestionWithAnswer[]> {
+  const { data, error } = await supabase
+    .from('esg_qna_questions')
+    .select('*, answer:esg_qna_answers(*)')
+    .eq('author_id', authorId)
+    .neq('status', 'hidden')
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+
+  return (data ?? []).map((row: EsgQnaQuestionRow & { answer: EsgQnaAnswerRow[] | EsgQnaAnswerRow | null }) => ({
+    ...row,
+    answer: Array.isArray(row.answer) ? (row.answer[0] ?? null) : (row.answer ?? null),
+  })) as EsgQnaQuestionWithAnswer[];
+}
+
+/**
+ * 내 질문 수정 (작성자 본인, 답변 전 'pending'만).
+ * RLS가 author_id·status 조건을 강제하지만, UX를 위해 클라이언트에서도 검증.
+ */
+export async function updateQuestion(
+  id: string,
+  input: { category: EsgQnaCategory; content: string }
+): Promise<EsgQnaQuestionRow> {
+  const { data: { user } } = await _supabase.auth.getUser();
+  if (!user) throw new Error('로그인이 필요합니다.');
+
+  const trimmed = input.content.trim();
+  if (trimmed.length === 0) throw new Error('문의 내용을 입력해 주세요.');
+  if (trimmed.length > 200) throw new Error('문의 내용은 200자 이내로 작성해 주세요.');
+
+  const { data, error } = await supabase
+    .from('esg_qna_questions')
+    .update({ category: input.category, content: trimmed })
+    .eq('id', id)
+    .eq('author_id', user.id)        // 본인 글만 (RLS 이중 안전망)
+    .eq('status', 'pending')         // 답변 완료/숨김 글은 수정 불가
+    .select('*')
+    .single();
+
+  if (error) throw error;
+  if (!data) throw new Error('수정할 수 없는 질문입니다. (이미 답변되었거나 권한이 없습니다)');
+  return data as EsgQnaQuestionRow;
+}
+
+// ============================================================================
 // 답변 변경 (어드민)
 // ============================================================================
 

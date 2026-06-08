@@ -32,7 +32,11 @@ import {
 import { formatKSTFull } from '@/utils/time';
 import { Avatar } from '@/components/Avatar'; // ← [추가] 마이페이지 프로필 아바타
 import { loadMyDonations, getDonationTimeLeft, subscribeMyDonations } from '@/lib/donations';
-import type { EsgDonationRow } from '@/types/esg';
+import { loadMyQuestions, updateQuestion, deleteQuestion } from '@/lib/qna'; // ← [내 Q&A 탭]
+import { QnaCategoryChip } from '@/components/faq-qna/QnaCategoryChip';
+import { QnaStatusBadge } from '@/components/faq-qna/QnaStatusBadge';
+import { ESG_QNA_CATEGORY_LABELS } from '@/types/esg';
+import type { EsgDonationRow, EsgQnaCategory, EsgQnaQuestionWithAnswer } from '@/types/esg';
 
 const tabs = [
   { to: '/mypage/pending', label: '결제대기' },
@@ -41,6 +45,7 @@ const tabs = [
   { to: '/mypage/auction-won', label: '경매 낙찰' },
   { to: '/mypage/wishlist', label: '찜한상품' },
   { to: '/mypage/donations', label: '💚 기부내역' },
+  { to: '/mypage/qna', label: '내 Q&A' },
 ];
 
 export function MyPage() {
@@ -900,5 +905,243 @@ function DonationListItem({ donation }: { donation: EsgDonationRow }) {
         </div>
       )}
     </Link>
+  );
+}
+
+// ============================================================================
+// 내 Q&A — 내가 작성한 질문 조회 / 수정(답변 전) / 삭제
+// ============================================================================
+
+const QNA_CATEGORIES: EsgQnaCategory[] = ['general', 'zero_waste', 'wise_life', 'bazaar', 'auction'];
+
+export function MyPageQna() {
+  const { currentUser } = useCurrentUser();
+  const [questions, setQuestions] = useState<EsgQnaQuestionWithAnswer[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // 인라인 수정 상태
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editCategory, setEditCategory] = useState<EsgQnaCategory>('general');
+  const [editContent, setEditContent] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const reload = async () => {
+    if (!currentUser) return;
+    try {
+      setError(null);
+      const data = await loadMyQuestions(currentUser.id);
+      setQuestions(data);
+    } catch (e) {
+      console.error('[MyPageQna]', e);
+      setError(e instanceof Error ? e.message : '불러오기 실패');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!currentUser) return;
+    void reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.id]);
+
+  const startEdit = (q: EsgQnaQuestionWithAnswer) => {
+    setEditingId(q.id);
+    setEditCategory(q.category);
+    setEditContent(q.content);
+  };
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditContent('');
+  };
+  const saveEdit = async (id: string) => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await updateQuestion(id, { category: editCategory, content: editContent });
+      cancelEdit();
+      await reload();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '수정에 실패했습니다.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  const handleDelete = async (id: string) => {
+    if (busy) return;
+    if (!window.confirm('이 질문을 삭제할까요? 등록된 답변도 함께 삭제됩니다.')) return;
+    setBusy(true);
+    try {
+      await deleteQuestion(id);
+      if (editingId === id) cancelEdit();
+      await reload();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '삭제에 실패했습니다.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (loading) {
+    return <div style={{ padding: 32, textAlign: 'center', color: '#888' }}>불러오는 중…</div>;
+  }
+  if (error) {
+    return <div style={{ padding: 16, background: '#fee2e2', color: '#991b1b', borderRadius: 8 }}>⚠️ {error}</div>;
+  }
+  if (questions.length === 0) {
+    return (
+      <div style={{ background: '#fff', borderRadius: 12, padding: 48, textAlign: 'center', border: '1px dashed #ddd' }}>
+        <div style={{ fontSize: 48, marginBottom: 12, opacity: 0.5 }}>💬</div>
+        <p style={{ margin: '0 0 16px', color: '#666' }}>아직 작성한 Q&amp;A가 없습니다.</p>
+        <Link
+          to="/qna"
+          style={{
+            display: 'inline-block',
+            padding: '8px 16px',
+            background: '#1a1a1a',
+            color: '#fff',
+            borderRadius: 6,
+            textDecoration: 'none',
+            fontSize: 13,
+            fontWeight: 600,
+          }}
+        >
+          Q&amp;A 바로가기
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div style={{ fontSize: 13, color: '#666', marginBottom: 12 }}>
+        총 {questions.length}개의 질문 · 답변 전 질문만 수정할 수 있어요.
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {questions.map((q) => {
+          const isEditing = editingId === q.id;
+          const canEdit = q.status === 'pending';
+          return (
+            <div
+              key={q.id}
+              style={{ background: '#fff', border: '1px solid #eee', borderRadius: 12, padding: 16 }}
+            >
+              {/* 상단: 카테고리 + 상태 + 작성일 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+                <QnaCategoryChip category={q.category} />
+                <QnaStatusBadge status={q.status} />
+                <span style={{ marginLeft: 'auto', fontSize: 12, color: '#999' }}>
+                  {formatKSTFull(q.created_at)}
+                </span>
+              </div>
+
+              {isEditing ? (
+                /* 수정 폼 */
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <select
+                    value={editCategory}
+                    onChange={(e) => setEditCategory(e.target.value as EsgQnaCategory)}
+                    disabled={busy}
+                    style={{
+                      padding: '8px 10px',
+                      borderRadius: 8,
+                      border: '1px solid #ddd',
+                      fontSize: 14,
+                      background: '#fff',
+                      maxWidth: 240,
+                    }}
+                  >
+                    {QNA_CATEGORIES.map((c) => (
+                      <option key={c} value={c}>{ESG_QNA_CATEGORY_LABELS[c]}</option>
+                    ))}
+                  </select>
+                  <textarea
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value.slice(0, 200))}
+                    disabled={busy}
+                    rows={3}
+                    maxLength={200}
+                    style={{
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      padding: 12,
+                      borderRadius: 8,
+                      border: '1px solid #ddd',
+                      fontSize: 14,
+                      lineHeight: 1.5,
+                      resize: 'vertical',
+                      fontFamily: 'inherit',
+                    }}
+                  />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 12, color: '#999' }}>{editContent.length}/200</span>
+                    <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+                      <button
+                        type="button"
+                        onClick={cancelEdit}
+                        disabled={busy}
+                        style={{ padding: '8px 14px', background: '#fff', color: '#444', border: '1px solid #ddd', borderRadius: 8, cursor: 'pointer', fontSize: 13 }}
+                      >
+                        취소
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => saveEdit(q.id)}
+                        disabled={busy || editContent.trim().length === 0}
+                        style={{ padding: '8px 14px', background: '#1a1a1a', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600, opacity: busy || editContent.trim().length === 0 ? 0.5 : 1 }}
+                      >
+                        저장
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* 질문 내용 */}
+                  <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: '#222', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                    {q.content}
+                  </p>
+
+                  {/* 답변 (있을 때) */}
+                  {q.answer && (
+                    <div style={{ marginTop: 12, padding: 12, background: '#f7f9fc', borderRadius: 8, border: '1px solid #eef1f6' }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: '#16a34a', marginBottom: 4 }}>답변</div>
+                      <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: '#333', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                        {q.answer.content}
+                      </p>
+                      <div style={{ fontSize: 11, color: '#999', marginTop: 6 }}>{formatKSTFull(q.answer.created_at)}</div>
+                    </div>
+                  )}
+
+                  {/* 액션: 수정(답변 전) / 삭제 */}
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
+                    {canEdit && (
+                      <button
+                        type="button"
+                        onClick={() => startEdit(q)}
+                        disabled={busy}
+                        style={{ padding: '6px 12px', background: '#fff', color: '#444', border: '1px solid #ddd', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}
+                      >
+                        ✏️ 수정
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(q.id)}
+                      disabled={busy}
+                      style={{ padding: '6px 12px', background: '#fff', color: '#dc2626', border: '1px solid #f0c2c2', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}
+                    >
+                      🗑 삭제
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }

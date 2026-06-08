@@ -24,7 +24,8 @@
 //               품목별 pb-24, 마지막 py-32/18px, 절차① "1층 인포데스크" 추가
 //   2026-06-02  Figma 재대조 — 전 제목 SemiBold, 절차 배지 외곽선 원(흰바탕)·본문 18px,
 //               마무리 16px/pb-40/무경계
-//   2026-06-08  Figma 1035:964 재대조 — 섹션① "참여 기간"→"접수 방법": 접수 기간/장소/시간
+//   2026-06-08  접수 3카드 정렬·폰트 재대조 — 값 16→18px, 기간·장소 값 가운데 정렬,
+//               시간 그룹 gap 8→4, 시간카드 pb-20. (이전) 섹션① "참여 기간"→"접수 방법": 접수 기간/장소/시간
 //               3카드(라임·회색 배지) 추가, 날짜 6/22→6/19, 선물문구 "나눔 인증서와 씨앗 키트"
 // ============================================================================
 
@@ -91,16 +92,20 @@ export function BazaarGuide() {
         <div className="bazaar-method">
           <div className="bazaar-method__card">
             <p className="bazaar-method__label">물품 접수 기간</p>
-            <p className="bazaar-method__value">
-              6/8(월) <span className="bazaar-method__muted">부터</span> 6/19(금){' '}
-              <span className="bazaar-method__muted">까지</span>
-            </p>
+            <div className="bazaar-method__value-row">
+              <p className="bazaar-method__value">
+                6/8(월) <span className="bazaar-method__muted">부터</span> 6/19(금){' '}
+                <span className="bazaar-method__muted">까지</span>
+              </p>
+            </div>
           </div>
           <div className="bazaar-method__card">
             <p className="bazaar-method__label">물품 접수 장소</p>
-            <p className="bazaar-method__value">1층 안내데스크</p>
+            <div className="bazaar-method__value-row bazaar-method__value-row--fill">
+              <p className="bazaar-method__value">1층 안내데스크</p>
+            </div>
           </div>
-          <div className="bazaar-method__card">
+          <div className="bazaar-method__card bazaar-method__card--times">
             <p className="bazaar-method__label">물품 접수 시간</p>
             <div className="bazaar-method__times">
               <div className="bazaar-method__time-row">

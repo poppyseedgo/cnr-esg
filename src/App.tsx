@@ -65,6 +65,7 @@ const MyPageBidding = lazyWithRetry(() => import('@/pages/MyPage').then((m) => (
 const MyPageAuctionWon = lazyWithRetry(() => import('@/pages/MyPage').then((m) => ({ default: m.MyPageAuctionWon })));
 const MyPageWishlist = lazyWithRetry(() => import('@/pages/MyPage').then((m) => ({ default: m.MyPageWishlist })));
 const MyPageDonations = lazyWithRetry(() => import('@/pages/MyPage').then((m) => ({ default: m.MyPageDonations })));
+const MyPageQna = lazyWithRetry(() => import('@/pages/MyPage').then((m) => ({ default: m.MyPageQna })));
 
 // Admin 계열 (각 파일 독립 청크)
 const AdminPage = lazyWithRetry(() => import('@/pages/AdminPage').then((m) => ({ default: m.AdminPage })));
@@ -166,6 +167,7 @@ const router = createBrowserRouter([
           { path: 'auction-won', element: <MyPageAuctionWon /> },
           { path: 'wishlist', element: <MyPageWishlist /> },
           { path: 'donations', element: <MyPageDonations /> },
+          { path: 'qna', element: <MyPageQna /> },
         ],
       },
 

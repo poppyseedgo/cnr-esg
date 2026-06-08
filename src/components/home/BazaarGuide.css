@@ -162,6 +162,9 @@
   border: 1px solid #f5f5f5;
   border-radius: 16px;
 }
+.bazaar-method__card--times {
+  padding: 16px 16px 20px;                    /* ← Figma 1210:82 pt16 pb20 px16 */
+}
 .bazaar-method__label {
   margin: 0;
   font-weight: 500;                           /* Medium */
@@ -169,10 +172,20 @@
   line-height: 1.5;
   color: #000;
 }
+/* 값 가운데 정렬 래퍼 (기간·장소 카드) — Figma 1210:74 / 1210:77 justify-center */
+.bazaar-method__value-row {
+  display: flex;
+  width: 100%;
+  justify-content: center;                    /* 가로 가운데 */
+  align-items: flex-start;
+}
+.bazaar-method__value-row--fill {
+  flex: 1 0 0;                                /* 장소 카드: 라벨 아래 공간 채움 (Figma flex-1) */
+}
 .bazaar-method__value {
   margin: 0;
   font-weight: 400;                           /* Regular */
-  font-size: 16px;
+  font-size: 18px;                            /* ← 16 → 18 (Figma 재대조) */
   line-height: 1.5;
   color: #111;
   word-break: keep-all;
@@ -181,7 +194,7 @@
 .bazaar-method__times {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;                                   /* ← 8 → 4 (Figma 1210:94) */
 }
 .bazaar-method__time-row {
   display: flex;
