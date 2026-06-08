@@ -11,6 +11,7 @@ const adminTabs = [
   { to: '/admin/dashboard', label: '대시보드', icon: '📊' },
   { to: '/admin/settings', label: '이벤트 설정', icon: '⚙️' },
   { to: '/admin/auctions', label: '경매 관리', icon: '🔨' },
+  { to: '/admin/bazaar-intake', label: '물품 접수', icon: '📦' }, // ← [추가 2026-06-08] 바자회 물품 접수/검수/게시
   { to: '/admin/products', label: '바자회 상품', icon: '🛍' },
   { to: '/admin/orders', label: '주문/입금확인', icon: '💳' },
   { to: '/admin/donations', label: '기부 관리', icon: '💚' },

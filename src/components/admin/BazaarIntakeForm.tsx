@@ -1,0 +1,305 @@
+// ============================================================================
+// BazaarIntakeForm — 바자회 물품 접수 등록/수정 폼
+//
+// 입력 필드(요구사항):
+//   물건 이름 / 물건 카테고리 / 기증자(임직원 검색) / 원래 가격 / 책정 가격 /
+//   수량 / 검수 후 최종 게시 여부 / 물건 사진(접수) / 게시할 물건 사진(상품 썸네일)
+//
+// 모드:
+//   - 등록(initial 없음): 저장 → (선택 시) 바로 게시
+//   - 수정(initial 있음): 저장 → 이미 게시된 항목이면 "재게시"로 상품에 반영
+//
+// 사진:
+//   - 공용 ThumbnailUploader(kind='bazaar') 재사용. ownerId 는 임시(new-*) 또는 접수 id.
+//
+// 사용:
+//   <BazaarIntakeForm onCancel={...} onSuccess={...} />               // 등록
+//   <BazaarIntakeForm initial={row} onCancel={...} onSuccess={...} /> // 수정
+// ============================================================================
+
+import { useState } from 'react';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { ThumbnailUploader } from '@/components/ImageUploader';
+import { DonorPicker, type DonorValue } from '@/components/admin/DonorPicker';
+import {
+  createIntake,
+  updateIntake,
+  publishIntake,
+  BAZAAR_CATEGORIES,
+} from '@/lib/bazaarIntake';
+import type { EsgBazaarIntakeRow, BazaarCategory } from '@/types/esg';
+
+interface BazaarIntakeFormProps {
+  initial?: EsgBazaarIntakeRow;
+  onCancel: () => void;
+  onSuccess: () => void;
+}
+
+export function BazaarIntakeForm({ initial, onCancel, onSuccess }: BazaarIntakeFormProps) {
+  const { currentUser } = useCurrentUser();
+  const isEdit = !!initial;
+
+  // 사진 업로드용 owner id (수정이면 실제 id, 신규면 임시)
+  const [ownerId] = useState(() => initial?.id ?? `new-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+
+  const [name, setName] = useState(initial?.name ?? '');
+  const [category, setCategory] = useState<BazaarCategory>(initial?.category ?? 'clothing');
+  const [donor, setDonor] = useState<DonorValue | null>(
+    initial
+      ? { id: initial.donor_id, name: initial.donor_name_snapshot, dept: initial.donor_dept_snapshot, avatar_url: null }
+      : null
+  );
+  const [originalPrice, setOriginalPrice] = useState<number | ''>(initial?.original_price ?? '');
+  const [listedPrice, setListedPrice] = useState<number>(initial?.listed_price ?? 0);
+  const [quantity, setQuantity] = useState<number>(initial?.quantity ?? 1);
+  const [intakePhoto, setIntakePhoto] = useState<string | null>(initial?.intake_photo_url ?? null);
+  const [publishPhoto, setPublishPhoto] = useState<string | null>(initial?.publish_photo_url ?? null);
+  const [note, setNote] = useState(initial?.note ?? '');
+
+  // 게시 여부:
+  //  - 신규: 'pending'(검수 대기) | 'publish'(바로 게시)
+  //  - 수정(이미 게시됨): 저장 후 상품에 반영(재게시) 체크
+  const [publishNow, setPublishNow] = useState(false);
+  const [reflectOnSave, setReflectOnSave] = useState(initial?.publish_status === 'published');
+
+  const [saving, setSaving] = useState(false);
+
+  const validate = (forPublish: boolean): string | null => {
+    if (!name.trim()) return '물건 이름을 입력해주세요.';
+    if (!donor || !donor.name.trim()) return '기증자를 선택(또는 직접 입력)해주세요.';
+    if (listedPrice < 0) return '책정 가격은 0 이상이어야 합니다.';
+    if (quantity < 1) return '수량은 1개 이상이어야 합니다.';
+    if (originalPrice !== '' && Number(originalPrice) < 0) return '원래 가격은 0 이상이어야 합니다.';
+    if (forPublish && !publishPhoto) return '게시하려면 "게시할 물건 사진"이 필요합니다.';
+    return null;
+  };
+
+  const save = async () => {
+    const willPublish = isEdit ? reflectOnSave : publishNow;
+    const err = validate(willPublish);
+    if (err) {
+      alert(err);
+      return;
+    }
+    setSaving(true);
+    try {
+      let intakeId = initial?.id;
+
+      if (isEdit && initial) {
+        await updateIntake(initial.id, {
+          name,
+          category,
+          donor_id: donor!.id,
+          donor_name_snapshot: donor!.name,
+          donor_dept_snapshot: donor!.dept,
+          original_price: originalPrice === '' ? null : Number(originalPrice),
+          listed_price: listedPrice,
+          quantity,
+          intake_photo_url: intakePhoto,
+          publish_photo_url: publishPhoto,
+          note: note.trim() || null,
+        });
+      } else {
+        const row = await createIntake({
+          name,
+          category,
+          donor_id: donor!.id,
+          donor_name_snapshot: donor!.name,
+          donor_dept_snapshot: donor!.dept,
+          original_price: originalPrice === '' ? null : Number(originalPrice),
+          listed_price: listedPrice,
+          quantity,
+          intake_photo_url: intakePhoto,
+          publish_photo_url: publishPhoto,
+          note: note.trim() || null,
+          created_by: currentUser?.id ?? null,
+        });
+        intakeId = row.id;
+      }
+
+      // 게시(또는 재게시) — 상품 생성/반영은 DB RPC가 처리
+      if (willPublish && intakeId) {
+        await publishIntake(intakeId);
+      }
+
+      onSuccess();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '저장 실패');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div>
+      <Field label="물건 이름 *">
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="예: 무지 텀블러 (거의 새것)"
+          disabled={saving}
+          style={inputStyle}
+        />
+      </Field>
+
+      <Field label="물건 카테고리 *">
+        <select
+          value={category}
+          onChange={(e) => setCategory(e.target.value as BazaarCategory)}
+          disabled={saving}
+          style={inputStyle}
+        >
+          {BAZAAR_CATEGORIES.map((c) => (
+            <option key={c.code} value={c.code}>
+              {c.label}
+            </option>
+          ))}
+        </select>
+      </Field>
+
+      <Field label="기증자 (임직원 검색) *">
+        <DonorPicker value={donor} onChange={setDonor} disabled={saving} />
+      </Field>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 }}>
+        <Field label="원래 가격 (원)">
+          <input
+            type="number"
+            value={originalPrice}
+            onChange={(e) => setOriginalPrice(e.target.value === '' ? '' : Number(e.target.value))}
+            placeholder="선택 입력"
+            disabled={saving}
+            step={1000}
+            min={0}
+            style={inputStyle}
+          />
+        </Field>
+        <Field label="책정 가격 (원) *">
+          <input
+            type="number"
+            value={listedPrice}
+            onChange={(e) => setListedPrice(Number(e.target.value) || 0)}
+            disabled={saving}
+            step={500}
+            min={0}
+            style={inputStyle}
+          />
+        </Field>
+        <Field label="수량 (개) *">
+          <input
+            type="number"
+            value={quantity}
+            onChange={(e) => setQuantity(Number(e.target.value) || 1)}
+            disabled={saving}
+            step={1}
+            min={1}
+            style={inputStyle}
+          />
+        </Field>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginTop: 4 }}>
+        <Field label="물건 사진 (접수·검수 기록용)">
+          <ThumbnailUploader kind="bazaar" ownerId={ownerId} value={intakePhoto} onChange={setIntakePhoto} disabled={saving} />
+        </Field>
+        <Field label="게시할 물건 사진 (상품 썸네일)">
+          <ThumbnailUploader kind="bazaar" ownerId={ownerId} value={publishPhoto} onChange={setPublishPhoto} disabled={saving} />
+        </Field>
+      </div>
+
+      <Field label="검수 메모 (선택)">
+        <textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="상태/하자/검수 결과 등 내부 메모"
+          disabled={saving}
+          rows={2}
+          style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit' }}
+        />
+      </Field>
+
+      {/* 검수 후 최종 게시 여부 */}
+      {!isEdit ? (
+        <Field label="검수 후 최종 게시 여부">
+          <select
+            value={publishNow ? 'publish' : 'pending'}
+            onChange={(e) => setPublishNow(e.target.value === 'publish')}
+            disabled={saving}
+            style={inputStyle}
+          >
+            <option value="pending">검수 대기 (접수만, 게시 안 함)</option>
+            <option value="publish">바로 게시 (상품 페이지에 즉시 공개)</option>
+          </select>
+          {publishNow && !publishPhoto && (
+            <span style={{ fontSize: 11, color: '#dc2626' }}>※ 게시하려면 "게시할 물건 사진"을 먼저 등록하세요.</span>
+          )}
+        </Field>
+      ) : initial?.publish_status === 'published' ? (
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '10px 0', fontSize: 13, color: '#0369a1' }}>
+          <input
+            type="checkbox"
+            checked={reflectOnSave}
+            onChange={(e) => setReflectOnSave(e.target.checked)}
+            disabled={saving}
+          />
+          저장 후 상품 페이지에 즉시 반영(재게시) — 이름·가격·수량·썸네일이 덮어쓰기 됩니다
+        </label>
+      ) : (
+        <p style={{ fontSize: 12, color: '#888', margin: '10px 0' }}>
+          현재 미게시 상태입니다. 저장 후 목록에서 "게시"를 눌러 상품 페이지에 공개할 수 있습니다.
+        </p>
+      )}
+
+      <div style={{ display: 'flex', gap: 6, marginTop: 16 }}>
+        <button
+          type="button"
+          onClick={save}
+          disabled={saving}
+          style={{
+            flex: 1,
+            padding: '10px 12px',
+            background: saving ? '#ccc' : '#0ea5e9',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 6,
+            cursor: saving ? 'not-allowed' : 'pointer',
+            fontSize: 13,
+            fontWeight: 600,
+          }}
+        >
+          {saving ? '저장 중…' : isEdit ? '저장' : '접수 등록'}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={saving}
+          style={{ padding: '10px 16px', background: '#fff', border: '1px solid #ddd', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}
+        >
+          취소
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// 내부 헬퍼
+// ============================================================================
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '8px 10px',
+  border: '1px solid #ddd',
+  borderRadius: 6,
+  fontSize: 13,
+  boxSizing: 'border-box',
+};
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 12 }}>
+      <span style={{ fontSize: 12, color: '#666', fontWeight: 600 }}>{label}</span>
+      {children}
+    </label>
+  );
+}

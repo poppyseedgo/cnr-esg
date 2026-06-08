@@ -316,6 +316,81 @@ export interface EsgProductRow {
 }
 
 // ============================================================================
+// esg_bazaar_intake — 바자회 물품 접수대장 (관리자 전용)   // ← [추가 2026-06-08]
+// ============================================================================
+
+/** 바자회 품목 카테고리 코드 (모달 '품목별 기준' 10종) */   // ← [추가]
+export type BazaarCategory =
+  | 'clothing'
+  | 'electronics'
+  | 'fashion'
+  | 'household'
+  | 'book'
+  | 'baby'
+  | 'sports'
+  | 'stationery'
+  | 'plant'
+  | 'kitchen';
+
+/** 접수 게시 상태 */   // ← [추가]
+export type EsgBazaarIntakePublishStatus = 'pending' | 'published' | 'unpublished';
+
+export interface EsgBazaarIntakeRow {   // ← [추가]
+  id: string;
+  name: string;
+  category: BazaarCategory;
+  donor_id: string | null;            // 임직원 profiles.id (외부면 null)
+  donor_name_snapshot: string;        // 검색 시점 이름 스냅샷
+  donor_dept_snapshot: string | null;
+  original_price: number | null;      // 원래 가격(선택)
+  listed_price: number;               // 책정 가격
+  quantity: number;                   // 수량
+  intake_photo_url: string | null;    // 물건 사진(접수/검수 기록)
+  publish_photo_url: string | null;   // 게시할 물건 사진(상품 썸네일)
+  publish_status: EsgBazaarIntakePublishStatus;
+  product_id: string | null;          // 게시 시 연결되는 esg_products.id
+  note: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EsgBazaarIntakeInsert {   // ← [추가]
+  name: string;
+  category: BazaarCategory;
+  donor_id: string | null;
+  donor_name_snapshot: string;
+  donor_dept_snapshot: string | null;
+  original_price: number | null;
+  listed_price: number;
+  quantity: number;
+  intake_photo_url: string | null;
+  publish_photo_url: string | null;
+  note: string | null;
+  created_by: string | null;
+  publish_status?: EsgBazaarIntakePublishStatus;  // 기본 'pending'
+}
+
+export type EsgBazaarIntakeUpdate = Partial<   // ← [추가]
+  Pick<
+    EsgBazaarIntakeRow,
+    | 'name'
+    | 'category'
+    | 'donor_id'
+    | 'donor_name_snapshot'
+    | 'donor_dept_snapshot'
+    | 'original_price'
+    | 'listed_price'
+    | 'quantity'
+    | 'intake_photo_url'
+    | 'publish_photo_url'
+    | 'note'
+    | 'publish_status'
+    | 'product_id'
+  >
+>;
+
+// ============================================================================
 // esg_cart_items
 // ============================================================================
 
@@ -666,6 +741,12 @@ export interface Database {
         Update: Partial<EsgProductRow>;
         Relationships: [];
       };
+      esg_bazaar_intake: {                                   // ← [추가 2026-06-08]
+        Row: EsgBazaarIntakeRow;
+        Insert: EsgBazaarIntakeInsert;
+        Update: EsgBazaarIntakeUpdate;
+        Relationships: [];
+      };
       esg_cart_items: {
         Row: EsgCartItemRow;
         Insert: EsgCartItemInsert;
@@ -777,6 +858,14 @@ export interface Database {
       expire_pending_donations: {
         Args: Record<string, never>;
         Returns: number;
+      };
+      esg_publish_intake: {                                  // ← [추가 2026-06-08]
+        Args: { p_intake_id: string };
+        Returns: { success: boolean; product_id?: string; error?: string; reserved_stock?: number };
+      };
+      esg_unpublish_intake: {                                // ← [추가 2026-06-08]
+        Args: { p_intake_id: string };
+        Returns: { success: boolean; error?: string };
       };
     };
     Enums: {
