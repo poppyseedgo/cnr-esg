@@ -36,6 +36,7 @@
 // ============================================================================
 
 import { supabase as _supabase } from './supabase';
+import { loadPublicProfiles } from './profiles'; // ← [좋아요 누른 사람 조회] 이름/부서/아바타
 import type {
   EsgPostCategory,
   EsgPostInsert,
@@ -440,6 +441,52 @@ export async function isLikedByMe(postId: string, userId: string): Promise<boole
     .maybeSingle();
   if (error) throw error;
   return !!data;
+}
+
+/** 게시글에 좋아요 누른 사람 (이름/부서/아바타). */
+export interface PostLiker {
+  user_id: string;
+  name: string;
+  dept: string | null;
+  avatar_url: string | null;
+  user_email: string;
+  created_at: string;
+}
+
+/**
+ * 게시글에 좋아요를 누른 사람 목록 조회.
+ *
+ * ⚠️ 어드민 전용: RLS `esg_post_likes_select USING (user_id = auth.uid() OR esg_is_admin())`가
+ *   강제하므로, 일반 사용자가 호출하면 (본인 row 외) 빈 결과가 반환된다.
+ *   즉 "타인이 누른 좋아요"는 DB 레벨에서 어드민에게만 보인다(프론트 신뢰 불필요).
+ *
+ * 익명 게시글이라도 "좋아요를 누른 사람"은 익명 대상이 아니므로 실명 표기.
+ */
+export async function loadPostLikers(postId: string): Promise<PostLiker[]> {
+  const { data, error } = await supabase
+    .from('esg_post_likes')
+    .select('user_id, user_email, created_at')
+    .eq('post_id', postId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+
+  const rows = (data ?? []) as Array<{ user_id: string; user_email: string; created_at: string }>;
+  if (rows.length === 0) return [];
+
+  // 이름/부서/아바타는 profiles에서 (탈퇴/외부 사용자는 이메일 fallback)
+  const pmap = await loadPublicProfiles(rows.map((r) => r.user_id));
+
+  return rows.map((r) => {
+    const p = pmap.get(r.user_id);
+    return {
+      user_id: r.user_id,
+      name: p?.name ?? r.user_email,
+      dept: p?.dept ?? null,
+      avatar_url: p?.avatar_url ?? null,
+      user_email: r.user_email,
+      created_at: r.created_at,
+    };
+  });
 }
 
 // ============================================================================

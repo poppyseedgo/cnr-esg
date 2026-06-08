@@ -24,6 +24,9 @@ import {
   subscribePostsAdmin,
   type LoadAllPostsAdminFilters,
 } from '@/lib/adminPosts';
+import { loadPostLikers, type PostLiker } from '@/lib/posts'; // ← [좋아요 누른 사람 조회]
+import { Avatar } from '@/components/Avatar'; // ← [좋아요 누른 사람] 아바타
+import { formatKSTFull } from '@/utils/time'; // ← [좋아요 누른 사람] 일시
 import type { EsgPostRow, EsgPostStatus, EsgPostCategory } from '@/types/esg';
 
 const CATEGORY_LABELS: Record<EsgPostCategory, string> = {
@@ -246,6 +249,28 @@ function PostAdminCard({ post, onChange }: { post: EsgPostRow; onChange: () => v
   const [showAuthor, setShowAuthor] = useState(false); // 익명일 때 본명 펼침 토글
   const statusColor = STATUS_COLORS[post.status];
 
+  // 좋아요 누른 사람 조회 (어드민 전용 — RLS가 보장)
+  const [showLikers, setShowLikers] = useState(false);
+  const [likers, setLikers] = useState<PostLiker[] | null>(null);
+  const [likersLoading, setLikersLoading] = useState(false);
+  const [likersError, setLikersError] = useState<string | null>(null);
+
+  const toggleLikers = async () => {
+    const next = !showLikers;
+    setShowLikers(next);
+    if (next && likers === null && !likersLoading) {
+      setLikersLoading(true);
+      setLikersError(null);
+      try {
+        setLikers(await loadPostLikers(post.id));
+      } catch (e) {
+        setLikersError(e instanceof Error ? e.message : '불러오기 실패');
+      } finally {
+        setLikersLoading(false);
+      }
+    }
+  };
+
   const handleHide = async () => {
     if (!confirm(`"${truncate(post.title, 50)}" 게시글을 숨김 처리하시겠습니까?\n\n사용자 화면에서 즉시 사라집니다.`)) return;
     setBusy(true);
@@ -392,9 +417,65 @@ function PostAdminCard({ post, onChange }: { post: EsgPostRow; onChange: () => v
           >
             {post.content}
           </div>
-          <div style={{ fontSize: 11, color: '#888' }}>
-            ❤️ {post.like_count} · 💬 {post.comment_count}
+          <div style={{ fontSize: 11, color: '#888', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <button
+              type="button"
+              onClick={toggleLikers}
+              disabled={post.like_count === 0}
+              style={{
+                border: 'none',
+                background: 'none',
+                padding: 0,
+                cursor: post.like_count === 0 ? 'default' : 'pointer',
+                color: post.like_count === 0 ? '#888' : '#0c4a6e',
+                fontSize: 11,
+                fontWeight: post.like_count === 0 ? 400 : 600,
+                textDecoration: post.like_count === 0 ? 'none' : 'underline',
+              }}
+              title={post.like_count === 0 ? '' : '좋아요 누른 사람 보기 (어드민)'}
+            >
+              ❤️ {post.like_count}명{post.like_count > 0 ? (showLikers ? ' 닫기' : ' 보기') : ''}
+            </button>
+            <span>· 💬 {post.comment_count}</span>
           </div>
+
+          {/* 좋아요 누른 사람 목록 (어드민 전용) */}
+          {showLikers && (
+            <div
+              style={{
+                marginTop: 8,
+                padding: 10,
+                background: '#f9fafb',
+                border: '1px solid #eee',
+                borderRadius: 8,
+              }}
+            >
+              {likersLoading && <div style={{ fontSize: 12, color: '#888' }}>불러오는 중…</div>}
+              {likersError && <div style={{ fontSize: 12, color: '#dc2626' }}>⚠️ {likersError}</div>}
+              {!likersLoading && !likersError && likers && likers.length === 0 && (
+                <div style={{ fontSize: 12, color: '#888' }}>좋아요 기록이 없습니다.</div>
+              )}
+              {!likersLoading && !likersError && likers && likers.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {likers.map((u) => (
+                    <div key={u.user_id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Avatar name={u.name} avatarUrl={u.avatar_url} size={28} />
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: '#222' }}>
+                          {u.name}
+                          {u.dept && <span style={{ color: '#888', fontWeight: 400 }}> · {u.dept}</span>}
+                        </div>
+                        <div style={{ fontSize: 11, color: '#aaa' }}>{u.user_email}</div>
+                      </div>
+                      <span style={{ fontSize: 11, color: '#bbb', flexShrink: 0 }}>
+                        {formatKSTFull(u.created_at)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
