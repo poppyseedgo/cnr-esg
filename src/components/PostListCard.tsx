@@ -1,5 +1,14 @@
 // ============================================================================
 // CHANGELOG
+//   2026-06-09
+//     - [근본수정] 제목 2줄/본문 2줄일 때 본문 잘림 해결(모바일 동일).
+//         원인: .post-card 가 height 고정(380/300)이라 worst-case 필요높이(약 407/357)를
+//             못 담고, 상단 flex영역의 overflow:hidden 이 본문 2번째 줄을 클립.
+//         해결: (1) index.css .post-card height→min-height(360/410)로 전환(콘텐츠 넘치면 늘어남).
+//             (2) 제목 h3 / 본문 p(이미지카드)에 minHeight '2.8em'(=2줄) 부여 → 1줄 제목도
+//                 항상 2줄 자리 예약 → 모든 카드 높이 균일 + 본문 위치 정렬.
+//             (3) 상단 래퍼의 overflow:hidden 제거(잘림 주범). 텍스트 절단은 각 요소의
+//                 WebkitLineClamp 가 담당하므로 래퍼 클립 불필요.
 //   2026-06-07 (2)
 //     - 푸터 아이콘 교체(Figma 1200:81 + 업로드 SVG): 댓글 chat.svg 24px(카운트 #64748b),
 //         하트 heart.svg 32px(카운트 #111, liked=빨강). 순서 댓글→하트, 그룹 gap16.
@@ -217,7 +226,9 @@ export function PostListCard({
           minHeight: 0, // flex 자식 overflow 동작에 필수
         }}
       >
-        {/* 상단: 배지 + 제목 + 본문 (flex:1 + overflow:hidden → 길면 여기서 잘림) */}
+        {/* 상단: 배지 + 제목 + 본문
+            ← [2026-06-09] overflow:hidden 제거(잘림 주범). 카드가 min-height로 늘어나
+              항상 들어가고, 텍스트 절단은 제목/본문 각자의 WebkitLineClamp 가 처리. */}
         <div
           style={{
             display: 'flex',
@@ -226,7 +237,6 @@ export function PostListCard({
             minWidth: 0,
             flex: 1,
             minHeight: 0,
-            overflow: 'hidden',
           }}
         >
           {/* 카테고리 배지 */}
@@ -270,6 +280,7 @@ export function PostListCard({
                 WebkitBoxOrient: 'vertical',
                 overflow: 'hidden',
                 wordBreak: 'break-word',
+                minHeight: '2.8em', // ← [2026-06-09] 2줄(1.4em×2) 자리 예약. 1줄 제목도 2줄 높이 확보
               }}
             >
               {post.title}
@@ -288,6 +299,9 @@ export function PostListCard({
                 WebkitLineClamp: hasImage ? 2 : 6, // 텍스트 카드는 본문 더 노출
                 WebkitBoxOrient: 'vertical',
                 overflow: 'hidden',
+                // ← [2026-06-09] 이미지 카드는 본문 2줄(1.4em×2) 자리 예약 → 1줄 본문도 2줄 높이 확보(카드 균일).
+                //   텍스트전용 카드(이미지 없음, 최대 6줄)는 예약 없이 내용대로.
+                minHeight: hasImage ? '2.8em' : undefined,
               }}
             >
               {post.content}
