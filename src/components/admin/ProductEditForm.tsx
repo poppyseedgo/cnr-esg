@@ -42,6 +42,12 @@ export function ProductEditForm({
   const [detailImages, setDetailImages] = useState<string[]>(product.detail_images ?? []);
   const [status, setStatus] = useState<EsgProductStatus>(product.status);
   const [sortOrder, setSortOrder] = useState(product.sort_order);
+  const [isNew, setIsNew] = useState(product.is_new);                                  // ← [2026-06-09]
+  const [salePrice, setSalePrice] = useState<number | ''>(product.sale_price ?? '');   // ← [2026-06-09]
+
+  // ← [2026-06-09] 세일 유효성/할인율 미리보기
+  const saleActive = salePrice !== '' && salePrice >= 0 && salePrice < price;
+  const discountPct = saleActive ? Math.round(((price - (salePrice as number)) / price) * 100) : null;
 
   const save = async () => {
     if (!name.trim()) {
@@ -74,6 +80,10 @@ export function ProductEditForm({
       }
       if (status !== product.status) patch.status = status;
       if (sortOrder !== product.sort_order) patch.sort_order = sortOrder;
+      // ← [2026-06-09] 새 상품 / 세일가 diff. 세일가는 정상가 미만일 때만 적용, 아니면 null.
+      const nextSale = saleActive ? (salePrice as number) : null;
+      if (isNew !== product.is_new) patch.is_new = isNew;
+      if (nextSale !== product.sale_price) patch.sale_price = nextSale;
 
       if (Object.keys(patch).length === 0) {
         onCancel();
@@ -201,6 +211,41 @@ export function ProductEditForm({
             step={1}
             style={inputStyle}
           />
+        </Field>
+      </div>
+
+      {/* ← [2026-06-09] 새 상품 라벨 + 세일가 */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+          gap: 10,
+          marginTop: 12,
+          alignItems: 'end',
+        }}
+      >
+        <Field label="새 상품 라벨">
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, height: 36, fontSize: 13, color: '#333' }}>
+            <input type="checkbox" checked={isNew} onChange={(e) => setIsNew(e.target.checked)} disabled={busy} style={{ width: 16, height: 16 }} />
+            "새 상품" 뱃지 표시
+          </label>
+        </Field>
+        <Field label="세일가 (원) · 비우면 세일 없음">
+          <input
+            type="number"
+            value={salePrice}
+            onChange={(e) => setSalePrice(e.target.value === '' ? '' : (Number(e.target.value) || 0))}
+            disabled={busy}
+            step={1000}
+            min={0}
+            placeholder="예: 8000"
+            style={inputStyle}
+          />
+        </Field>
+        <Field label="할인율(자동 계산)">
+          <div style={{ height: 36, display: 'flex', alignItems: 'center', fontSize: 13, fontWeight: 600, color: discountPct ? '#dc2626' : '#999' }}>
+            {salePrice === '' ? '—' : discountPct ? `${discountPct}% 할인 (${(salePrice as number).toLocaleString()}원)` : '세일가가 정상가보다 낮아야 함'}
+          </div>
         </Field>
       </div>
 

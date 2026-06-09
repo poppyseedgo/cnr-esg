@@ -49,6 +49,7 @@ export function AuctionEditForm({
   const [endsAtKst, setEndsAtKst] = useState(utcIsoToKstInput(auction.ends_at));
   const [status, setStatus] = useState<EsgAuctionStatus>(auction.status);
   const [sortOrder, setSortOrder] = useState(auction.sort_order);
+  const [isNew, setIsNew] = useState(auction.is_new);   // ← [2026-06-09] "새 상품" 라벨
 
   const save = async () => {
     if (!productName.trim()) {
@@ -95,6 +96,7 @@ export function AuctionEditForm({
     if (endsUtc !== auction.ends_at) patch.ends_at = endsUtc;
     if (status !== auction.status) patch.status = status;
     if (sortOrder !== auction.sort_order) patch.sort_order = sortOrder;
+    if (isNew !== auction.is_new) patch.is_new = isNew;   // ← [2026-06-09]
 
     if (Object.keys(patch).length === 0) {
       onCancel();
@@ -269,6 +271,14 @@ export function AuctionEditForm({
           />
         </Field>
       </div>
+
+      {/* ← [2026-06-09] 새 상품 라벨 */}
+      <Field label="새 상품 라벨">
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#333' }}>
+          <input type="checkbox" checked={isNew} onChange={(e) => setIsNew(e.target.checked)} disabled={busy} style={{ width: 16, height: 16 }} />
+          "새 상품" 뱃지 표시
+        </label>
+      </Field>
 
       <div style={{ display: 'flex', gap: 6, marginTop: 16, flexWrap: 'wrap' }}>
         <button

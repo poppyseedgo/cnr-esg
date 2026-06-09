@@ -36,6 +36,7 @@ export function CreateAuctionForm({ onCancel, onSuccess }: CreateAuctionFormProp
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
   const [detailImages, setDetailImages] = useState<string[]>([]);
   const [sortOrder, setSortOrder] = useState(0);
+  const [isNew, setIsNew] = useState(false);   // ← [2026-06-09] "새 상품" 라벨
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
@@ -56,6 +57,7 @@ export function CreateAuctionForm({ onCancel, onSuccess }: CreateAuctionFormProp
         ends_at: kstInputToUtcIso(endsAtKst),
         status: 'scheduled',
         sort_order: sortOrder,
+        is_new: isNew,   // ← [2026-06-09]
       };
       await createAuction(input);
       onSuccess();
@@ -106,6 +108,14 @@ export function CreateAuctionForm({ onCancel, onSuccess }: CreateAuctionFormProp
           <input type="number" value={sortOrder} onChange={(e) => setSortOrder(Number(e.target.value) || 0)} disabled={saving} step={1} style={inputStyle} />
         </Field>
       </div>
+
+      {/* ← [2026-06-09] 새 상품 라벨 */}
+      <Field label="새 상품 라벨">
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#333' }}>
+          <input type="checkbox" checked={isNew} onChange={(e) => setIsNew(e.target.checked)} disabled={saving} style={{ width: 16, height: 16 }} />
+          "새 상품" 뱃지 표시
+        </label>
+      </Field>
 
       <div style={{ display: 'flex', gap: 6, marginTop: 16 }}>
         <button type="button" onClick={save} disabled={saving} style={{ flex: 1, padding: '10px 12px', background: saving ? '#ccc' : '#0ea5e9', color: '#fff', border: 'none', borderRadius: 6, cursor: saving ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600 }}>

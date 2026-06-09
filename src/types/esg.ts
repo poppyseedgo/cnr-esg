@@ -311,6 +311,8 @@ export interface EsgProductRow {
   detail_images: string[]; // jsonb array
   status: EsgProductStatus;
   sort_order: number;
+  is_new: boolean;            // ← [2026-06-09] "새 상품" 라벨(수동)
+  sale_price: number | null;  // ← [2026-06-09] 세일가(수동). NULL=세일 아님. 앱에서 sale_price<price 일 때만 세일
   created_at: string;
   updated_at: string;
 }
@@ -486,6 +488,7 @@ export interface EsgAuctionRow {
   winner_final_price: number | null;
   winner_order_id: string | null;
   sort_order: number;
+  is_new: boolean;            // ← [2026-06-09] "새 상품" 라벨(수동)
   created_at: string;
   updated_at: string;
 }
@@ -739,9 +742,11 @@ export interface Database {
       };
       esg_products: {
         Row: EsgProductRow;
-        Insert: Omit<EsgProductRow, 'id' | 'created_at' | 'updated_at' | 'reserved_stock'> & {
+        Insert: Omit<EsgProductRow, 'id' | 'created_at' | 'updated_at' | 'reserved_stock' | 'is_new' | 'sale_price'> & {
           id?: string;
           reserved_stock?: number;
+          is_new?: boolean;            // ← [2026-06-09] 기본 false
+          sale_price?: number | null;  // ← [2026-06-09] 기본 NULL
         };
         Update: Partial<EsgProductRow>;
         Relationships: [];
@@ -772,9 +777,10 @@ export interface Database {
       };
       esg_auctions: {
         Row: EsgAuctionRow;
-        Insert: Omit<EsgAuctionRow, 'id' | 'created_at' | 'updated_at' | 'current_price' | 'current_bidder_id' | 'current_bidder_email' | 'bid_count'> & {
+        Insert: Omit<EsgAuctionRow, 'id' | 'created_at' | 'updated_at' | 'current_price' | 'current_bidder_id' | 'current_bidder_email' | 'bid_count' | 'is_new'> & {
           id?: string;
           current_price?: number;
+          is_new?: boolean;  // ← [2026-06-09] 기본 false
         };
         Update: Partial<EsgAuctionRow>;
         Relationships: [];

@@ -35,6 +35,7 @@ export interface CreateAuctionInput {
   ends_at: string; // ISO UTC
   status?: EsgAuctionStatus; // 기본 'scheduled'
   sort_order?: number;
+  is_new?: boolean;          // ← [2026-06-09] "새 상품" 라벨
 }
 
 /** 어드민이 수정 가능한 경매 필드 */
@@ -51,6 +52,7 @@ export type AuctionPatch = Partial<
     | 'ends_at'
     | 'status'
     | 'sort_order'
+    | 'is_new'        // ← [2026-06-09]
   >
 >;
 
@@ -80,6 +82,7 @@ export async function createAuction(input: CreateAuctionInput): Promise<EsgAucti
         ends_at: input.ends_at,
         status: input.status ?? 'scheduled',
         sort_order: input.sort_order ?? 0,
+        is_new: input.is_new ?? false,   // ← [2026-06-09]
       },
     ])
     .select('*')

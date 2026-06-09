@@ -28,6 +28,8 @@ export interface CreateProductInput {
   detail_images?: string[];
   status?: EsgProductStatus;
   sort_order?: number;
+  is_new?: boolean;            // ← [2026-06-09] "새 상품" 라벨
+  sale_price?: number | null;  // ← [2026-06-09] 세일가(NULL=세일 아님)
 }
 
 export type UpdateProductPatch = Partial<
@@ -41,6 +43,8 @@ export type UpdateProductPatch = Partial<
     | 'detail_images'
     | 'status'
     | 'sort_order'
+    | 'is_new'        // ← [2026-06-09]
+    | 'sale_price'    // ← [2026-06-09]
   >
 >;
 
@@ -62,6 +66,11 @@ export async function createProduct(input: CreateProductInput): Promise<EsgProdu
   }
   if (input.price < 0) throw new Error('가격은 0 이상이어야 합니다.');
   if (input.stock < 0) throw new Error('재고는 0 이상이어야 합니다.');
+  // ← [2026-06-09] 세일가 검증: 0 이상 & 정상가 미만(=실제 할인)일 때만 의미. 그 외엔 NULL로 저장.
+  const saleClean =
+    input.sale_price != null && input.sale_price >= 0 && input.sale_price < input.price
+      ? input.sale_price
+      : null;
 
   const { data, error } = await supabase
     .from('esg_products')
@@ -75,6 +84,8 @@ export async function createProduct(input: CreateProductInput): Promise<EsgProdu
         detail_images: input.detail_images ?? [],
         status: input.status ?? 'on_sale',
         sort_order: input.sort_order ?? 0,
+        is_new: input.is_new ?? false,   // ← [2026-06-09]
+        sale_price: saleClean,           // ← [2026-06-09]
       },
     ])
     .select('*')
@@ -90,6 +101,10 @@ export async function updateProduct(id: string, patch: UpdateProductPatch): Prom
   // 가벼운 검증
   if (patch.price !== undefined && patch.price < 0) throw new Error('가격은 0 이상이어야 합니다.');
   if (patch.stock !== undefined && patch.stock < 0) throw new Error('재고는 0 이상이어야 합니다.');
+  // ← [2026-06-09] 세일가: 음수 금지. (정상가 미만 여부는 폼에서 실시간 강제)
+  if (patch.sale_price !== undefined && patch.sale_price !== null && patch.sale_price < 0) {
+    throw new Error('세일가는 0 이상이어야 합니다.');
+  }
 
   const { error } = await supabase
     .from('esg_products')
