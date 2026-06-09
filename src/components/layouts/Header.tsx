@@ -28,11 +28,20 @@
 //
 // 2026-06-02  헤더 장바구니·알림벨 아이콘을 채움 → 선(stroke) 아이콘으로 교체
 //             (Figma 1052:275 basket / 1052:279 bell, 둘 다 24×24, stroke=currentColor로 variant 색 적응)
+// 2026-06-09  [기능추가] 스크롤 방향 감지 헤더(headroom). useHeaderHidden 훅으로
+//             아래로 스크롤 시 헤더 슬라이드업(숨김), 위로 스크롤 시 표시.
+//             position:sticky 유지 + transform(translateY) 토글만 추가(레이아웃 변화 0).
+//             표시 상태 transform:'none' → fixed 자손 컨테이닝블록 부작용 차단(헤더엔 fixed 자손 없음).
+//             모바일 메뉴(mobileOpen) 열림 시 disabled=true → 항상 표시.
+// 2026-06-09  [기능추가] 헤더 자기 높이를 ResizeObserver로 측정 → :root 의 --esg-header-h 발행.
+//             HomeHero 등이 calc(100vh - var(--esg-header-h))로 "화면 높이 - 헤더" 영역을
+//             정확히 계산하도록 단일 출처(SSOT) 제공. transform(숨김)은 offsetHeight 불변이라 영향 없음.
 // ============================================================================
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useHeaderHidden } from '@/hooks/useHeaderHidden'; // ← [2026-06-09] 스크롤 방향 감지 헤더(headroom)
 import { Avatar } from '@/components/Avatar'; // ← [추가] 클로버 공통 아바타
 import { useEventPhase } from '@/hooks/useEventPhase';
 import { useEventGate } from '@/hooks/useEventGate';
@@ -253,16 +262,35 @@ export function Header() {
   const [cartCount, setCartCount] = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const headerRef = useRef<HTMLElement>(null); // ← [2026-06-09] 헤더 높이 측정용(--esg-header-h 발행)
 
   // URL → variant 자동 선택
   const variant = getVariantForPath(location.pathname);
   const T = VARIANTS[variant];
+
+  // [2026-06-09] 스크롤 방향 감지 — 아래로 숨김/위로 표시. 모바일 메뉴 열림 시 항상 표시.
+  const headerHidden = useHeaderHidden({ disabled: mobileOpen });
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 1024);
     check();
     window.addEventListener('resize', check);
     return () => window.removeEventListener('resize', check);
+  }, []);
+
+  // [2026-06-09] 헤더 실제 높이 → :root --esg-header-h 발행(SSOT).
+  //   HomeHero가 calc(100vh - var(--esg-header-h))로 "화면-헤더" 영역을 정확히 산출.
+  //   transform(headroom 숨김)은 offsetHeight 불변이라 값에 영향 없음.
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    const publish = () => {
+      document.documentElement.style.setProperty('--esg-header-h', `${el.offsetHeight}px`);
+    };
+    publish(); // 초기 1회
+    const ro = new ResizeObserver(publish);
+    ro.observe(el);
+    return () => ro.disconnect();
   }, []);
 
   useEffect(() => {
@@ -307,6 +335,7 @@ export function Header() {
 
   return (
     <header
+      ref={headerRef}
       style={{
         position: 'sticky',
         top: 0,
@@ -315,7 +344,11 @@ export function Header() {
         color: T.text,
         fontFamily: FONT_PRETENDARD,
         padding: '12px 0',
-        transition: 'background 0.2s, color 0.2s',
+        // ← [2026-06-09] headroom: 아래로 숨김(translateY -100%)/위로 표시(none).
+        //   표시 시 'none'으로 둬 transform 컨테이닝블록 부작용 차단. translate 추가만으로 슬라이드.
+        transform: headerHidden ? 'translateY(-100%)' : 'none',
+        transition: 'transform 0.28s ease, background 0.2s, color 0.2s',
+        willChange: 'transform', // GPU 합성 힌트(스크롤 중 부드럽게)
       }}
     >
       <div
