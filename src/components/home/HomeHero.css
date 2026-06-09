@@ -255,87 +255,86 @@ a.esg-hero__tile { cursor: pointer; }
 }
 
 /* ============================================================================
-   [제로 웨이스트 어워드] #00422b — pt24 pb44 pl24 pr21, justify-between (914:1769)
+   [제로 웨이스트 어워드] #00422b — Figma 1293:265
+   pt30 pr21 pb44 pl24, justify-between. 봉투 일러스트 제거(신규 디자인엔 없음).
+   상단: 부제(20) → [ZERO+WASTE 워드마크(gap10) → 한글(38 Light)](gap16), 그룹 gap24.
+   하단: 캡션 2줄(Medium 16) + 날짜(Instrument Sans), gap4.
    ============================================================================ */
 .esg-hero__zero { background: #00422b; }
 .esg-hero__zero .esg-hero__fg {
   align-items: center;
-  justify-content: space-between;    /* 상단 그룹 ↔ 하단 캡션 */
+  justify-content: space-between;        /* 상단 그룹 ↔ 하단 캡션 */
   text-align: center;
   color: #fff;
-  padding: 5cqw 4.375cqw 9.167cqw 5cqw;  /* pt24 pr21 pb44 pl24 */
+  padding: 6.25cqw 4.375cqw 9.167cqw 5cqw;  /* pt30 pr21 pb44 pl24 */
 }
-/* 상단 그룹: 부제 + (ZERO WASTE 로고 + 한글) — gap16 (Figma 1052:177) */
+/* 상단 그룹 (1293:266) — gap24 */
 .esg-hero__zero-top {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3.333cqw;                     /* 16px */
-  position: relative;
-  z-index: 1;                        /* 봉투통 위로 */
+  gap: 5cqw;                             /* 24px */
 }
-.esg-hero__zero-sub {                /* "29주년 창립기념식에서 시상하는" (신규) */
+.esg-hero__zero-sub {                    /* "나만의 에코템 자랑하기 대회" (1293:267) */
   font-family: var(--font-sans);
-  font-weight: 400;                  /* Regular */
-  font-size: 3.333cqw;               /* 16px */
+  font-weight: 400;                      /* Regular */
+  font-size: 4.167cqw;                   /* 20px */
   line-height: 1.1;
+  text-transform: uppercase;
   color: #fff;
   white-space: nowrap;
 }
-.esg-hero__zero-title {              /* ZERO WASTE 로고 + 한글 (gap0, Figma 1052:179) */
+/* 로고그룹 + 한글 (1293:268) — gap16 */
+.esg-hero__zero-mid {
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: 3.333cqw;                         /* 16px */
 }
-.esg-hero__zero-logo {               /* ZERO WASTE 영문 로고 SVG (Ø 빗금 포함) */
-  width: 50.417cqw;                  /* 242/480 */
+/* ZERO + WASTE 워드마크 (1293:269) — gap10 */
+.esg-hero__zero-logos {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2.083cqw;                         /* 10px */
+}
+.esg-hero__zero-logo-zero {              /* ZERO (1293:270) — 196.572×57 */
+  width: 40.952cqw;                      /* 196.572/480 */
   height: auto;
   display: block;
 }
-.esg-hero__zero-ko {
+.esg-hero__zero-logo-waste {             /* WASTE (1293:278) — 264.74×57 */
+  width: 55.154cqw;                      /* 264.74/480 */
+  height: auto;
+  display: block;
+}
+.esg-hero__zero-ko {                     /* "제로 웨이스트 어워드" (1293:285) */
   font-family: var(--font-sans);
-  font-weight: 300;                  /* Light */
-  font-size: 7.917cqw;               /* 38px */
-  letter-spacing: -0.01em;           /* tracking -0.38 */
+  font-weight: 300;                      /* Light */
+  font-size: 7.917cqw;                   /* 38px */
+  letter-spacing: -0.01em;               /* tracking -0.38 */
   line-height: 1.2;
   white-space: nowrap;
 }
-/* 봉투통 SVG — Figma 1052:191 (중앙, top188, w460). 중앙배치라 zoom 클래스 대신 전용 transform */
-.esg-hero__zero-bag {
-  position: absolute;
-  left: 50%;
-  top: 39.167cqw;                    /* 188/480 */
-  width: 95.833cqw;                  /* 460/480 */
-  height: auto;
-  display: block;
-  pointer-events: none;
-  transform: translateX(-50%);       /* 중앙 */
-  transition: transform 0.45s ease;  /* 호버 확대 트랜지션 */
-}
-.esg-hero__zero:hover .esg-hero__zero-bag {
-  transform: translateX(-50%) scale(1.05);  /* 중앙 유지 + 확대 (단일 transform 합성) */
-}
-/* 하단 캡션 2줄 — gap4 (Figma 1052:187) */
+/* 하단 캡션 (1293:286) — gap4 */
 .esg-hero__zero-caps {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.833cqw;                     /* 4px */
-  position: relative;
-  z-index: 1;
+  gap: 0.833cqw;                         /* 4px */
 }
-.esg-hero__zero-cap1 {
+.esg-hero__zero-cap1 {                   /* (1293:287) Medium 2줄 */
   font-family: var(--font-sans);
-  font-weight: 500;                  /* Medium (Figma 1052:188) */
-  font-size: 3.333cqw;               /* 16px */
-  line-height: 1.25;
+  font-weight: 500;                      /* Medium */
+  font-size: 3.333cqw;                   /* 16px */
+  line-height: 1.3;
   white-space: nowrap;
 }
-.esg-hero__zero-cap1-en {
+.esg-hero__zero-cap1-en {                /* (1293:288) "6/8 — 6/22" */
   font-family: 'Instrument Sans', sans-serif;
   font-weight: 400;
-  font-size: 3.333cqw;               /* 16px */
-  letter-spacing: 0.06em;            /* tracking 0.96 */
+  font-size: 3.333cqw;                   /* 16px */
+  letter-spacing: 0.06em;                /* tracking 0.96 */
   line-height: 1.25;
   white-space: nowrap;
 }

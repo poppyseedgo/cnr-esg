@@ -155,20 +155,24 @@ export function HomeHero() {
             onClick={() => openModal('zero')}
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openModal('zero'); } }}
           >
-            {/* 봉투통 SVG (Figma 1052:191) — fg 밖 절대배치, 중앙 */}
-            <img className="esg-hero__zero-bag" src="/home/zerobin.svg" alt="" aria-hidden="true" />
+            {/* fg: 상단 그룹 ↔ 하단 캡션, justify-between (Figma 1293:265) */}
             <div className="esg-hero__fg">
-              {/* 상단: 부제 + (ZERO WASTE 로고 + 한글) */}
+              {/* 상단 그룹 (1293:266) — gap24 */}
               <div className="esg-hero__zero-top">
-                <p className="esg-hero__zero-sub">29주년 창립기념식에서 시상하는</p>
-                <div className="esg-hero__zero-title">
-                  <img className="esg-hero__zero-logo esg-hero__zoom" src="/home/zerowaste-logo.svg" alt="ZERO WASTE" />
+                <p className="esg-hero__zero-sub">나만의 에코템 자랑하기 대회</p>
+                {/* (1293:268) 로고그룹 + 한글 — gap16 */}
+                <div className="esg-hero__zero-mid">
+                  {/* (1293:269) ZERO + WASTE 워드마크 — gap10 */}
+                  <div className="esg-hero__zero-logos esg-hero__zoom">
+                    <img className="esg-hero__zero-logo-zero" src="/home/zero-logo.svg" alt="ZERO" />
+                    <img className="esg-hero__zero-logo-waste" src="/home/waste-logo.svg" alt="WASTE" />
+                  </div>
                   <p className="esg-hero__zero-ko">제로 웨이스트 어워드</p>
                 </div>
               </div>
-              {/* 하단 캡션 2줄 (Figma 1052:187) */}
+              {/* 하단 캡션 (1293:286) — gap4 */}
               <div className="esg-hero__zero-caps">
-                <p className="esg-hero__zero-cap1">후보자 추천 및 좋아요 투표</p>
+                <p className="esg-hero__zero-cap1">나만의 에코템을 올려주세요!<br />우승자는 29주년 창립기념식에서 시상합니다.</p>
                 <p className="esg-hero__zero-cap1-en">6/8 — 6/22</p>
               </div>
             </div>
