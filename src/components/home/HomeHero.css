@@ -149,7 +149,7 @@ a.esg-hero__tile { cursor: pointer; }
   white-space: nowrap;
 }
 .esg-hero__brand-logo {              /* C&R RESEARCH 영문 로고 SVG (394×63) — 맨 아래 */
-  width: 82.083cqw;                  /* 394/480 */
+  width: 70cqw;                      /* ← [2026-06-09] 82.083cqw → 70cqw (사용자 조정) */
   height: auto;
   display: block;
 }
