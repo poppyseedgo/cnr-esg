@@ -955,10 +955,10 @@ function ImageCarousel({
       {!single && (
         <>
           <button type="button" onClick={goPrev} style={{ ...arrowStyle, left: 12 }} aria-label="이전">
-            ‹
+            <img src="/icons/arrow-back.svg" alt="" aria-hidden="true" width={24} height={24} style={{ display: 'block' }} />
           </button>
           <button type="button" onClick={goNext} style={{ ...arrowStyle, right: 12 }} aria-label="다음">
-            ›
+            <img src="/icons/arrow-forward.svg" alt="" aria-hidden="true" width={24} height={24} style={{ display: 'block' }} />
           </button>
           <div
             style={{
@@ -994,20 +994,22 @@ function ImageCarousel({
   );
 }
 
+// [2026-06-10] 갤러리 화살표: 64×64 글래스 버튼 (Figma 1307:578/582)
+//   bg rgba(255,255,255,0.1) + backdrop-blur(글래스) + 미세 테두리. 아이콘은 24px SVG.
 const arrowStyle: React.CSSProperties = {
   position: 'absolute',
   top: '50%',
   transform: 'translateY(-50%)',
-  width: 36,
-  height: 36,
+  width: 64,
+  height: 64,
   borderRadius: '50%',
-  border: 'none',
-  background: 'rgba(0,0,0,0.5)',
-  color: '#fff',
-  fontSize: 24,
+  border: '1px solid rgba(255, 255, 255, 0.25)',  // 글래스 가독성용 미세 테두리
+  background: 'rgba(255, 255, 255, 0.1)',          // Figma: 10% 화이트
+  backdropFilter: 'blur(12px)',                    // ← glass 효과
+  WebkitBackdropFilter: 'blur(12px)',              // Safari
   cursor: 'pointer',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  lineHeight: 1,
+  padding: 0,
 };
