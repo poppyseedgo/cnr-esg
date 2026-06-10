@@ -1003,7 +1003,7 @@ const arrowStyle: React.CSSProperties = {
   width: 40,                                 // ← [2026-06-10] Figma 1308:615
   height: 40,
   borderRadius: '50%',
-  border: '1px solid #f1f1f1',               // Figma 1308:615
+  border: '1px solid rgb(241 241 241 / 25%)',               // Figma 1308:615
   background: 'rgba(255, 255, 255, 0.1)',    // 10% 화이트 글래스
   backdropFilter: 'blur(12px)',              // glass 효과
   WebkitBackdropFilter: 'blur(12px)',        // Safari

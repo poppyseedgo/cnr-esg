@@ -396,7 +396,7 @@ export function PostDetailModal({ postId, open, onClose, onDeleted, onLikeChange
                             background: 'rgba(255, 255, 255, 0.1)', // 10% 화이트 글래스
                             backdropFilter: 'blur(12px)',
                             WebkitBackdropFilter: 'blur(12px)',
-                            border: '1px solid #f1f1f1',
+                            border: '1px solid rgb(241 241 241 / 25%)',
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
@@ -421,7 +421,7 @@ export function PostDetailModal({ postId, open, onClose, onDeleted, onLikeChange
                             background: 'rgba(255, 255, 255, 0.1)', // 10% 화이트 글래스
                             backdropFilter: 'blur(12px)',
                             WebkitBackdropFilter: 'blur(12px)',
-                            border: '1px solid #f1f1f1',
+                            border: '1px solid rgb(241 241 241 / 25%)',
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
