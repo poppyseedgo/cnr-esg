@@ -1003,10 +1003,11 @@ const arrowStyle: React.CSSProperties = {
   width: 64,
   height: 64,
   borderRadius: '50%',
-  border: '1px solid rgba(255, 255, 255, 0.25)',  // 글래스 가독성용 미세 테두리
-  background: 'rgba(255, 255, 255, 0.1)',          // Figma: 10% 화이트
-  backdropFilter: 'blur(12px)',                    // ← glass 효과
-  WebkitBackdropFilter: 'blur(12px)',              // Safari
+  border: 'none',
+  background: 'rgba(0, 0, 0, 0.4)',          // ← [2026-06-10] 검정 글래스 (흰 아이콘용, 반투명)
+  backdropFilter: 'blur(12px)',                     // glass 효과
+  WebkitBackdropFilter: 'blur(12px)',               // Safari
+  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.12)',       // 이미지 위 분리감
   cursor: 'pointer',
   display: 'flex',
   alignItems: 'center',

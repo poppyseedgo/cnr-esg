@@ -423,7 +423,7 @@ function ImageCarousel({ images, currentIdx, onChange }: CarouselProps) {
               left: 12,
             }}
           >
-            ‹
+            <img src="/icons/arrow-back.svg" alt="" aria-hidden="true" width={24} height={24} style={{ display: 'block' }} />
           </button>
           <button
             type="button"
@@ -434,7 +434,7 @@ function ImageCarousel({ images, currentIdx, onChange }: CarouselProps) {
               right: 12,
             }}
           >
-            ›
+            <img src="/icons/arrow-forward.svg" alt="" aria-hidden="true" width={24} height={24} style={{ display: 'block' }} />
           </button>
 
           {/* 인디케이터 */}
@@ -472,20 +472,22 @@ function ImageCarousel({ images, currentIdx, onChange }: CarouselProps) {
   );
 }
 
+// [2026-06-10] 갤러리 화살표: 64×64 검정 글래스 (흰 아이콘용, 반투명) 버튼 (상품 갤러리와 통일)
 const arrowStyle: React.CSSProperties = {
   position: 'absolute',
   top: '50%',
   transform: 'translateY(-50%)',
-  width: 36,
-  height: 36,
+  width: 64,
+  height: 64,
   borderRadius: '50%',
   border: 'none',
-  background: 'rgba(0,0,0,0.5)',
-  color: '#fff',
-  fontSize: 24,
+  background: 'rgba(0, 0, 0, 0.4)',     // 검정 글래스 (흰 아이콘용, 반투명)
+  backdropFilter: 'blur(12px)',                // glass 효과
+  WebkitBackdropFilter: 'blur(12px)',          // Safari
+  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.12)',  // 이미지 위 분리감
   cursor: 'pointer',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  lineHeight: 1,
+  padding: 0,
 };

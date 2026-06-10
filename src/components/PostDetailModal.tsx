@@ -387,42 +387,52 @@ export function PostDetailModal({ postId, open, onClose, onDeleted, onLikeChange
                           onClick={() => setImageIdx((i) => (i - 1 + images.length) % images.length)}
                           style={{
                             position: 'absolute',
-                            left: 8,
+                            left: 12,
                             top: '50%',
                             transform: 'translateY(-50%)',
-                            width: 32,
-                            height: 32,
+                            width: 64,
+                            height: 64,
                             borderRadius: '50%',
-                            background: 'rgba(0,0,0,0.5)',
-                            color: '#fff',
+                            background: 'rgba(0, 0, 0, 0.4)', // ← [2026-06-10] 검정 글래스 (흰 아이콘용, 반투명)
+                            backdropFilter: 'blur(12px)',
+                            WebkitBackdropFilter: 'blur(12px)',
+                            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.12)',
                             border: 'none',
                             cursor: 'pointer',
-                            fontSize: 16,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: 0,
                           }}
                           aria-label="이전 이미지"
                         >
-                          ‹
+                          <img src="/icons/arrow-back.svg" alt="" aria-hidden="true" width={24} height={24} style={{ display: 'block' }} />
                         </button>
                         <button
                           type="button"
                           onClick={() => setImageIdx((i) => (i + 1) % images.length)}
                           style={{
                             position: 'absolute',
-                            right: 8,
+                            right: 12,
                             top: '50%',
                             transform: 'translateY(-50%)',
-                            width: 32,
-                            height: 32,
+                            width: 64,
+                            height: 64,
                             borderRadius: '50%',
-                            background: 'rgba(0,0,0,0.5)',
-                            color: '#fff',
+                            background: 'rgba(0, 0, 0, 0.4)', // ← [2026-06-10] 검정 글래스 (흰 아이콘용, 반투명)
+                            backdropFilter: 'blur(12px)',
+                            WebkitBackdropFilter: 'blur(12px)',
+                            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.12)',
                             border: 'none',
                             cursor: 'pointer',
-                            fontSize: 16,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: 0,
                           }}
                           aria-label="다음 이미지"
                         >
-                          ›
+                          <img src="/icons/arrow-forward.svg" alt="" aria-hidden="true" width={24} height={24} style={{ display: 'block' }} />
                         </button>
                         <div
                           style={{
