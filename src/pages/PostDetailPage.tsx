@@ -423,7 +423,7 @@ function ImageCarousel({ images, currentIdx, onChange }: CarouselProps) {
               left: 12,
             }}
           >
-            <img src="/icons/arrow-back.svg" alt="" aria-hidden="true" width={24} height={24} style={{ display: 'block' }} />
+            <img src="/icons/arrow-back.svg" alt="" aria-hidden="true" width={16} height={16} style={{ display: 'block' }} />
           </button>
           <button
             type="button"
@@ -434,7 +434,7 @@ function ImageCarousel({ images, currentIdx, onChange }: CarouselProps) {
               right: 12,
             }}
           >
-            <img src="/icons/arrow-forward.svg" alt="" aria-hidden="true" width={24} height={24} style={{ display: 'block' }} />
+            <img src="/icons/arrow-forward.svg" alt="" aria-hidden="true" width={16} height={16} style={{ display: 'block' }} />
           </button>
 
           {/* 인디케이터 */}
@@ -477,14 +477,13 @@ const arrowStyle: React.CSSProperties = {
   position: 'absolute',
   top: '50%',
   transform: 'translateY(-50%)',
-  width: 64,
-  height: 64,
+  width: 40,                                 // ← [2026-06-10] Figma 1308:615
+  height: 40,
   borderRadius: '50%',
-  border: 'none',
-  background: 'rgba(0, 0, 0, 0.4)',     // 검정 글래스 (흰 아이콘용, 반투명)
-  backdropFilter: 'blur(12px)',                // glass 효과
-  WebkitBackdropFilter: 'blur(12px)',          // Safari
-  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.12)',  // 이미지 위 분리감
+  border: '1px solid #f1f1f1',               // Figma 1308:615
+  background: 'rgba(255, 255, 255, 0.1)',    // 10% 화이트 글래스
+  backdropFilter: 'blur(12px)',              // glass 효과
+  WebkitBackdropFilter: 'blur(12px)',        // Safari
   cursor: 'pointer',
   display: 'flex',
   alignItems: 'center',

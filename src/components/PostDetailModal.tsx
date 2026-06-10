@@ -390,14 +390,13 @@ export function PostDetailModal({ postId, open, onClose, onDeleted, onLikeChange
                             left: 12,
                             top: '50%',
                             transform: 'translateY(-50%)',
-                            width: 64,
-                            height: 64,
+                            width: 40,                          // ← [2026-06-10] Figma 1308:615
+                            height: 40,
                             borderRadius: '50%',
-                            background: 'rgba(0, 0, 0, 0.4)', // ← [2026-06-10] 검정 글래스 (흰 아이콘용, 반투명)
+                            background: 'rgba(255, 255, 255, 0.1)', // 10% 화이트 글래스
                             backdropFilter: 'blur(12px)',
                             WebkitBackdropFilter: 'blur(12px)',
-                            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.12)',
-                            border: 'none',
+                            border: '1px solid #f1f1f1',
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
@@ -406,7 +405,7 @@ export function PostDetailModal({ postId, open, onClose, onDeleted, onLikeChange
                           }}
                           aria-label="이전 이미지"
                         >
-                          <img src="/icons/arrow-back.svg" alt="" aria-hidden="true" width={24} height={24} style={{ display: 'block' }} />
+                          <img src="/icons/arrow-back.svg" alt="" aria-hidden="true" width={16} height={16} style={{ display: 'block' }} />
                         </button>
                         <button
                           type="button"
@@ -416,14 +415,13 @@ export function PostDetailModal({ postId, open, onClose, onDeleted, onLikeChange
                             right: 12,
                             top: '50%',
                             transform: 'translateY(-50%)',
-                            width: 64,
-                            height: 64,
+                            width: 40,                          // ← [2026-06-10] Figma 1308:615
+                            height: 40,
                             borderRadius: '50%',
-                            background: 'rgba(0, 0, 0, 0.4)', // ← [2026-06-10] 검정 글래스 (흰 아이콘용, 반투명)
+                            background: 'rgba(255, 255, 255, 0.1)', // 10% 화이트 글래스
                             backdropFilter: 'blur(12px)',
                             WebkitBackdropFilter: 'blur(12px)',
-                            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.12)',
-                            border: 'none',
+                            border: '1px solid #f1f1f1',
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
@@ -432,7 +430,7 @@ export function PostDetailModal({ postId, open, onClose, onDeleted, onLikeChange
                           }}
                           aria-label="다음 이미지"
                         >
-                          <img src="/icons/arrow-forward.svg" alt="" aria-hidden="true" width={24} height={24} style={{ display: 'block' }} />
+                          <img src="/icons/arrow-forward.svg" alt="" aria-hidden="true" width={16} height={16} style={{ display: 'block' }} />
                         </button>
                         <div
                           style={{
