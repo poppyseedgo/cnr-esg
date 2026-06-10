@@ -289,14 +289,14 @@ a.esg-hero__tile { cursor: pointer; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3.333cqw;                         /* 16px */
+  gap: 4.167cqw;                         /* ← [2026-06-09] 16 → 20px (991:367) */
 }
-/* ZERO + WASTE 워드마크 (1293:269) — gap10 */
+/* ZERO + WASTE 워드마크 (991:368) — gap16 */
 .esg-hero__zero-logos {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2.083cqw;                         /* 10px */
+  gap: 3.333cqw;                         /* ← [2026-06-09] 10 → 16px (991:368) */
 }
 .esg-hero__zero-logo-zero {              /* ZERO (1293:270) — 196.572×57 */
   width: 40.952cqw;                      /* 196.572/480 */
@@ -323,18 +323,18 @@ a.esg-hero__tile { cursor: pointer; }
   align-items: center;
   gap: 0.833cqw;                         /* 4px */
 }
-.esg-hero__zero-cap1 {                   /* (1293:287) Medium 2줄 */
+.esg-hero__zero-cap1 {                   /* (991:376) Medium 2줄 */
   font-family: var(--font-sans);
   font-weight: 500;                      /* Medium */
-  font-size: 3.333cqw;                   /* 16px */
-  line-height: 1.3;
+  font-size: 4.167cqw;                   /* ← [2026-06-09] 16 → 20px */
+  line-height: 1.6;                      /* ← [2026-06-09] 1.3 → 1.6 */
   white-space: nowrap;
 }
-.esg-hero__zero-cap1-en {                /* (1293:288) "6/8 — 6/22" */
+.esg-hero__zero-cap1-en {                /* (991:377) "6/8 — 6/22" */
   font-family: 'Instrument Sans', sans-serif;
   font-weight: 400;
-  font-size: 3.333cqw;                   /* 16px */
-  letter-spacing: 0.06em;                /* tracking 0.96 */
+  font-size: 5cqw;                       /* ← [2026-06-09] 16 → 24px */
+  letter-spacing: 0.06em;                /* tracking 1.44/24 = 0.06em */
   line-height: 1.25;
   white-space: nowrap;
 }

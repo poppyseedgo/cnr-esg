@@ -3,7 +3,7 @@
 //   2026-06-08
 //     - [버그수정] 좋아요 하트가 눌린 표시가 안 되던 문제: 이모지(❤️/🤍)는 OS/폰트별
 //         형태 차이가 미미해 toggle이 안 보임 → 카드와 동일한 하트 SVG로 교체
-//         (미좋아요 outline / 좋아요 heart_filled #FF2E65). liked 상태로 채움 토글.
+//         (미좋아요 outline / 좋아요 heart_filled #FF2E2E). liked 상태로 채움 토글.
 //   2026-06-04 (c)
 //     - [근본수정] 모달을 createPortal로 document.body 직속 렌더.
 //         원인: 페이지 래퍼(.route-fade)의 transform 애니메이션이 fixed 자손의
@@ -52,15 +52,15 @@ interface PostDetailModalProps {
   onLikeChanged?: (postId: string, liked: boolean) => void;
 }
 
-// 좋아요 하트 SVG (카드와 동일 에셋) — 미좋아요 outline(#111) / 좋아요 heart_filled(#FF2E65 + 흰 하이라이트)
+// 좋아요 하트 SVG (카드와 동일 에셋) — 미좋아요 outline(#111) / 좋아요 heart_filled(#FF2E2E + 흰 하이라이트) ← [2026-06-09] FF2E65 → FF2E2E
 function DetailLikeIcon({ filled, size = 18 }: { filled: boolean; size?: number }) {
   if (filled) {
     return (
       <svg width={size} height={size} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
         <path
           d="M29 11.5192C29 19.6681 16.0022 27 16.0022 27C16.0022 27 3 19.6681 3 11.5192C3 8.13259 5.5185 5 9.29192 5C12.7778 5 16.0022 7.32828 16.0022 10.7021C16.0022 7.31558 19.2353 5 22.7124 5C26.4859 5 29 8.14528 29 11.5192Z"
-          fill="#FF2E65"
-          stroke="#FF2E65"
+          fill="#FF2E2E"
+          stroke="#FF2E2E"
           strokeWidth="2"
           strokeMiterlimit="10"
         />

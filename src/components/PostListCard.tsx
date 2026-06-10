@@ -75,7 +75,7 @@ const BADGE: Record<EsgPostCategory, BadgeSpec> = {
 // ── 아이콘 (업로드된 공식 SVG: heart.svg 32 / chat.svg 24) ──────────────────
 // 하트: outline(미좋아요 stroke #111) / 좋아요 시 빨강(#ff4d4f) 채움. viewBox 32.
 function LikeIcon({ size = 32, filled = false }: { size?: number; filled?: boolean }) {
-  // 좋아요 시: heart_filled.svg (#FF2E65 채움 + 흰 하이라이트 원)
+  // 좋아요 시: heart_filled.svg (#FF2E2E 채움 + 흰 하이라이트 원) ← [2026-06-09] FF2E65 → FF2E2E
   if (filled) {
     return (
       <svg
@@ -88,8 +88,8 @@ function LikeIcon({ size = 32, filled = false }: { size?: number; filled?: boole
       >
         <path
           d="M29 11.5192C29 19.6681 16.0022 27 16.0022 27C16.0022 27 3 19.6681 3 11.5192C3 8.13259 5.5185 5 9.29192 5C12.7778 5 16.0022 7.32828 16.0022 10.7021C16.0022 7.31558 19.2353 5 22.7124 5C26.4859 5 29 8.14528 29 11.5192Z"
-          fill="#FF2E65"
-          stroke="#FF2E65"
+          fill="#FF2E2E"
+          stroke="#FF2E2E"
           strokeWidth="2"
           strokeMiterlimit="10"
         />
