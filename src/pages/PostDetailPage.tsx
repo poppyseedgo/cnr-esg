@@ -1,4 +1,14 @@
 // ============================================================================
+// CHANGELOG
+//   2026-06-11
+//     - [근본수정] 이미지 캐러셀이 aspect-ratio 4/3 + object-fit:cover로 원본을 강제
+//         크롭하던 문제 → 공통 PostImageGallery로 교체(모달과 동일). 대표 이미지는
+//         원본 비율(height:auto), 여러 장이면 70×70 고정 썸네일 열. 로컬 ImageCarousel/
+//         arrowStyle 및 imageIdx 상태 제거.
+//     - [레이아웃] 갤러리를 카드 풀블리드 상단 → 본문 패딩(24) 영역 최상단으로 이동.
+//         (대표 이미지 자체 radius 20 + 썸네일 열 여백 확보 → 모달과 동일한 인셋 정렬)
+// ============================================================================
+// ============================================================================
 // PostDetailPage — 게시글 상세
 //
 // 기능:
@@ -18,6 +28,7 @@ import { Avatar } from '@/components/Avatar';     // ← [추가]
 import { formatKSTFull } from '@/utils/time';
 import { PostFormModal } from '@/components/PostFormModal';
 import { CommentSection } from '@/components/CommentSection';
+import { PostImageGallery } from '@/components/PostImageGallery'; // ← [추가] 원본비율+썸네일 공통 갤러리
 import { signInWithMicrosoft } from '@/lib/auth';
 import type { EsgPostCategory, EsgPostWithImagesRow } from '@/types/esg';
 
@@ -39,7 +50,6 @@ export function PostDetailPage() {
   const [post, setPost] = useState<EsgPostWithImagesRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [imageIdx, setImageIdx] = useState(0);
   const [showEditModal, setShowEditModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [liked, setLiked] = useState(false);
@@ -57,7 +67,6 @@ export function PostDetailPage() {
         setError('삭제된 게시글입니다.');
       } else {
         setPost(p);
-        setImageIdx(0);
         // 작성자 아바타 (익명이면 user_id=null → null = 마스크)
         const avatarMap = await loadAvatarMap([p.user_id]);                  // ← [추가]
         setAuthorAvatar(p.user_id ? avatarMap.get(p.user_id) ?? null : null); // ← [추가]
@@ -171,17 +180,11 @@ export function PostDetailPage() {
           boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
         }}
       >
-        {/* 이미지 캐러셀 */}
-        {images.length > 0 && (
-          <ImageCarousel
-            images={images}
-            currentIdx={imageIdx}
-            onChange={setImageIdx}
-          />
-        )}
-
         {/* 헤더 */}
         <div style={{ padding: 24 }}>
+          {/* 이미지 — 원본 비율 유지 + 여러 장이면 썸네일 열(공통 컴포넌트) ← [2026-06-11] */}
+          {images.length > 0 && <PostImageGallery images={images} />}
+
           <h1 style={{ margin: '0 0 12px', fontSize: 22, lineHeight: 1.4 }}>
             {post.title}
           </h1>
@@ -375,118 +378,3 @@ export function PostDetailPage() {
     </article>
   );
 }
-
-// ============================================================================
-// 이미지 캐러셀 (단순 좌우 슬라이드)
-// ============================================================================
-
-interface CarouselProps {
-  images: Array<{ id: string; url: string; sort_order: number }>;
-  currentIdx: number;
-  onChange: (idx: number) => void;
-}
-
-function ImageCarousel({ images, currentIdx, onChange }: CarouselProps) {
-  const goPrev = () => onChange((currentIdx - 1 + images.length) % images.length);
-  const goNext = () => onChange((currentIdx + 1) % images.length);
-  const single = images.length === 1;
-
-  return (
-    <div
-      style={{
-        position: 'relative',
-        width: '100%',
-        background: '#000',
-        aspectRatio: '4 / 3',
-        overflow: 'hidden',
-      }}
-    >
-      <img
-        src={images[currentIdx].url}
-        alt={`이미지 ${currentIdx + 1}`}
-        style={{
-          width: '100%',
-          height: '100%',
-          objectFit: 'cover',
-        }}
-      />
-
-      {!single && (
-        <>
-          {/* 좌우 버튼 */}
-          <button
-            type="button"
-            onClick={goPrev}
-            aria-label="이전 이미지"
-            style={{
-              ...arrowStyle,
-              left: 12,
-            }}
-          >
-            <img src="/icons/arrow-back.svg" alt="" aria-hidden="true" width={16} height={16} style={{ display: 'block' }} />
-          </button>
-          <button
-            type="button"
-            onClick={goNext}
-            aria-label="다음 이미지"
-            style={{
-              ...arrowStyle,
-              right: 12,
-            }}
-          >
-            <img src="/icons/arrow-forward.svg" alt="" aria-hidden="true" width={16} height={16} style={{ display: 'block' }} />
-          </button>
-
-          {/* 인디케이터 */}
-          <div
-            style={{
-              position: 'absolute',
-              bottom: 12,
-              left: '50%',
-              transform: 'translateX(-50%)',
-              display: 'flex',
-              gap: 6,
-            }}
-          >
-            {images.map((_, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => onChange(i)}
-                aria-label={`이미지 ${i + 1}로 이동`}
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 4,
-                  border: 'none',
-                  padding: 0,
-                  background: i === currentIdx ? '#fff' : 'rgba(255,255,255,0.5)',
-                  cursor: 'pointer',
-                }}
-              />
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
-// [2026-06-10] 갤러리 화살표: 64×64 검정 글래스 (흰 아이콘용, 반투명) 버튼 (상품 갤러리와 통일)
-const arrowStyle: React.CSSProperties = {
-  position: 'absolute',
-  top: '50%',
-  transform: 'translateY(-50%)',
-  width: 40,                                 // ← [2026-06-10] Figma 1308:615
-  height: 40,
-  borderRadius: '50%',
-  border: '1px solid rgb(241 241 241 / 25%)',               // Figma 1308:615
-  background: 'rgba(255, 255, 255, 0.1)',    // 10% 화이트 글래스
-  backdropFilter: 'blur(12px)',              // glass 효과
-  WebkitBackdropFilter: 'blur(12px)',        // Safari
-  cursor: 'pointer',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: 0,
-};

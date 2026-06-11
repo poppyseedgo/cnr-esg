@@ -1,5 +1,12 @@
 // ============================================================================
 // CHANGELOG
+//   2026-06-11
+//     - [근본수정] 이미지가 aspect-ratio 4/3 + object-fit:cover로 강제 크롭되어 원본
+//         위아래가 잘리던 컴플레인 → 공통 PostImageGallery로 교체. 대표 이미지는
+//         원본 비율(height:auto)로 표시하고, 여러 장이면 우측 70×70 고정 썸네일 열 제공.
+//         기존 좌우 화살표/단일 카운터 캐러셀 블록 제거(썸네일 클릭 전환 + 카운터 유지).
+//     - [디자인] Figma node 903:492("조회 모달_이미지 있을 때 760")에 맞춰 모달
+//         maxWidth 720 → 760 (갤러리 콘텐츠 폭 720 = 대표640 + gap10 + 썸네일70 정합).
 //   2026-06-08
 //     - [버그수정] 좋아요 하트가 눌린 표시가 안 되던 문제: 이모지(❤️/🤍)는 OS/폰트별
 //         형태 차이가 미미해 toggle이 안 보임 → 카드와 동일한 하트 SVG로 교체
@@ -40,6 +47,7 @@ import { UserChip } from '@/components/UserChip'; // ← [추가] 글쓴이 공�
 import { formatKSTFull } from '@/utils/time';
 import { PostFormModal } from '@/components/PostFormModal';
 import { CommentSection } from '@/components/CommentSection';
+import { PostImageGallery } from '@/components/PostImageGallery'; // ← [추가] 원본비율+썸네일 공통 갤러리
 import type { EsgPostWithImagesRow } from '@/types/esg';
 
 interface PostDetailModalProps {
@@ -85,7 +93,6 @@ export function PostDetailModal({ postId, open, onClose, onDeleted, onLikeChange
   const [post, setPost] = useState<EsgPostWithImagesRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [imageIdx, setImageIdx] = useState(0);
   const [showEditModal, setShowEditModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [liked, setLiked] = useState(false);
@@ -103,7 +110,6 @@ export function PostDetailModal({ postId, open, onClose, onDeleted, onLikeChange
         setError('삭제된 게시글입니다.');
       } else {
         setPost(p);
-        setImageIdx(0);
         // 작성자 아바타 (익명이면 user_id=null → 조회 안 됨 → null = 마스크)
         const map = await loadAvatarMap([p.user_id]);                  // ← [추가]
         setAuthorAvatar(p.user_id ? map.get(p.user_id) ?? null : null); // ← [추가]
@@ -221,7 +227,6 @@ export function PostDetailModal({ postId, open, onClose, onDeleted, onLikeChange
   };
 
   const images = post?.images ?? [];
-  const hasMultiple = images.length > 1;
 
   return createPortal(
     <div
@@ -253,7 +258,7 @@ export function PostDetailModal({ postId, open, onClose, onDeleted, onLikeChange
           background: '#fff',
           borderRadius: 20, // ← [2026-06-08] 12 → 20
           width: '100%',
-          maxWidth: 720,
+          maxWidth: 760, // ← [2026-06-11] Figma node 903:492 "조회 모달...760" 정합(720→760)
           maxHeight: '90vh',
           display: 'flex',
           flexDirection: 'column',
@@ -357,101 +362,8 @@ export function PostDetailModal({ postId, open, onClose, onDeleted, onLikeChange
                 <span>{formatKSTFull(post.created_at)}</span>
               </div>
 
-              {/* 이미지 */}
-              {images.length > 0 && (
-                <div style={{ marginBottom: 16 }}>
-                  <div
-                    style={{
-                      position: 'relative',
-                      width: '100%',
-                      aspectRatio: '4 / 3',
-                      background: '#f5f5f5',
-                      borderRadius: 8,
-                      overflow: 'hidden',
-                    }}
-                  >
-                    <img
-                      src={images[imageIdx]?.url}
-                      alt=""
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                        display: 'block',
-                      }}
-                    />
-                    {hasMultiple && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => setImageIdx((i) => (i - 1 + images.length) % images.length)}
-                          style={{
-                            position: 'absolute',
-                            left: 12,
-                            top: '50%',
-                            transform: 'translateY(-50%)',
-                            width: 40,                          // ← [2026-06-10] Figma 1308:615
-                            height: 40,
-                            borderRadius: '50%',
-                            background: 'rgba(255, 255, 255, 0.1)', // 10% 화이트 글래스
-                            backdropFilter: 'blur(12px)',
-                            WebkitBackdropFilter: 'blur(12px)',
-                            border: '1px solid rgb(241 241 241 / 25%)',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            padding: 0,
-                          }}
-                          aria-label="이전 이미지"
-                        >
-                          <img src="/icons/arrow-back.svg" alt="" aria-hidden="true" width={16} height={16} style={{ display: 'block' }} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setImageIdx((i) => (i + 1) % images.length)}
-                          style={{
-                            position: 'absolute',
-                            right: 12,
-                            top: '50%',
-                            transform: 'translateY(-50%)',
-                            width: 40,                          // ← [2026-06-10] Figma 1308:615
-                            height: 40,
-                            borderRadius: '50%',
-                            background: 'rgba(255, 255, 255, 0.1)', // 10% 화이트 글래스
-                            backdropFilter: 'blur(12px)',
-                            WebkitBackdropFilter: 'blur(12px)',
-                            border: '1px solid rgb(241 241 241 / 25%)',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            padding: 0,
-                          }}
-                          aria-label="다음 이미지"
-                        >
-                          <img src="/icons/arrow-forward.svg" alt="" aria-hidden="true" width={16} height={16} style={{ display: 'block' }} />
-                        </button>
-                        <div
-                          style={{
-                            position: 'absolute',
-                            bottom: 8,
-                            left: '50%',
-                            transform: 'translateX(-50%)',
-                            background: 'rgba(0,0,0,0.6)',
-                            color: '#fff',
-                            padding: '2px 10px',
-                            borderRadius: 99,
-                            fontSize: 11,
-                          }}
-                        >
-                          {imageIdx + 1} / {images.length}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
+              {/* 이미지 — 원본 비율 유지 + 여러 장이면 썸네일 열(공통 컴포넌트) ← [2026-06-11] */}
+              {images.length > 0 && <PostImageGallery images={images} />}
 
               {/* 본문 */}
               <div
