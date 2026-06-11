@@ -382,7 +382,7 @@ export function PostFormModal({
                         border: '1px solid #eee',
                       }}
                     />
-                    {isCover && <span style={coverBadgeStyle}>대표</span>}{/* ← [추가] 커버 표시 */}
+                    {isCover && <span style={coverBadgeStyle}>썸네일</span>}{/* ← [추가] 커버 표시 */}
                     {isCover && (
                       <button
                         type="button"
@@ -390,7 +390,7 @@ export function PostFormModal({
                         disabled={submitting}
                         style={focusBtnStyle}
                       >
-                        위치 조정
+                        이미지 위치 조정
                       </button>
                     )}
                     <button
@@ -423,7 +423,7 @@ export function PostFormModal({
                         border: '1px solid #eee',
                       }}
                     />
-                    {isCover && <span style={coverBadgeStyle}>대표</span>}{/* ← [추가] 커버 표시 */}
+                    {isCover && <span style={coverBadgeStyle}>썸네일</span>}{/* ← [추가] 커버 표시 */}
                     {isCover && (
                       <button
                         type="button"
@@ -431,7 +431,7 @@ export function PostFormModal({
                         disabled={submitting}
                         style={focusBtnStyle}
                       >
-                        위치 조정
+                        이미지 위치 조정
                       </button>
                     )}
                     <button
@@ -484,7 +484,7 @@ export function PostFormModal({
             </div>
             {totalImages > 0 && (
               <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>
-                ⓘ 첫 번째 <b>대표</b> 사진이 목록 카드 커버로 쓰입니다. “위치 조정”으로 커버에 보일 부분을 맞춰주세요.
+                ⓘ 첫 번째 <b>썸네일</b> 사진이 목록 카드 커버로 쓰입니다. “이미지 위치 조정”으로 커버에 보일 부분을 맞춰주세요.
               </div>
             )}{/* ← [추가] 커버 위치 조정 안내 */}
           </div>
