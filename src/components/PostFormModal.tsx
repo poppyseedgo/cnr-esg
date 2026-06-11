@@ -1,5 +1,10 @@
 // ============================================================================
 // CHANGELOG
+//   2026-06-11
+//     - [기능추가] 커버 썸네일 크롭 기준점(focal point) 지정. 첫 번째 "대표" 사진이
+//         목록 카드 커버로 쓰이며, 대표 사진에만 "위치 조정"(ImageFocusEditor)으로
+//         focus_x/focus_y(0~100%)를 드래그/프리셋 설정. 나머지 사진은 조정 불필요.
+//         제출 시 create/update에 이미지별 focus 동반(커버 값만 카드에 사용).
 //   2026-06-04 (c)
 //     - [근본수정] createPortal로 document.body 직속 렌더 — 조상 transform
 //         (.route-fade)에 fixed가 갇혀 dim/z-index가 깨지던 문제 차단.
@@ -28,6 +33,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom'; // ← [추가] body 직속 렌더(조상 transform 영향 차단)
 import { createPost, updatePost, POST_IMAGE_POLICY } from '@/lib/posts';  // ← [수정] 카테고리 이미지 정책(SSOT) import
+import { ImageFocusEditor } from '@/components/ImageFocusEditor'; // ← [추가] 썸네일 크롭 기준점 에디터
 import type {
   EsgPostCategory,
   EsgPostWithImagesRow,
@@ -68,10 +74,14 @@ export function PostFormModal({
   const [isAnonymous, setIsAnonymous] = useState(initial?.is_anonymous ?? false);
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
-  // 편집 모드: 기존 이미지(유지/삭제 대상). sort_order 순 정렬.  ← [추가]
+  // 신규 파일별 썸네일 크롭 기준점(0~100). files 인덱스와 1:1 정렬. ← [추가]
+  const [fileFocus, setFileFocus] = useState<Array<{ x: number; y: number }>>([]);
+  // 편집 모드: 기존 이미지(유지/삭제 대상). sort_order 순 정렬. focus_x/focus_y 포함.  ← [추가]
   const [existingImages, setExistingImages] = useState(
     () => (initial?.images ?? []).slice().sort((a, b) => a.sort_order - b.sort_order)
   );
+  // 위치 조정 에디터 대상 (기존/신규 + 인덱스) ← [추가]
+  const [editing, setEditing] = useState<{ kind: 'existing' | 'new'; index: number } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -102,17 +112,32 @@ export function PostFormModal({
     }
     const accepted = newFiles.slice(0, remaining);
     setFiles((prev) => [...prev, ...accepted]);
+    setFileFocus((prev) => [...prev, ...accepted.map(() => ({ x: 50, y: 50 }))]); // ← [추가] 기본 중앙
     setError(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleRemoveImage = (idx: number) => {
     setFiles((prev) => prev.filter((_, i) => i !== idx));
+    setFileFocus((prev) => prev.filter((_, i) => i !== idx)); // ← [추가] focus도 같이 제거
   };
 
   // 기존 이미지 제거 (편집 모드)  ← [추가]
   const handleRemoveExisting = (idx: number) => {
     setExistingImages((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  // 위치 조정 저장 — 대상(기존/신규)별 focus 갱신 ← [추가]
+  const handleFocusSave = (focusX: number, focusY: number) => {
+    if (!editing) return;
+    if (editing.kind === 'new') {
+      setFileFocus((prev) => prev.map((f, i) => (i === editing.index ? { x: focusX, y: focusY } : f)));
+    } else {
+      setExistingImages((prev) =>
+        prev.map((im, i) => (i === editing.index ? { ...im, focus_x: focusX, focus_y: focusY } : im))
+      );
+    }
+    setEditing(null);
   };
 
   const totalImages = existingImages.length + files.length; // ← [추가] 기존+신규 합계
@@ -146,7 +171,7 @@ export function PostFormModal({
     setSubmitting(true);
     try {
       if (isEdit && initial) {
-        // 수정: 본문 + 이미지 (유지할 기존 이미지 + 새 파일)
+        // 수정: 본문 + 이미지 (유지할 기존 이미지[focus 포함] + 새 파일[focus 포함])
         const updated = await updatePost(
           initial.id,
           {
@@ -155,9 +180,9 @@ export function PostFormModal({
             is_anonymous: isAnonymous,
           },
           {
-            keepUrls: existingImages.map((im) => im.url), // ← [추가] 유지할 기존 이미지
-            newFiles: files,                              // ← [추가] 새로 추가한 파일
-            uploaderId: currentUser.id,                   // ← [추가] 업로드 경로용
+            keep: existingImages.map((im) => ({ url: im.url, focusX: im.focus_x, focusY: im.focus_y })), // ← [수정] focus 동반
+            newImages: files.map((f, i) => ({ file: f, focusX: fileFocus[i]?.x ?? 50, focusY: fileFocus[i]?.y ?? 50 })), // ← [수정]
+            uploaderId: currentUser.id,
           }
         );
         onSaved(updated);
@@ -176,7 +201,7 @@ export function PostFormModal({
             content: content.trim(),
             is_anonymous: isAnonymous,
           },
-          files
+          files.map((f, i) => ({ file: f, focusX: fileFocus[i]?.x ?? 50, focusY: fileFocus[i]?.y ?? 50 })) // ← [수정] focus 동반
         );
         onSaved(created);
       }
@@ -340,87 +365,87 @@ export function PostFormModal({
               ({totalImages}/{MAX_IMAGES})
             </label>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {/* 기존 이미지 (편집 모드) — 유지/삭제 */}
-              {existingImages.map((im, i) => (
-                <div key={im.id} style={{ position: 'relative', width: 96, height: 96 }}>
-                  <img
-                    src={im.url}
-                    alt={`기존 이미지 ${i + 1}`}
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover',
-                      borderRadius: 8,
-                      border: '1px solid #eee',
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveExisting(i)}
-                    disabled={submitting}
-                    style={{
-                      position: 'absolute',
-                      top: -6,
-                      right: -6,
-                      width: 22,
-                      height: 22,
-                      borderRadius: '50%',
-                      border: 'none',
-                      background: '#1a1a1a',
-                      color: '#fff',
-                      fontSize: 12,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                    aria-label="기존 이미지 삭제"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
+              {/* 기존 이미지 (편집 모드) — 첫 번째=대표(커버)만 위치 조정 */}
+              {existingImages.map((im, i) => {
+                const isCover = i === 0; // 기존 이미지가 있으면 첫 번째가 커버
+                return (
+                  <div key={im.id} style={{ position: 'relative', width: 96, height: 96 }}>
+                    <img
+                      src={im.url}
+                      alt={`기존 이미지 ${i + 1}`}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        objectPosition: isCover ? `${im.focus_x}% ${im.focus_y}%` : '50% 50%', // ← 커버만 focus 반영
+                        borderRadius: 8,
+                        border: '1px solid #eee',
+                      }}
+                    />
+                    {isCover && <span style={coverBadgeStyle}>대표</span>}{/* ← [추가] 커버 표시 */}
+                    {isCover && (
+                      <button
+                        type="button"
+                        onClick={() => setEditing({ kind: 'existing', index: i })} // ← 커버 위치 조정
+                        disabled={submitting}
+                        style={focusBtnStyle}
+                      >
+                        위치 조정
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveExisting(i)}
+                      disabled={submitting}
+                      style={removeBtnStyle}
+                      aria-label="기존 이미지 삭제"
+                    >
+                      ×
+                    </button>
+                  </div>
+                );
+              })}
 
-              {/* 새로 추가한 파일 미리보기 */}
-              {previews.map((url, i) => (
-                <div key={url} style={{ position: 'relative', width: 96, height: 96 }}>
-                  <img
-                    src={url}
-                    alt={`첨부 ${i + 1}`}
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover',
-                      borderRadius: 8,
-                      border: '1px solid #eee',
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveImage(i)}
-                    disabled={submitting}
-                    style={{
-                      position: 'absolute',
-                      top: -6,
-                      right: -6,
-                      width: 22,
-                      height: 22,
-                      borderRadius: '50%',
-                      border: 'none',
-                      background: '#1a1a1a',
-                      color: '#fff',
-                      fontSize: 12,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                    aria-label="이미지 삭제"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
+              {/* 새로 추가한 파일 미리보기 — 기존이 없을 때 첫 신규가 커버 */}
+              {previews.map((url, i) => {
+                const isCover = existingImages.length === 0 && i === 0; // 기존 없으면 첫 신규가 커버
+                return (
+                  <div key={url} style={{ position: 'relative', width: 96, height: 96 }}>
+                    <img
+                      src={url}
+                      alt={`첨부 ${i + 1}`}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        objectPosition: isCover ? `${fileFocus[i]?.x ?? 50}% ${fileFocus[i]?.y ?? 50}%` : '50% 50%', // ← 커버만 focus
+                        borderRadius: 8,
+                        border: '1px solid #eee',
+                      }}
+                    />
+                    {isCover && <span style={coverBadgeStyle}>대표</span>}{/* ← [추가] 커버 표시 */}
+                    {isCover && (
+                      <button
+                        type="button"
+                        onClick={() => setEditing({ kind: 'new', index: i })} // ← 커버 위치 조정
+                        disabled={submitting}
+                        style={focusBtnStyle}
+                      >
+                        위치 조정
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveImage(i)}
+                      disabled={submitting}
+                      style={removeBtnStyle}
+                      aria-label="이미지 삭제"
+                    >
+                      ×
+                    </button>
+                  </div>
+                );
+              })}
 
               {totalImages < MAX_IMAGES && ( // ← [수정] 기존+신규 합계 기준
                 <button
@@ -457,6 +482,11 @@ export function PostFormModal({
                 : '글만 등록해도 됩니다 · '}
               JPG · PNG · WebP · GIF · 최대 10MB · 최대 {MAX_IMAGES}장
             </div>
+            {totalImages > 0 && (
+              <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>
+                ⓘ 첫 번째 <b>대표</b> 사진이 목록 카드 커버로 쓰입니다. “위치 조정”으로 커버에 보일 부분을 맞춰주세요.
+              </div>
+            )}{/* ← [추가] 커버 위치 조정 안내 */}
           </div>
 
           {/* 익명 토글 */}
@@ -539,7 +569,67 @@ export function PostFormModal({
           </button>
         </div>
       </div>
+
+      {/* 썸네일 위치 조정 에디터 — 자기 자신을 body로 포털(zIndex 1100) ← [추가] */}
+      {editing && (
+        <ImageFocusEditor
+          src={editing.kind === 'new' ? previews[editing.index] : existingImages[editing.index]?.url}
+          initialX={editing.kind === 'new' ? (fileFocus[editing.index]?.x ?? 50) : (existingImages[editing.index]?.focus_x ?? 50)}
+          initialY={editing.kind === 'new' ? (fileFocus[editing.index]?.y ?? 50) : (existingImages[editing.index]?.focus_y ?? 50)}
+          onCancel={() => setEditing(null)}
+          onSave={handleFocusSave}
+        />
+      )}
     </div>,
     document.body
   );
 }
+
+// 미리보기 위 "위치 조정" 버튼 (하단 바) ← [추가]
+const focusBtnStyle: React.CSSProperties = {
+  position: 'absolute',
+  left: 4,
+  right: 4,
+  bottom: 4,
+  padding: '3px 0',
+  borderRadius: 6,
+  border: 'none',
+  background: 'rgba(0,0,0,0.6)',
+  color: '#fff',
+  fontSize: 11,
+  cursor: 'pointer',
+  textAlign: 'center',
+};
+
+// 대표(커버) 배지 — 목록 카드 커버로 쓰이는 첫 이미지 표시 ← [추가]
+const coverBadgeStyle: React.CSSProperties = {
+  position: 'absolute',
+  top: 4,
+  left: 4,
+  padding: '1px 6px',
+  borderRadius: 6,
+  background: '#111',
+  color: '#fff',
+  fontSize: 10,
+  fontWeight: 600,
+  lineHeight: 1.6,
+  pointerEvents: 'none',
+};
+
+// 미리보기 삭제(×) 버튼 ← [추가]
+const removeBtnStyle: React.CSSProperties = {
+  position: 'absolute',
+  top: -6,
+  right: -6,
+  width: 22,
+  height: 22,
+  borderRadius: '50%',
+  border: 'none',
+  background: '#1a1a1a',
+  color: '#fff',
+  fontSize: 12,
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+};

@@ -1,5 +1,10 @@
 // ============================================================================
 // CHANGELOG
+//   2026-06-11
+//     - [기능추가] 커버 썸네일 크롭 기준점 적용. cover_image_url 이 object-fit:cover
+//         중앙 고정이라 세로/가로 사진의 끝이 잘리던 문제 → 커버 이미지의 focus_x/focus_y
+//         (esg_post_images, 작성/수정 시 지정)를 object-position 으로 반영.
+//         커버 focus = images 중 cover_image_url 일치 항목(없으면 images[0], 그래도 없으면 50/50).
 //   2026-06-09
 //     - [근본수정] 제목 2줄/본문 2줄일 때 본문 잘림 해결(모바일 동일).
 //         원인: .post-card 가 height 고정(380/300)이라 worst-case 필요높이(약 407/357)를
@@ -162,6 +167,13 @@ export function PostListCard({
   const hasImage = !!post.cover_image_url;
   const badge = BADGE[post.category];
 
+  // 커버 썸네일 크롭 기준점 — 커버 이미지(=cover_image_url)의 focus. ← [2026-06-11]
+  //   일치 항목 없으면 images[0](sort_order 0), 그래도 없으면 중앙(50/50).
+  const coverImg =
+    post.images?.find((im) => im.url === post.cover_image_url) ?? post.images?.[0];
+  const coverFocusX = coverImg?.focus_x ?? 50;
+  const coverFocusY = coverImg?.focus_y ?? 50;
+
   // 작성자 표시 (익명 마스킹은 view에서 처리됨 — user_id null이면 아바타도 없음)
   const maskAuthor = post.is_anonymous && !isMine && !isAdmin;
   const authorName = maskAuthor ? '익명' : post.user_name;
@@ -210,7 +222,13 @@ export function PostListCard({
           <img
             src={post.cover_image_url ?? undefined}
             alt=""
-            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              objectPosition: `${coverFocusX}% ${coverFocusY}%`, // ← [2026-06-11] 커버 크롭 기준점
+              display: 'block',
+            }}
           />
         </div>
       )}

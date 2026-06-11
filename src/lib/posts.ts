@@ -131,6 +131,13 @@ export interface PostAuthor {
   dept: string | null;
 }
 
+/** 업로드할 새 이미지 1장 + 썸네일 크롭 기준점(0~100). ← [2026-06-11] */
+export interface PostImageDraft {
+  file: File;
+  focusX: number; // 0~100 (%)
+  focusY: number; // 0~100 (%)
+}
+
 /**
  * 게시글 + 이미지(0~3장) 한 번에 생성.
  * - 이미지 업로드 후 esg_posts INSERT
@@ -141,23 +148,23 @@ export interface PostAuthor {
 export async function createPost(
   user: PostAuthor,
   input: CreatePostInput,
-  files: File[] = []
+  images: PostImageDraft[] = [] // ← [2026-06-11] File[] → PostImageDraft[] (focus 포함)
 ): Promise<EsgPostWithImagesRow> {
-  if (files.length > 3) {
+  if (images.length > 3) {
     throw new Error('이미지는 최대 3장까지 업로드 가능합니다.');
   }
 
   // 카테고리별 사진 필수 정책 강제 (SSOT 기반) — UI 우회/직접 호출까지 방어
-  if (POST_IMAGE_POLICY[input.category].imageRequired && files.length === 0) {  // ← [추가] 사진 필수 카테고리 가드
-    throw new Error('이 게시판은 사진을 최소 1장 이상 등록해야 합니다.');         // ← [추가]
-  }                                                                              // ← [추가]
+  if (POST_IMAGE_POLICY[input.category].imageRequired && images.length === 0) {  // ← [수정] images 기준
+    throw new Error('이 게시판은 사진을 최소 1장 이상 등록해야 합니다.');
+  }
 
-  // 1) 이미지 업로드 (sort_order 0부터)
-  const uploaded: Array<{ url: string; sort_order: number }> = [];
+  // 1) 이미지 업로드 (sort_order 0부터, focus 동반)
+  const uploaded: Array<{ url: string; sort_order: number; focusX: number; focusY: number }> = []; // ← [수정] focus 포함
   try {
-    for (let i = 0; i < files.length; i++) {
-      const url = await uploadPostImage(files[i], user.id);
-      uploaded.push({ url, sort_order: i });
+    for (let i = 0; i < images.length; i++) {
+      const url = await uploadPostImage(images[i].file, user.id);
+      uploaded.push({ url, sort_order: i, focusX: images[i].focusX, focusY: images[i].focusY }); // ← [수정]
     }
   } catch (uploadErr) {
     // 일부 업로드 후 실패 시, 성공한 것 cleanup
@@ -196,6 +203,8 @@ export async function createPost(
       post_id: post.id,
       image_url: u.url,
       sort_order: u.sort_order,
+      focus_x: u.focusX, // ← [2026-06-11] 썸네일 기준점 X
+      focus_y: u.focusY, // ← [2026-06-11] 썸네일 기준점 Y
     }));
     const { error: imgError } = await supabase.from('esg_post_images').insert(imageRows);
 
@@ -219,10 +228,10 @@ export async function createPost(
  * - imagesOp 전달: 이미지까지 재구성 (유지할 기존 + 새 파일)
  */
 export interface UpdatePostImagesOp {
-  /** 유지할 기존 이미지 URL (원하는 순서대로) */
-  keepUrls: string[];
-  /** 새로 추가할 파일 (keep 뒤에 append) */
-  newFiles: File[];
+  /** 유지할 기존 이미지 (원하는 순서대로) — url + 썸네일 기준점 */
+  keep: Array<{ url: string; focusX: number; focusY: number }>; // ← [2026-06-11] keepUrls → keep(+focus)
+  /** 새로 추가할 이미지 (keep 뒤에 append) — file + 기준점 */
+  newImages: PostImageDraft[]; // ← [2026-06-11] newFiles → newImages(+focus)
   /** 새 파일 업로드 경로용 사용자 id */
   uploaderId: string;
 }
@@ -241,56 +250,69 @@ export async function updatePost(
     return full;
   }
 
-  const { keepUrls, newFiles, uploaderId } = imagesOp;
-  if (keepUrls.length + newFiles.length > 3) {                          // ← [추가] 최대 3장
+  const { keep, newImages, uploaderId } = imagesOp;                      // ← [수정] keep/newImages
+  if (keep.length + newImages.length > 3) {                             // ← [수정] 최대 3장
     throw new Error('이미지는 최대 3장까지 업로드 가능합니다.');
   }
 
   // 카테고리 사진 필수 정책 강제 (zero_waste 등) — 최종 0장 차단
-  const { data: postRow, error: catErr } = await supabase               // ← [추가]
-    .from('esg_posts').select('category').eq('id', id).single();         // ← [추가]
-  if (catErr || !postRow) throw catErr ?? new Error('게시글 조회 실패');  // ← [추가]
-  const totalAfter = keepUrls.length + newFiles.length;                  // ← [추가]
-  if (POST_IMAGE_POLICY[(postRow as { category: EsgPostCategory }).category].imageRequired && totalAfter === 0) { // ← [추가]
-    throw new Error('이 게시판은 사진을 최소 1장 이상 유지해야 합니다.'); // ← [추가]
+  const { data: postRow, error: catErr } = await supabase
+    .from('esg_posts').select('category').eq('id', id).single();
+  if (catErr || !postRow) throw catErr ?? new Error('게시글 조회 실패');
+  const totalAfter = keep.length + newImages.length;                    // ← [수정]
+  if (POST_IMAGE_POLICY[(postRow as { category: EsgPostCategory }).category].imageRequired && totalAfter === 0) {
+    throw new Error('이 게시판은 사진을 최소 1장 이상 유지해야 합니다.');
   }
 
-  // 1) 새 파일 업로드 (실패 시 업로드분 cleanup)
-  const uploaded: string[] = [];                                         // ← [추가]
-  try {                                                                  // ← [추가]
-    for (const f of newFiles) uploaded.push(await uploadPostImage(f, uploaderId)); // ← [추가]
-  } catch (e) {                                                          // ← [추가]
-    await cleanupImages(uploaded);                                       // ← [추가]
-    throw e;                                                             // ← [추가]
-  }                                                                      // ← [추가]
+  // 1) 새 파일 업로드 (실패 시 업로드분 cleanup) — focus 동반
+  const uploaded: Array<{ url: string; focusX: number; focusY: number }> = []; // ← [수정] focus 포함
+  try {
+    for (const im of newImages) {                                        // ← [수정]
+      const url = await uploadPostImage(im.file, uploaderId);            // ← [수정]
+      uploaded.push({ url, focusX: im.focusX, focusY: im.focusY });      // ← [수정]
+    }
+  } catch (e) {
+    await cleanupImages(uploaded.map((u) => u.url));                     // ← [수정]
+    throw e;
+  }
 
   // 2) 현재 이미지 행 조회 → 제거 대상 파악
-  const { data: curRows, error: curErr } = await supabase               // ← [추가]
-    .from('esg_post_images').select('image_url').eq('post_id', id);      // ← [추가]
-  if (curErr) { await cleanupImages(uploaded); throw curErr; }           // ← [추가]
-  const currentUrls = ((curRows ?? []) as Array<{ image_url: string }>).map((r) => r.image_url); // ← [추가]
-  const removedUrls = currentUrls.filter((u) => !keepUrls.includes(u));  // ← [추가] 더 이상 안 쓰는 파일
+  const { data: curRows, error: curErr } = await supabase
+    .from('esg_post_images').select('image_url').eq('post_id', id);
+  if (curErr) { await cleanupImages(uploaded.map((u) => u.url)); throw curErr; } // ← [수정]
+  const currentUrls = ((curRows ?? []) as Array<{ image_url: string }>).map((r) => r.image_url);
+  const keepUrls = keep.map((k) => k.url);                              // ← [추가] 유지 URL 목록
+  const removedUrls = currentUrls.filter((u) => !keepUrls.includes(u)); // 더 이상 안 쓰는 파일
 
-  // 3) 최종 이미지 = 유지(순서) + 새 업로드
-  const finalUrls = [...keepUrls, ...uploaded];                          // ← [추가]
+  // 3) 최종 이미지 = 유지(순서, focus 유지) + 새 업로드(focus)
+  const finalImages = [                                                 // ← [수정] url+focus 단위
+    ...keep.map((k) => ({ url: k.url, focusX: k.focusX, focusY: k.focusY })),
+    ...uploaded,
+  ];
 
   // 4) 이미지 행 재구성: delete-all + insert-all
   //    (sort_order CHECK 0..2 / UNIQUE(post_id,sort_order)라 임시값 불가 → 전체 교체가 안전)
-  const { error: delErr } = await supabase.from('esg_post_images').delete().eq('post_id', id); // ← [추가]
-  if (delErr) { await cleanupImages(uploaded); throw delErr; }           // ← [추가]
-  if (finalUrls.length > 0) {                                            // ← [추가]
-    const rows = finalUrls.map((url, i) => ({ post_id: id, image_url: url, sort_order: i })); // ← [추가]
-    const { error: insErr } = await supabase.from('esg_post_images').insert(rows); // ← [추가]
-    if (insErr) { await cleanupImages(uploaded); throw insErr; }         // ← [추가]
+  const { error: delErr } = await supabase.from('esg_post_images').delete().eq('post_id', id);
+  if (delErr) { await cleanupImages(uploaded.map((u) => u.url)); throw delErr; } // ← [수정]
+  if (finalImages.length > 0) {
+    const rows = finalImages.map((im, i) => ({                          // ← [수정] focus 포함
+      post_id: id,
+      image_url: im.url,
+      sort_order: i,
+      focus_x: im.focusX,
+      focus_y: im.focusY,
+    }));
+    const { error: insErr } = await supabase.from('esg_post_images').insert(rows);
+    if (insErr) { await cleanupImages(uploaded.map((u) => u.url)); throw insErr; } // ← [수정]
   }
 
   // 5) esg_posts patch + cover_image_url 동기화(첫 이미지)
-  const { error: upErr } = await supabase                                // ← [추가]
-    .from('esg_posts').update({ ...patch, cover_image_url: finalUrls[0] ?? null }).eq('id', id); // ← [추가]
-  if (upErr) throw upErr;                                                // ← [추가]
+  const { error: upErr } = await supabase
+    .from('esg_posts').update({ ...patch, cover_image_url: finalImages[0]?.url ?? null }).eq('id', id); // ← [수정]
+  if (upErr) throw upErr;
 
   // 6) DB 반영 성공 후, 제거된 파일 Storage 삭제 (마지막에)
-  if (removedUrls.length > 0) await cleanupImages(removedUrls);          // ← [추가]
+  if (removedUrls.length > 0) await cleanupImages(removedUrls);
 
   const full = await loadPost(id);
   if (!full) throw new Error('수정 후 조회 실패');

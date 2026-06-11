@@ -248,6 +248,8 @@ export interface EsgPostImageRow {
   post_id: string;
   image_url: string;
   sort_order: number; // 0~2
+  focus_x: number; // ← [2026-06-11] 썸네일 크롭 기준점 X(0~100%)
+  focus_y: number; // ← [2026-06-11] 썸네일 크롭 기준점 Y(0~100%)
   created_at: string;
 }
 
@@ -255,6 +257,8 @@ export interface EsgPostImageInsert {
   post_id: string;
   image_url: string;
   sort_order: number;
+  focus_x?: number; // ← [2026-06-11] 미지정 시 DB default 50(중앙)
+  focus_y?: number; // ← [2026-06-11] 미지정 시 DB default 50(중앙)
 }
 
 // ============================================================================
@@ -582,7 +586,7 @@ export interface EsgCommentPublicRow {
 
 /** esg_posts_with_images — 게시글 + 이미지 배열 JOIN view */
 export interface EsgPostWithImagesRow extends EsgPostPublicRow {
-  images: Array<{ id: string; url: string; sort_order: number }>;
+  images: Array<{ id: string; url: string; sort_order: number; focus_x: number; focus_y: number }>; // ← [2026-06-11] focus 추가
 }
 
 /** esg_donation_stats — 실시간 모금 현황 */
