@@ -1,5 +1,17 @@
 // ============================================================================
 // CHANGELOG
+//   2026-06-11 (b)
+//     - [디자인] Figma 903:492 모달 세부 요소 정밀 반영:
+//         · 모달 radius 20→24 (헤더 rounded-top 24)
+//         · 헤더: 카테고리를 라임 칩(zero_waste rgba(170,255,32,.6)/#333 14 SemiBold)으로,
+//           닫기 ✕문자 → close.svg 20px(32×32 버튼), 헤더 하단 보더 제거
+//         · 제목 24/700 → 36/500 #111 line-height 1.5
+//         · 작성자: gap 20, "·" 제거, 이름 14/Regular/#111, 날짜 12/#c2c7d1
+//         · 본문 14/1.7/#222 → 16/1.6/#343a3f, 하단 24 + 0.5px(#f1f5f9) 구분선
+//         · 좋아요: 알약 #ffefef/#ff2e2e, heart 24, 14px (미좋아요는 #f1f1f1/#111 outline)
+//         · 수정 border #111 / 삭제 border #ff6868, radius 12, px16 py8, 14px
+//         · 좋아요행 하단 0.5px 구분선 + 20px devider(0.5px) 후 댓글
+//         · [신규] 모달 하단 62px 화이트 페이드 그라데이션(스크롤 어피던스, pointer-events none)
 //   2026-06-11
 //     - [근본수정] 이미지가 aspect-ratio 4/3 + object-fit:cover로 강제 크롭되어 원본
 //         위아래가 잘리던 컴플레인 → 공통 PostImageGallery로 교체. 대표 이미지는
@@ -87,6 +99,12 @@ function DetailLikeIcon({ filled, size = 18 }: { filled: boolean; size?: number 
     </svg>
   );
 }
+
+// 카테고리 칩 스타일 — Figma 903:493 (zero_waste 라임 정확값) + 카테고리 identity(wise_life)
+const CATEGORY_PILL: Record<string, { label: string; bg: string; color: string }> = {
+  zero_waste: { label: '제로 웨이스트', bg: 'rgba(170, 255, 32, 0.6)', color: '#333' }, // ← Figma 정확값
+  wise_life: { label: '슬기로운 사회생활', bg: '#33a457', color: '#fff' },                // ← PostListCard와 통일
+};
 
 export function PostDetailModal({ postId, open, onClose, onDeleted, onLikeChanged }: PostDetailModalProps) {
   const { currentUser, isAdmin } = useCurrentUser();
@@ -256,7 +274,7 @@ export function PostDetailModal({ postId, open, onClose, onDeleted, onLikeChange
         onClick={(e) => e.stopPropagation()}
         style={{
           background: '#fff',
-          borderRadius: 20, // ← [2026-06-08] 12 → 20
+          borderRadius: 24, // ← [2026-06-11] Figma 헤더 rounded-top 24 (20→24)
           width: '100%',
           maxWidth: 760, // ← [2026-06-11] Figma node 903:492 "조회 모달...760" 정합(720→760)
           maxHeight: '90vh',
@@ -264,34 +282,51 @@ export function PostDetailModal({ postId, open, onClose, onDeleted, onLikeChange
           flexDirection: 'column',
           boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
           overflow: 'hidden',
+          position: 'relative', // ← [2026-06-11] 하단 페이드 그라데이션 absolute 기준
         }}
       >
-        {/* 헤더 */}
+        {/* 헤더 — Figma 903:493 (px20 py16, 카테고리 라임 칩 + 닫기 아이콘, 하단 보더 없음) */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '14px 20px',
-            borderBottom: '1px solid #eee',
+            padding: '16px 20px', // ← [2026-06-11] Figma py16 px20 (14→16)
             flexShrink: 0,
           }}
         >
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#222' }}>
-            {post?.category === 'zero_waste'
-              ? '♻️ 제로 웨이스트'
-              : post?.category === 'wise_life'
-              ? '🤝 슬기로운 사회생활'
-              : '게시글'}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {/* 카테고리 칩 */}
+          {(() => {
+            const pill = post?.category ? CATEGORY_PILL[post.category] : undefined; // ← 카테고리별 칩
+            return (
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '3px 10px',                    // ← Figma px10 py3
+                  borderRadius: 100,                      // ← Figma rounded-[100px]
+                  background: pill?.bg ?? '#f1f1f1',      // ← 카테고리 색(미상시 중립)
+                  color: pill?.color ?? '#555',
+                  fontSize: 14,                           // ← Figma 14px
+                  fontWeight: 600,                        // ← Figma SemiBold
+                  lineHeight: 1.5,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {pill?.label ?? '게시글'}
+              </div>
+            );
+          })()}
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {post && (
               <Link
                 to={`/posts/detail/${post.id}`}
                 onClick={onClose}
                 style={{
                   fontSize: 11,
-                  color: '#0ea5e9',
+                  color: '#c2c7d1', // ← [2026-06-11] 톤 다운(기능 유지: URL 공유용 전체보기)
                   textDecoration: 'none',
                   padding: '4px 8px',
                   borderRadius: 4,
@@ -306,18 +341,19 @@ export function PostDetailModal({ postId, open, onClose, onDeleted, onLikeChange
               onClick={onClose}
               aria-label="닫기"
               style={{
-                width: 32,
+                width: 32,           // ← Figma close icon 32×32
                 height: 32,
                 padding: 0,
                 border: 'none',
                 background: 'transparent',
                 cursor: 'pointer',
-                fontSize: 18,
-                color: '#666',
-                borderRadius: 6,
+                borderRadius: '50%', // ← Figma rounded-full
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
-              ✕
+              <img src="/icons/close.svg" alt="" aria-hidden="true" width={20} height={20} style={{ display: 'block' }} />{/* ← Figma 20px close 아이콘 */}
             </button>
           </div>
         </div>
@@ -332,20 +368,18 @@ export function PostDetailModal({ postId, open, onClose, onDeleted, onLikeChange
             <div style={{ padding: 40, textAlign: 'center', color: '#999' }}>게시글이 없습니다.</div>
           ) : (
             <div>
-              {/* 제목 */}
-              <h2 style={{ fontSize: 24, margin: '0 0 12px', fontWeight: 700 }}>
+              {/* 제목 — Figma 1331:35 (36px / Medium / #111 / lh 1.5) */}
+              <h2 style={{ fontSize: 36, margin: '0 0 16px', fontWeight: 500, color: '#111', lineHeight: 1.5 }}>
                 {post.title}
               </h2>
 
-              {/* 작성자 */}
+              {/* 작성자 — Figma 1331:62 (gap 20, 구분점 없음) */}
               <div
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 8,
-                  marginBottom: 16,
-                  fontSize: 12,
-                  color: '#666',
+                  gap: 20,          // ← Figma gap-[20px] (작성자 ↔ 날짜)
+                  marginBottom: 16, // ← Figma Frame1 gap-16
                 }}
               >
                 <UserChip
@@ -355,40 +389,45 @@ export function PostDetailModal({ postId, open, onClose, onDeleted, onLikeChange
                   isMe={isOwner}
                   anonymous={!!post?.is_anonymous}
                   colorSeed={post.is_anonymous ? post.id : undefined}
-                  nameSize={12}
-                  nameColor="#444"
-                />{/* ← [수정] 공통 UserChip */}
-                <span>·</span>
-                <span>{formatKSTFull(post.created_at)}</span>
+                  gap={4}            // ← Figma 아바타↔이름 gap-4
+                  nameSize={14}      // ← Figma 14px (12→14)
+                  nameWeight={400}   // ← Figma Regular
+                  nameColor="#111"   // ← Figma #111
+                />
+                <span style={{ fontSize: 12, color: '#c2c7d1', whiteSpace: 'nowrap' }}>
+                  {formatKSTFull(post.created_at)}
+                </span>{/* ← Figma 날짜 12px #c2c7d1, "·" 제거 */}
               </div>
 
               {/* 이미지 — 원본 비율 유지 + 여러 장이면 썸네일 열(공통 컴포넌트) ← [2026-06-11] */}
               {images.length > 0 && <PostImageGallery images={images} />}
 
-              {/* 본문 */}
+              {/* 본문 — Figma 903:512 (16px / Regular / #343a3f / lh 1.6) + 하단 0.5px 구분선 */}
               <div
                 style={{
-                  fontSize: 14,
-                  lineHeight: 1.7,
-                  color: '#222',
+                  fontSize: 16,                     // ← Figma 16px (14→16)
+                  lineHeight: 1.6,                  // ← Figma lh 1.6
+                  color: '#343a3f',                 // ← Figma #343a3f
                   whiteSpace: 'pre-wrap',
                   wordBreak: 'break-word',
-                  marginBottom: 24,
+                  paddingBottom: 24,                // ← Figma pb-24
+                  borderBottom: '1px solid #f1f5f9',// ← Figma 본문 하단 구분선
+                  marginBottom: 0,
                 }}
               >
                 {post.content}
               </div>
 
-              {/* 좋아요 + 수정/삭제 */}
+              {/* 좋아요 + 수정/삭제 — Figma 903:513/514 (py16, 하단 0.5px 구분선) */}
               <div
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   gap: 12,
-                  marginBottom: 24,
-                  paddingTop: 12,
-                  borderTop: '1px solid #f0f0f0',
+                  paddingTop: 16,                      // ← Figma py-16
+                  paddingBottom: 16,                   // ← Figma py-16
+                  borderBottom: '0.5px solid #f1f5f9', // ← Figma border-b 0.5px #f1f5f9
                 }}
               >
                 <button
@@ -398,32 +437,36 @@ export function PostDetailModal({ postId, open, onClose, onDeleted, onLikeChange
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: 6,
-                    padding: '8px 14px',
-                    background: liked ? '#fee2e2' : '#f5f5f5',
+                    gap: 4,                                  // ← Figma gap-4
+                    padding: '8px 16px',                     // ← Figma px16 py8
+                    background: liked ? '#ffefef' : '#f1f1f1', // ← Figma 좋아요 #ffefef / 미좋아요 중립
                     border: 'none',
-                    borderRadius: 99,
+                    borderRadius: 999,                       // ← Figma rounded-999
                     cursor: currentUser ? 'pointer' : 'not-allowed',
-                    fontSize: 13,
-                    color: liked ? '#dc2626' : '#444',
+                    fontSize: 14,                            // ← Figma 14px
+                    fontWeight: 400,                         // ← Figma Regular
+                    lineHeight: 1.3,
+                    color: liked ? '#ff2e2e' : '#111',       // ← Figma #ff2e2e / 미좋아요 #111
                   }}
                 >
-                  <DetailLikeIcon filled={liked} />
+                  <DetailLikeIcon filled={liked} size={24} />{/* ← Figma heart 24px */}
                   좋아요 {post.like_count ?? 0}
                 </button>
 
                 {canEdit && (
-                  <div style={{ display: 'flex', gap: 6 }}>
+                  <div style={{ display: 'flex', gap: 8 }}>{/* ← Figma gap-8 */}
                     <button
                       type="button"
                       onClick={() => setShowEditModal(true)}
                       style={{
-                        padding: '6px 12px',
+                        padding: '8px 16px',          // ← Figma px16 py8
                         background: '#fff',
-                        border: '1px solid #ddd',
-                        borderRadius: 6,
+                        border: '1px solid #111',     // ← Figma border black
+                        borderRadius: 12,             // ← Figma rounded-12
                         cursor: 'pointer',
-                        fontSize: 12,
+                        fontSize: 14,                 // ← Figma 14px
+                        lineHeight: 1.5,
+                        color: '#111',                // ← Figma #111
                       }}
                     >
                       수정
@@ -433,13 +476,14 @@ export function PostDetailModal({ postId, open, onClose, onDeleted, onLikeChange
                       onClick={handleDelete}
                       disabled={deleting}
                       style={{
-                        padding: '6px 12px',
-                        background: '#fef2f2',
-                        border: '1px solid #fecaca',
-                        color: '#dc2626',
-                        borderRadius: 6,
+                        padding: '8px 16px',          // ← Figma px16 py8
+                        background: '#fff',
+                        border: '1px solid #ff6868',  // ← Figma border #ff6868
+                        color: '#ff6868',             // ← Figma #ff6868
+                        borderRadius: 12,             // ← Figma rounded-12
                         cursor: deleting ? 'not-allowed' : 'pointer',
-                        fontSize: 12,
+                        fontSize: 14,                 // ← Figma 14px
+                        lineHeight: 1.5,
                       }}
                     >
                       {deleting ? '삭제 중…' : '삭제'}
@@ -448,11 +492,28 @@ export function PostDetailModal({ postId, open, onClose, onDeleted, onLikeChange
                 )}
               </div>
 
+              {/* devider — Figma 903:521 (h20 + 하단 0.5px 구분선) */}
+              <div style={{ height: 20, borderBottom: '0.5px solid #f1f5f9', marginBottom: 16 }} />
+
               {/* 댓글 */}
               <CommentSection postId={post.id} />
             </div>
           )}
         </div>
+
+        {/* 하단 페이드 그라데이션 — Figma 903:522 (62px, 투명→흰색, 스크롤 어피던스) */}
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: 62,                                                         // ← Figma 62px
+            background: 'linear-gradient(to bottom, rgba(255,255,255,0) 0%, #fff 100%)', // ← Figma 그라데이션
+            pointerEvents: 'none',                                              // ← 하위 클릭 통과(입력 방해 X)
+          }}
+        />
       </div>
 
       {/* 수정 모달 */}
