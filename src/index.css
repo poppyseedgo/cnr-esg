@@ -189,3 +189,16 @@ button {
     height: 180px;
   }
 }
+
+/* 모바일(<600): 이미지 카드는 본문(컨텐츠) 텍스트 숨김 + 높이 축소(사진 위주로 짧게) ← [2026-06-11]
+   - 본문 <p>는 인라인 display:-webkit-box(라인클램프)라 클래스로는 못 덮음 → display:none !important.
+   - 본문 숨긴 만큼 .post-card min-height(360) 고정을 풀어 이미지+제목+푸터 자연 높이로 축소.
+   - 텍스트 전용 카드(이미지 없음, wise_life)는 본문이 핵심이라 대상에서 제외(모디파이어 미부여). */
+@media (max-width: 599.98px) {
+  .post-card--has-image .post-card__body {
+    display: none !important;
+  }
+  .post-card--has-image {
+    min-height: auto;
+  }
+}

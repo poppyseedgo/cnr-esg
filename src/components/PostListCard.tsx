@@ -180,7 +180,7 @@ export function PostListCard({
 
   return (
     <div
-      className="card-pressable post-card" // ← [2026-06-05] 고정 높이(.post-card) + hover 모션
+      className={`card-pressable post-card${hasImage ? ' post-card--has-image' : ''}`} // ← [2026-06-11] 이미지 카드 모디파이어(모바일 본문 숨김/높이 축소)
       role="button"
       tabIndex={0}
       onClick={onClick}
@@ -304,6 +304,7 @@ export function PostListCard({
               {post.title}
             </h3>
             <p
+              className="post-card__body" // ← [2026-06-11] 모바일에서 이미지 카드 본문 숨김 타겟
               style={{
                 margin: 0,
                 fontSize: 14, // ← [2026-06-08] 12 → 14
