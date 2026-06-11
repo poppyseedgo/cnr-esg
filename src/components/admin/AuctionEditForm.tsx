@@ -289,7 +289,7 @@ export function AuctionEditForm({
             flex: 1,
             minWidth: 120,
             padding: '10px 12px',
-            background: busy ? '#ccc' : '#0ea5e9',
+            background: busy ? '#ccc' : '#111',
             color: '#fff',
             border: 'none',
             borderRadius: 6,

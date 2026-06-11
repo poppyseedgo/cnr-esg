@@ -208,7 +208,7 @@ export function AdminQA() {
             onClick={handleSearch}
             style={{
               padding: '8px 16px',
-              background: '#0ea5e9',
+              background: '#111',
               color: '#fff',
               border: 'none',
               borderRadius: 6,
@@ -459,7 +459,7 @@ function QuestionCard({
             textDecoration: 'none',
           }}
         >
-          {productName} <span style={{ color: '#0ea5e9', fontSize: 11 }}>↗</span>
+          {productName} <span style={{ color: '#111', fontSize: 11 }}>↗</span>
         </Link>
       </div>
 
@@ -562,7 +562,7 @@ function QuestionCard({
                     borderRadius: 4,
                     fontSize: 10,
                     fontWeight: 700,
-                    background: '#0ea5e9',
+                    background: '#111',
                     color: '#fff',
                   }}
                 >
@@ -630,7 +630,7 @@ function QuestionCard({
                       type="button"
                       onClick={() => handleUpdateAnswer(a.id)}
                       disabled={submitting || !editBody.trim()}
-                      style={{ ...smallActionBtn, background: '#0ea5e9', color: '#fff', border: 'none' }}
+                      style={{ ...smallActionBtn, background: '#111', color: '#fff', border: 'none' }}
                     >
                       {submitting ? '저장…' : '저장'}
                     </button>
@@ -702,7 +702,7 @@ function QuestionCard({
               disabled={submitting || !answerBody.trim()}
               style={{
                 padding: '6px 16px',
-                background: submitting || !answerBody.trim() ? '#ccc' : '#0ea5e9',
+                background: submitting || !answerBody.trim() ? '#ccc' : '#111',
                 color: '#fff',
                 border: 'none',
                 borderRadius: 4,
@@ -721,7 +721,7 @@ function QuestionCard({
           onClick={() => setShowForm(true)}
           style={{
             padding: '8px 14px',
-            background: '#0ea5e9',
+            background: '#111',
             color: '#fff',
             border: 'none',
             borderRadius: 6,

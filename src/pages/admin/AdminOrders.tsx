@@ -332,7 +332,7 @@ function OrderAdminCard({
           rel="noopener noreferrer"
           style={{
             fontSize: 12,
-            color: '#0ea5e9',
+            color: '#111',
             textDecoration: 'none',
             fontFamily: 'monospace',
             fontWeight: 600,
@@ -394,7 +394,7 @@ function OrderAdminCard({
           {order.payer_name && (
             <div>
               <span style={{ color: '#888' }}>입금자명: </span>
-              <strong style={{ color: '#0ea5e9' }}>{order.payer_name}</strong>
+              <strong style={{ color: '#111' }}>{order.payer_name}</strong>
             </div>
           )}
           {order.memo && (

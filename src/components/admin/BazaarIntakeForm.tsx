@@ -283,7 +283,7 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess }: BazaarIntakeF
           style={{
             flex: 1,
             padding: '10px 12px',
-            background: saving ? '#ccc' : '#0ea5e9',
+            background: saving ? '#ccc' : '#111',
             color: '#fff',
             border: 'none',
             borderRadius: 6,

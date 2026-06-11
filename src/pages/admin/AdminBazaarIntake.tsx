@@ -160,8 +160,8 @@ export function AdminBazaarIntake() {
                 minHeight: 40,
                 borderRadius: 999,
                 border: '1px solid',
-                borderColor: active ? '#0ea5e9' : '#ddd',
-                background: active ? '#0ea5e9' : '#fff',
+                borderColor: active ? '#111' : '#ddd',
+                background: active ? '#111' : '#fff',
                 color: active ? '#fff' : '#555',
                 fontSize: 13,
                 fontWeight: 600,
@@ -321,7 +321,7 @@ function IntakeCard({
               {categoryLabel(row.category)}
             </span>
             {row.product_id && (
-              <Link to={`/bazaar/${row.product_id}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: '#0ea5e9' }}>
+              <Link to={`/bazaar/${row.product_id}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: '#111' }}>
                 상품 보기 ↗
               </Link>
             )}
@@ -353,7 +353,7 @@ function IntakeCard({
 
           {row.publish_status === 'passed' && (
             <>
-              <button type="button" onClick={doPublish} disabled={busy} style={miniBtn('#0ea5e9')}>🚀 게시</button>
+              <button type="button" onClick={doPublish} disabled={busy} style={miniBtn('#111')}>🚀 게시</button>
               <button type="button" onClick={() => toStatus('rejected', '검수 탈락 처리했습니다.')} disabled={busy} style={miniBtn('#dc2626')}>❌ 검수 탈락</button>
               <button type="button" onClick={() => toStatus('pending', '검수 대기로 되돌렸습니다.')} disabled={busy} style={miniBtn('#6b7280')}>↩︎ 검수 대기</button>
             </>
@@ -368,7 +368,7 @@ function IntakeCard({
           )}
 
           {row.publish_status === 'unpublished' && (
-            <button type="button" onClick={doPublish} disabled={busy} style={miniBtn('#0ea5e9')}>▶ 다시 게시</button>
+            <button type="button" onClick={doPublish} disabled={busy} style={miniBtn('#111')}>▶ 다시 게시</button>
           )}
 
           <button type="button" onClick={onEdit} disabled={busy} style={miniBtn('#6b7280')}>✏️ 수정</button>
@@ -389,7 +389,7 @@ function IntakeCard({
 const primaryBtn: React.CSSProperties = {
   padding: '10px 16px',
   minHeight: 44,
-  background: '#0ea5e9',
+  background: '#111',
   color: '#fff',
   border: 'none',
   borderRadius: 6,

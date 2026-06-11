@@ -257,7 +257,7 @@ export function ProductEditForm({
           style={{
             flex: 1,
             padding: '10px 12px',
-            background: busy ? '#ccc' : '#0ea5e9',
+            background: busy ? '#ccc' : '#111',
             color: '#fff',
             border: 'none',
             borderRadius: 6,

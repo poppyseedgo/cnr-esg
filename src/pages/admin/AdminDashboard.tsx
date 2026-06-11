@@ -300,7 +300,7 @@ function DonationBreakdown({ stats }: { stats: AdminStats }) {
               <div
                 style={{
                   width: `${bazaarPct}%`,
-                  background: '#0ea5e9',
+                  background: '#111',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -333,7 +333,7 @@ function DonationBreakdown({ stats }: { stats: AdminStats }) {
           {/* 라벨 */}
           <div style={{ display: 'flex', gap: 24, fontSize: 13 }}>
             <BreakdownLabel
-              color="#0ea5e9"
+              color="#111"
               label="🛍 바자회"
               amount={bazaar}
               pct={bazaarPct}
@@ -482,7 +482,7 @@ function AlertRow({
         <span style={{ fontSize: 11, color: '#888' }}>{suffix}</span>
       )}
       {link && value > 0 && (
-        <span style={{ fontSize: 11, color: '#0ea5e9' }}>→</span>
+        <span style={{ fontSize: 11, color: '#111' }}>→</span>
       )}
     </div>
   );
@@ -722,7 +722,7 @@ function PostsActivityBox({ stats }: { stats: AdminStats }) {
                   style={{
                     width: `${pct}%`,
                     height: '100%',
-                    background: '#0ea5e9',
+                    background: '#111',
                     transition: 'width 0.3s',
                   }}
                 />
@@ -802,7 +802,7 @@ function EmailStatusBox({ stats }: { stats: AdminStats }) {
           to="/admin/emails"
           style={{
             fontSize: 12,
-            color: '#0ea5e9',
+            color: '#111',
             textDecoration: 'none',
           }}
         >

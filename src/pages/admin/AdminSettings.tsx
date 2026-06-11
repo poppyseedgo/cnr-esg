@@ -359,7 +359,7 @@ function ActivityRow({
               style={{
                 flex: 1,
                 padding: '8px 12px',
-                background: saving ? '#ccc' : '#0ea5e9',
+                background: saving ? '#ccc' : '#111',
                 color: '#fff',
                 border: 'none',
                 borderRadius: 4,
@@ -493,7 +493,7 @@ function BankAccountSection({
               style={{
                 flex: 1,
                 padding: '8px 12px',
-                background: saving ? '#ccc' : '#0ea5e9',
+                background: saving ? '#ccc' : '#111',
                 color: '#fff',
                 border: 'none',
                 borderRadius: 4,
@@ -595,7 +595,7 @@ function DonationGoalSection({
               style={{
                 flex: 1,
                 padding: '8px 12px',
-                background: saving ? '#ccc' : '#0ea5e9',
+                background: saving ? '#ccc' : '#111',
                 color: '#fff',
                 border: 'none',
                 borderRadius: 4,
@@ -689,7 +689,7 @@ function DeliveryInfoSection({
             onClick={beginEdit}
             style={{
               padding: '8px 16px',
-              background: '#0ea5e9',
+              background: '#111',
               color: '#fff',
               border: 'none',
               borderRadius: 6,

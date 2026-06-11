@@ -34,7 +34,7 @@ export function AdminPage() {
           marginBottom: 8,
         }}
       >
-        <h1 style={{ color: '#0ea5e9', margin: 0 }}>🔧 어드민</h1>
+        <h1 style={{ color: '#111', margin: 0 }}>🔧 어드민</h1>
         <span
           style={{
             padding: '4px 10px',
@@ -70,10 +70,10 @@ export function AdminPage() {
               padding: '8px 14px',
               borderRadius: 6,
               textDecoration: 'none',
-              background: isActive ? '#0ea5e9' : '#fff',
+              background: isActive ? '#111' : '#fff',
               color: isActive ? '#fff' : '#444',
               border: '1px solid',
-              borderColor: isActive ? '#0ea5e9' : '#ddd',
+              borderColor: isActive ? '#111' : '#ddd',
               fontSize: 13,
               fontWeight: 600,
               display: 'inline-flex',

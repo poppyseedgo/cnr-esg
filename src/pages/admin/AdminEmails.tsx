@@ -468,7 +468,7 @@ const miniBtn = (
 ): React.CSSProperties => {
   const colors = {
     default: { border: '#ddd', color: '#666' },
-    primary: { border: '#0ea5e9', color: '#0ea5e9' },
+    primary: { border: '#111', color: '#111' },
     danger: { border: '#fecaca', color: '#dc2626' },
   };
   return {

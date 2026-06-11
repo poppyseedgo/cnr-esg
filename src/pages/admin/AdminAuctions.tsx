@@ -59,7 +59,7 @@ export function AdminAuctions() {
           onClick={() => setCreating(true)}
           style={{
             padding: '8px 14px',
-            background: '#0ea5e9',
+            background: '#111',
             color: '#fff',
             border: 'none',
             borderRadius: 6,
@@ -97,10 +97,10 @@ export function AdminAuctions() {
             padding: 20,
             marginBottom: 16,
             boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-            border: '2px solid #0ea5e9',
+            border: '2px solid #111',
           }}
         >
-          <h3 style={{ margin: '0 0 16px', fontSize: 16, color: '#0ea5e9' }}>➕ 새 경매 등록</h3>
+          <h3 style={{ margin: '0 0 16px', fontSize: 16, color: '#111' }}>➕ 새 경매 등록</h3>
           <CreateAuctionForm
             onCancel={() => setCreating(false)}
             onSuccess={() => {
@@ -198,8 +198,8 @@ function AuctionAdminCard({ auction, onChange }: { auction: EsgAuctionRow; onCha
             style={{
               padding: '4px 10px',
               background: '#fff',
-              border: '1px solid #0ea5e9',
-              color: '#0ea5e9',
+              border: '1px solid #111',
+              color: '#111',
               borderRadius: 4,
               cursor: auction.status === 'cancelled' ? 'not-allowed' : 'pointer',
               fontSize: 11,
