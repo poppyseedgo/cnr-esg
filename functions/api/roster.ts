@@ -153,18 +153,20 @@ function card(d, x, y, c) {
   const name = anon ? "\uc775\uba85" : ((d && d.donor_name) || "\uc775\uba85");
   const dept = anon ? "" : ((d && d.donor_dept) || "");
   const nameX = x + c.padIn;
+  const maxW = c.COLW - c.padIn * 2;                                 // 카드 내부 가용 폭
+  const fitName = estWidth(name, c.nmSize) > maxW                    // 이름 풀네임 유지(넘치면 자간만 압축)
+    ? ` textLength="${maxW}" lengthAdjust="spacingAndGlyphs"` : "";
   let g = `  <rect x="${x}" y="${y}" width="${c.COLW}" height="${c.CARDH}" rx="16" fill="#ffffff"/>`;
   if (dept) {
     const nameY = y + 16 + Math.round(c.nmSize * 0.9);
     const deptY = nameY + c.dpSize + 8;
-    const maxDW = c.COLW - c.padIn * 2;
-    const fit = deptWidth(dept, c.dpSize) > maxDW
-      ? ` textLength="${maxDW}" lengthAdjust="spacingAndGlyphs"` : "";
-    g += `\n  <text class="nm" x="${nameX}" y="${nameY}">${esc(trunc(name, 12))}</text>`;
-    g += `\n  <text class="dp" x="${nameX}" y="${deptY}"${fit}>${esc(dept)}</text>`;
+    const fitDept = estWidth(dept, c.dpSize) > maxW                  // 부서명 풀네임 유지(넘치면 자간만 압축)
+      ? ` textLength="${maxW}" lengthAdjust="spacingAndGlyphs"` : "";
+    g += `\n  <text class="nm" x="${nameX}" y="${nameY}"${fitName}>${esc(name)}</text>`;
+    g += `\n  <text class="dp" x="${nameX}" y="${deptY}"${fitDept}>${esc(dept)}</text>`;
   } else {
     const nameY = y + Math.round(c.CARDH / 2) + Math.round(c.nmSize * 0.34);
-    g += `\n  <text class="nm" x="${nameX}" y="${nameY}">${esc(trunc(name, 12))}</text>`;
+    g += `\n  <text class="nm" x="${nameX}" y="${nameY}"${fitName}>${esc(name)}</text>`;
   }
   return g;
 }
@@ -193,7 +195,7 @@ function trunc(s, n) {
   return s.length > n ? s.slice(0, n - 1) + "\u2026" : s;
 }
 
-function deptWidth(s, fs) {                                          // 폭 추정(한글~fs, 라틴~fs*0.55)
+function estWidth(s, fs) {                                           // 폭 추정(한글~fs, 라틴~fs*0.55) — 이름·부서 공용
   fs = fs || 13;
   let w = 0;
   for (const ch of String(s == null ? "" : s)) w += /[\x00-\x7F]/.test(ch) ? fs * 0.55 : fs;
