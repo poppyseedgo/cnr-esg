@@ -86,19 +86,28 @@ function buildCycle(blocks: Block[], today: string, keyPrefix: string): ReactNod
       >
         <span style={titleStyle}>{b.title}</span>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: CHIP_GAP }}>
-          {b.donors.map((dn, di) => (
-            <span key={di} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-              <span
-                style={{
-                  width: 40, height: 40, display: 'inline-flex',
-                  alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                }}
-              >
-                <Avatar name={dn.name} avatarUrl={dn.avatarUrl} size={32} />
+          {b.donors.map((dn, di) => {
+            const label = dn.isAnonymous ? '익명' : dn.name;
+            return (
+              <span key={di} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <span
+                  style={{
+                    width: 40, height: 40, display: 'inline-flex',
+                    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                  }}
+                >
+                  <Avatar
+                    name={label}
+                    avatarUrl={dn.isAnonymous ? null : dn.avatarUrl}
+                    anonymous={dn.isAnonymous}   // 게시판과 동일: 익명 클로버(이니셜 없음)
+                    colorSeed={dn.seed}           // 사람별 색 고정(비식별 시드)
+                    size={32}
+                  />
+                </span>
+                <span style={nameStyle}>{label}</span>
               </span>
-              <span style={nameStyle}>{dn.name}</span>
-            </span>
-          ))}
+            );
+          })}
         </span>
       </span>
     );

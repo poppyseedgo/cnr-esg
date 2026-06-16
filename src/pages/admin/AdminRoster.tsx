@@ -358,7 +358,7 @@ function MoneyDonorsAgg({
 }) {
   const people = rows.length;
   const total = rows.reduce((s, r) => s + r.total_amount, 0);
-  // 금액 기부자 기본 노출 = 실명 건 존재(default_show_on_main). override 있으면 우선.
+  // 금액 기부자 기본 노출 = 전원(true). 전부 익명이면 전광판에서 '익명' 마스킹. override 있으면 우선.
   const effShow = (r: (typeof rows)[number]) => overrides.get(r.key) ?? r.default_show_on_main;
   const shownCount = rows.filter(effShow).length;
 

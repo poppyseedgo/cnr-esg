@@ -212,7 +212,7 @@ export interface MoneyDonorAgg {
   total_amount: number;           // 누적 기부액
   anonymous_count: number;        // 익명으로 한 건수
   named_count: number;            // 실명으로 한 건수
-  default_show_on_main: boolean;  // 메인 노출 기본값(실명 건이 1건이라도 있으면 노출)
+  default_show_on_main: boolean;  // 메인 노출 기본값(전원 true; 전부 익명이면 전광판에 '익명'으로 마스킹 노출)
   donations: { number: string; amount: number; anonymous: boolean; paid_at: string | null }[];
 }
 
@@ -247,8 +247,9 @@ export function aggregateMoneyDonors(rows: MoneyDonorRow[]): MoneyDonorAgg[] {
       paid_at: r.paid_at,
     });
   }
-  // 메인 노출 기본값: 실명 기부가 1건이라도 있으면 노출, 전부 익명이면 숨김(개인정보 보호 기본)
-  for (const agg of map.values()) agg.default_show_on_main = agg.named_count > 0;
+  // 메인 노출 기본값: 전원 노출(true). 전부 익명인 사람은 전광판에서 '익명'으로 마스킹 표시되고,
+  //   실명 건이 1건이라도 있으면 실명+아바타로 표시(STEP5). 관리자 개별 강제 숨김(override)만 제외.
+  for (const agg of map.values()) agg.default_show_on_main = true;
   return Array.from(map.values()).sort((a, b) => b.total_amount - a.total_amount);
 }
 
