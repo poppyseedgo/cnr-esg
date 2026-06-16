@@ -891,11 +891,11 @@ export interface Database {
       };
       get_main_item_donors: {                                 // ← [2026-06-16 메인노출] 공개 물품기부자 명단
         Args: Record<string, never>;
-        Returns: { donor_name: string; donor_dept: string | null }[];
+        Returns: { donor_name: string; donor_dept: string | null; avatar_url: string | null }[];
       };
       get_main_money_donors: {                                // ← [2026-06-16 메인노출] 공개 금액기부자 명단
         Args: Record<string, never>;
-        Returns: { donor_name: string; donor_dept: string | null }[];
+        Returns: { donor_name: string; donor_dept: string | null; avatar_url: string | null }[];
       };
       expire_pending_donations: {
         Args: Record<string, never>;

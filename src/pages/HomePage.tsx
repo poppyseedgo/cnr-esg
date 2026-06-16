@@ -13,6 +13,7 @@
 // ============================================================================
 
 import { HomeHero } from '@/components/home/HomeHero';
+import { DonorMarquee } from '@/components/home/DonorMarquee'; // ← [2026-06-16] 기부자 전광판
 import { HomeFaqSection } from '@/components/faq-qna/HomeFaqSection';
 import { HomeQnaSection } from '@/components/faq-qna/HomeQnaSection';
 import '@/components/faq-qna/faq-qna.css';
@@ -20,6 +21,7 @@ import '@/components/faq-qna/faq-qna.css';
 export function HomePage() {
   return (
     <div>
+      <DonorMarquee />
       <HomeHero />
 
       <div className="faqqna-container">
