@@ -2,25 +2,29 @@
 // DonorMarquee — 메인 가로 전광판 (기부자 명단 마퀴)
 //
 // Figma SSOT: node 1433:295 (가로 전광판)
-//   - 밴드: bg #fff, padding 16px 32px (py-16 / px-32)
-//   - 최상위 항목 간격 gap 100  (날짜 · 그룹 · 날짜 · 그룹 …)
-//   - 타이틀↔명단 gap 80,  칩 간격 gap 40
+//   - 밴드: bg #fff, py 16 / 풀블리드(100vw)
+//   - 최상위 항목 간격 gap 100, 타이틀↔명단 gap 80, 칩 간격 gap 40
 //   - 날짜 12px Medium #111 / 타이틀 24px Medium #111 / 이름 20px Regular #111
 //   - 칩 = [40px 아바타 canvas(내부 32)] gap-4 [이름]
 //
-// 동작:
-//   - 콘텐츠를 2회 복제 → 한 시퀀스 폭 측정(shift = 폭 + 100) → translateX(-shift) 무한 루프(seamless).
-//   - 속도 일정(px/s): 명단이 길수록 duration만 늘어남.
-//   - 날짜는 KST 오늘 날짜를 실시간 반영(분 단위 갱신 → 자정 롤오버).
-//   - 데이터: get_main_money_donors / get_main_item_donors (노출 규칙·아바타 서버 적용).
-//   - 아바타: 사진 있으면 원형, 없으면 그린 3색 클로버+이니셜(Avatar 컴포넌트 재사용).
-//   - hover 시 일시정지 / prefers-reduced-motion 시 정지.
+// 이음매(seamless) 설계:
+//   - 각 사이클 요소(날짜/그룹)에 margin-right: GAP → 복제본이 자체 간격을 포함.
+//   - 콘텐츠(사이클)를 짝수 개 복제해 translateX(0 → -50%) 무한 루프.
+//     · -50% = 정확히 절반(=halfCount 사이클) → 모든 사이클이 동일하므로 완벽히 타일링.
+//     · 폭 측정은 "속도(duration)와 복제 수"에만 사용 → 측정 오차가 있어도 끊기지 않음.
+//   - 화면보다 짧으면 halfCount를 늘려 빈 공간 없이 채움.
+//   - hover 일시정지 / prefers-reduced-motion 정지.
+//
+// 풀너비: 부모(max-width 1360 래퍼)를 깨고 100vw로 — HomeHero와 동일 기법
+//   margin-inline: calc(50% - 50vw) + 래퍼 상단 padding(24) 상쇄.
 //
 // 변경 이력:
-//   2026-06-16  최초 작성 — Figma 1433:295 기준
+//   2026-06-16  최초 작성 — Figma 1433:295
+//   2026-06-16  [수정] 풀블리드(100vw) + margin 기반 seamless 루프로 재작성(끊김/너비 해결)
 // ============================================================================
 
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { Avatar } from '@/components/Avatar';
 import { loadMainItemDonors, loadMainMoneyDonors, type MainDonor } from '@/lib/donorWall';
 
@@ -43,7 +47,7 @@ function kstDateStr(): string {
 const MARQUEE_CSS = `
 @keyframes esg-marquee {
   from { transform: translateX(0); }
-  to   { transform: translateX(calc(-1 * var(--esg-marquee-shift, 0px))); }
+  to   { transform: translateX(-50%); }
 }
 .esg-marquee-track:hover { animation-play-state: paused; }
 @media (prefers-reduced-motion: reduce) {
@@ -51,23 +55,68 @@ const MARQUEE_CSS = `
 }
 `;
 
-const dateStyle: React.CSSProperties = {
-  fontSize: 12, fontWeight: 500, color: '#111', lineHeight: 1.5, whiteSpace: 'nowrap', flexShrink: 0,
+const dateStyle: CSSProperties = {
+  fontSize: 12, fontWeight: 500, color: '#111', lineHeight: 1.5, whiteSpace: 'nowrap',
 };
-const titleStyle: React.CSSProperties = {
-  fontSize: 24, fontWeight: 500, color: '#111', lineHeight: 1.2, whiteSpace: 'nowrap', flexShrink: 0,
+const titleStyle: CSSProperties = {
+  fontSize: 24, fontWeight: 500, color: '#111', lineHeight: 1.2, whiteSpace: 'nowrap', marginRight: TITLE_GAP,
 };
-const nameStyle: React.CSSProperties = {
-  fontSize: 20, fontWeight: 400, color: '#111', lineHeight: 1.3, whiteSpace: 'nowrap', flexShrink: 0,
+const nameStyle: CSSProperties = {
+  fontSize: 20, fontWeight: 400, color: '#111', lineHeight: 1.3, whiteSpace: 'nowrap',
 };
+
+/** 한 사이클(날짜+그룹 … 반복)의 React 노드 배열. 각 최상위 요소는 margin-right: GAP 로 자체 간격 보유. */
+function buildCycle(blocks: Block[], today: string, keyPrefix: string): ReactNode[] {
+  const els: ReactNode[] = [];
+  blocks.forEach((b, bi) => {
+    // 날짜
+    els.push(
+      <span
+        key={`${keyPrefix}-d${bi}`}
+        style={{ display: 'inline-flex', alignItems: 'center', marginRight: GAP, ...dateStyle }}
+      >
+        {today}
+      </span>
+    );
+    // 타이틀 + 명단
+    els.push(
+      <span
+        key={`${keyPrefix}-g${bi}`}
+        style={{ display: 'inline-flex', alignItems: 'center', marginRight: GAP }}
+      >
+        <span style={titleStyle}>{b.title}</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: CHIP_GAP }}>
+          {b.donors.map((dn, di) => (
+            <span key={di} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <span
+                style={{
+                  width: 40, height: 40, display: 'inline-flex',
+                  alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                }}
+              >
+                <Avatar name={dn.name} avatarUrl={dn.avatarUrl} size={32} />
+              </span>
+              <span style={nameStyle}>{dn.name}</span>
+            </span>
+          ))}
+        </span>
+      </span>
+    );
+  });
+  return els;
+}
 
 export function DonorMarquee() {
   const [money, setMoney] = useState<MainDonor[]>([]);
   const [items, setItems] = useState<MainDonor[]>([]);
   const [ready, setReady] = useState(false);
   const [today, setToday] = useState(kstDateStr());
-  const [shift, setShift] = useState(0);
-  const seqRef = useRef<HTMLDivElement>(null);
+
+  const [cycleW, setCycleW] = useState(0);   // 한 사이클 폭(측정)
+  const [containerW, setContainerW] = useState(0); // 밴드(=100vw) 폭
+
+  const measureRef = useRef<HTMLDivElement>(null);
+  const bandRef = useRef<HTMLDivElement>(null);
 
   // 데이터 로드
   useEffect(() => {
@@ -100,73 +149,82 @@ export function DonorMarquee() {
     { title: '바자회 물품 참여', donors: items },
   ].filter((b) => b.donors.length > 0);
 
-  // 한 시퀀스 폭 측정 → shift = 폭 + GAP (seamless 루프)
+  // 한 사이클 폭 + 밴드 폭 측정(폰트 로드/리사이즈 반영). 측정은 속도/복제수 산출용.
   useLayoutEffect(() => {
-    const el = seqRef.current;
-    if (!el) return;
-    const measure = () => setShift((el.offsetWidth || 0) + GAP);
+    const m = measureRef.current;
+    const band = bandRef.current;
+    if (!m || !band) return;
+    const measure = () => {
+      setCycleW(m.scrollWidth || 0);
+      setContainerW(band.clientWidth || 0);
+    };
     measure();
     const ro = new ResizeObserver(measure);
-    ro.observe(el);
+    ro.observe(m);
+    ro.observe(band);
+    // 폰트 로드 후 재측정(텍스트 폭 변동 대비)
+    (document as Document & { fonts?: FontFaceSet }).fonts?.ready.then(measure).catch(() => {});
     return () => ro.disconnect();
   }, [ready, money, items]);
 
   if (!ready || blocks.length === 0) return null;
 
-  const duration = shift > 0 ? shift / SPEED : 0;
-
-  const Sequence = ({ rootRef }: { rootRef?: React.Ref<HTMLDivElement> }) => (
-    <div ref={rootRef} style={{ display: 'flex', alignItems: 'center', gap: GAP, flexShrink: 0 }}>
-      {blocks.map((b, bi) => (
-        <Fragment key={bi}>
-          <span style={dateStyle}>{today}</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: TITLE_GAP, flexShrink: 0 }}>
-            <span style={titleStyle}>{b.title}</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: CHIP_GAP, flexShrink: 0 }}>
-              {b.donors.map((d, di) => (
-                <div key={di} style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-                  <div
-                    style={{
-                      width: 40,
-                      height: 40,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <Avatar name={d.name} avatarUrl={d.avatarUrl} size={32} />
-                  </div>
-                  <span style={nameStyle}>{d.name}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </Fragment>
-      ))}
-    </div>
-  );
+  // 절반이 화면을 덮도록 halfCount 산출 → copies = 짝수, -50%가 정확히 절반
+  const halfCount =
+    cycleW > 0 && containerW > 0 ? Math.max(1, Math.ceil(containerW / cycleW)) : 1;
+  const copies = halfCount * 2;
+  const duration = cycleW > 0 ? (halfCount * cycleW) / SPEED : 0;
 
   return (
-    <div style={{ background: '#fff', overflow: 'hidden', width: '100%' }} aria-label="기부자 명단 전광판">
+    <div
+      ref={bandRef}
+      aria-label="기부자 명단 전광판"
+      style={{
+        // 풀블리드(100vw): 부모 max-width/padding 상쇄 + 헤더 밀착, Hero 밀착 유지
+        width: 'auto',
+        marginLeft: 'calc(50% - 50vw)',
+        marginRight: 'calc(50% - 50vw)',
+        marginTop: -24,
+        marginBottom: 24,
+        background: '#fff',
+        overflow: 'hidden',
+        padding: '16px 0',
+      }}
+    >
       <style>{MARQUEE_CSS}</style>
-      <div style={{ padding: '16px 32px' }}>
-        <div
-          className="esg-marquee-track"
-          style={{
-            display: 'flex',
-            gap: GAP,
-            width: 'max-content',
-            alignItems: 'center',
-            // CSS 변수로 shift 전달 → 키프레임이 참조
-            ['--esg-marquee-shift' as string]: `${shift}px`,
-            animation: duration > 0 ? `esg-marquee ${duration}s linear infinite` : undefined,
-            willChange: 'transform',
-          } as React.CSSProperties}
-        >
-          <Sequence rootRef={seqRef} />
-          <Sequence />
-        </div>
+
+      {/* 측정용(숨김) — 한 사이클 */}
+      <div
+        ref={measureRef}
+        aria-hidden
+        style={{
+          position: 'absolute',
+          visibility: 'hidden',
+          pointerEvents: 'none',
+          whiteSpace: 'nowrap',
+          display: 'inline-flex',
+          alignItems: 'center',
+          top: 0,
+          left: 0,
+        }}
+      >
+        {buildCycle(blocks, today, 'measure')}
+      </div>
+
+      {/* 실제 트랙 — 사이클을 copies 개 복제, -50% 루프 */}
+      <div
+        className="esg-marquee-track"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          width: 'max-content',
+          animation: duration > 0 ? `esg-marquee ${duration}s linear infinite` : undefined,
+          willChange: 'transform',
+        }}
+      >
+        {Array.from({ length: copies }).map((_, ci) => (
+          <Fragment key={ci}>{buildCycle(blocks, today, `c${ci}`)}</Fragment>
+        ))}
       </div>
     </div>
   );
