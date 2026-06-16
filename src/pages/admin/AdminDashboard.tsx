@@ -266,9 +266,19 @@ function BigStatCard({
 function DonationBreakdown({ stats }: { stats: AdminStats }) {
   const bazaar = stats.donation.bazaar_raised;
   const auction = stats.donation.auction_raised;
-  const total = bazaar + auction;
-  const bazaarPct = total > 0 ? Math.round((bazaar / total) * 100) : 0;
-  const auctionPct = total > 0 ? 100 - bazaarPct : 0;
+  const donation = stats.donation.donation_raised; // ← [2026-06-16 버그#3] 자발적 기부 분포
+  const total = bazaar + auction + donation;
+  const pct = (v: number) => (total > 0 ? Math.round((v / total) * 100) : 0);
+  const bazaarPct = pct(bazaar);
+  const auctionPct = pct(auction);
+  // 마지막 조각은 잔여(%)로 보정해 합계 100% 유지 (반올림 오차 흡수)
+  const donationPct = total > 0 ? Math.max(0, 100 - bazaarPct - auctionPct) : 0;
+
+  const slices = [
+    { key: 'bazaar', color: '#111', icon: '🛍', label: '바자회', amount: bazaar, pct: bazaarPct },
+    { key: 'auction', color: '#a855f7', icon: '🔨', label: '경매', amount: auction, pct: auctionPct },
+    { key: 'donation', color: '#16a34a', icon: '💚', label: '기부', amount: donation, pct: donationPct },
+  ];
 
   return (
     <section
@@ -285,7 +295,7 @@ function DonationBreakdown({ stats }: { stats: AdminStats }) {
         <div style={{ color: '#aaa', fontSize: 13 }}>아직 모금이 시작되지 않았습니다.</div>
       ) : (
         <>
-          {/* 가로 막대 */}
+          {/* 가로 막대 (3분할) */}
           <div
             style={{
               display: 'flex',
@@ -296,54 +306,38 @@ function DonationBreakdown({ stats }: { stats: AdminStats }) {
               border: '1px solid #eee',
             }}
           >
-            {bazaar > 0 && (
-              <div
-                style={{
-                  width: `${bazaarPct}%`,
-                  background: '#111',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#fff',
-                  fontSize: 12,
-                  fontWeight: 600,
-                }}
-              >
-                {bazaarPct > 10 ? `🛍 ${bazaarPct}%` : ''}
-              </div>
-            )}
-            {auction > 0 && (
-              <div
-                style={{
-                  width: `${auctionPct}%`,
-                  background: '#a855f7',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#fff',
-                  fontSize: 12,
-                  fontWeight: 600,
-                }}
-              >
-                {auctionPct > 10 ? `🔨 ${auctionPct}%` : ''}
-              </div>
+            {slices.map((s) =>
+              s.amount > 0 ? (
+                <div
+                  key={s.key}
+                  style={{
+                    width: `${s.pct}%`,
+                    background: s.color,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#fff',
+                    fontSize: 12,
+                    fontWeight: 600,
+                  }}
+                >
+                  {s.pct > 10 ? `${s.icon} ${s.pct}%` : ''}
+                </div>
+              ) : null
             )}
           </div>
 
           {/* 라벨 */}
-          <div style={{ display: 'flex', gap: 24, fontSize: 13 }}>
-            <BreakdownLabel
-              color="#111"
-              label="🛍 바자회"
-              amount={bazaar}
-              pct={bazaarPct}
-            />
-            <BreakdownLabel
-              color="#a855f7"
-              label="🔨 경매"
-              amount={auction}
-              pct={auctionPct}
-            />
+          <div style={{ display: 'flex', gap: 24, fontSize: 13, flexWrap: 'wrap' }}>
+            {slices.map((s) => (
+              <BreakdownLabel
+                key={s.key}
+                color={s.color}
+                label={`${s.icon} ${s.label}`}
+                amount={s.amount}
+                pct={s.pct}
+              />
+            ))}
           </div>
         </>
       )}
