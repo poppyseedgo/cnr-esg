@@ -23,10 +23,15 @@
 //   2026-06-16  [수정] 풀블리드(100vw) + margin 기반 seamless 루프로 재작성(끊김/너비 해결)
 // ============================================================================
 
-import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import { Avatar } from '@/components/Avatar';
-import { loadMainItemDonors, loadMainMoneyDonors, type MainDonor } from '@/lib/donorWall';
+import {
+  loadMainItemDonors,
+  loadMainMoneyDonors,
+  subscribeDonorWall,
+  type MainDonor,
+} from '@/lib/donorWall';
 
 const GAP = 100;       // 최상위 항목 간격 (Figma gap-100)
 const TITLE_GAP = 80;  // 타이틀↔명단 (Figma gap-80)
@@ -127,25 +132,47 @@ export function DonorMarquee() {
   const measureRef = useRef<HTMLDivElement>(null);
   const bandRef = useRef<HTMLDivElement>(null);
 
-  // 데이터 로드
+  // 데이터 조회(재사용). 라이브 갱신 시 언마운트 없이 state만 교체 → 스크롤 유지.
+  const reload = useCallback(async () => {
+    try {
+      const [m, i] = await Promise.all([loadMainMoneyDonors(), loadMainItemDonors()]);
+      setMoney(m);
+      setItems(i);
+    } catch (e) {
+      console.error('[DonorMarquee]', e);
+    } finally {
+      setReady(true);
+    }
+  }, []);
+
+  // 최초 로드 + 라이브 구독(시그널) + 탭 복귀 시 재조회(안전망)
   useEffect(() => {
     let alive = true;
-    (async () => {
-      try {
-        const [m, i] = await Promise.all([loadMainMoneyDonors(), loadMainItemDonors()]);
-        if (!alive) return;
-        setMoney(m);
-        setItems(i);
-      } catch (e) {
-        console.error('[DonorMarquee]', e);
-      } finally {
-        if (alive) setReady(true);
-      }
-    })();
+    reload();
+
+    // 시그널 버스트 합치기(여러 변경이 짧게 몰릴 때 1회만 재조회)
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const debouncedReload = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        if (alive) reload();
+      }, 800);
+    };
+    const unsubscribe = subscribeDonorWall(debouncedReload);
+
+    // 백그라운드였다가 돌아오면 한 번 맞춰줌(구독 누락 대비)
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && alive) reload();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+
     return () => {
       alive = false;
+      if (timer) clearTimeout(timer);
+      unsubscribe();
+      document.removeEventListener('visibilitychange', onVisible);
     };
-  }, []);
+  }, [reload]);
 
   // 날짜 실시간 갱신(분 단위 → 자정 롤오버 반영)
   useEffect(() => {

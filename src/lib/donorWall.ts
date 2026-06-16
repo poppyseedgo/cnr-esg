@@ -10,7 +10,7 @@
 //   2026-06-16  is_anonymous/seed 추가(STEP5) — 익명 기부자 '익명 아바타' 마스킹 표시
 // ============================================================================
 
-import { callRpc } from './supabase';
+import { callRpc, supabase } from './supabase';
 
 export interface MainDonor {
   name: string;          // 익명이면 '익명'
@@ -46,4 +46,29 @@ export async function loadMainItemDonors(): Promise<MainDonor[]> {
 export async function loadMainMoneyDonors(): Promise<MainDonor[]> {
   const rows = (await callRpc('get_main_money_donors', {})) as Row[];
   return (rows ?? []).map(mapRow);
+}
+
+// ----------------------------------------------------------------------------
+// 라이브 갱신: 공개 시그널 테이블(esg_realtime_signal, channel='donor_wall')의
+//   UPDATE만 구독. 기부/물품/노출설정 변경 시 트리거가 bump → 콜백 호출.
+//   (esg_donations는 RLS로 공개구독 불가하므로 시그널 테이블을 우회 채널로 사용)
+// ----------------------------------------------------------------------------
+export function subscribeDonorWall(callback: () => void): () => void {
+  const channelName = `esg-donor-wall-${Math.random().toString(36).slice(2, 11)}`;
+  const channel = supabase
+    .channel(channelName)
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'esg_realtime_signal',
+        filter: 'channel=eq.donor_wall',
+      },
+      () => callback()
+    )
+    .subscribe();
+  return () => {
+    supabase.removeChannel(channel);
+  };
 }
