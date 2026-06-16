@@ -23,15 +23,19 @@ const CELLGAP = 12;
 // ── 진입점 (Cloudflare Pages Function) ─────────────────────────────────────
 export async function onRequestGet(context) {                       // ← GET 요청 처리
   const env = (context && context.env) || {};                       // ← Pages 런타임 환경변수
-  const SUPABASE_URL = env.SUPABASE_URL || "https://jjzcqpbwkkujttwxksvy.supabase.co"; // ← URL 기본값(메모리상 ref)
-  const SUPABASE_ANON_KEY = env.SUPABASE_ANON_KEY;                   // ← 공개 anon 키(필수: Pages env 설정)
+  // Pages Function 런타임은 대시보드의 모든 env(VITE_ 평문 포함)를 context.env 로 받음
+  const SUPABASE_URL =
+    env.SUPABASE_URL || env.VITE_SUPABASE_URL ||                     // ← VITE_ 변수도 그대로 읽힘
+    "https://jjzcqpbwkkujttwxksvy.supabase.co";                     // ← 최후 기본값
+  const SUPABASE_ANON_KEY =
+    env.SUPABASE_ANON_KEY || env.VITE_SUPABASE_ANON_KEY;            // ← 둘 중 존재하는 anon 키 사용
 
   let items = [];                                                   // ← 물품 기부자
   let monies = [];                                                  // ← 금액 기부자
   let errMsg = "";                                                  // ← 디버그용(공개로는 노출 안 함)
 
   try {
-    if (!SUPABASE_ANON_KEY) throw new Error("ENV_MISSING:SUPABASE_ANON_KEY"); // ← 키 누락 가드
+    if (!SUPABASE_ANON_KEY) throw new Error("ENV_MISSING:ANON_KEY"); // ← SUPABASE_ANON_KEY/VITE_SUPABASE_ANON_KEY 둘 다 없음
     const [a, b] = await Promise.all([                              // ← 메인페이지와 동일 RPC 2개 병렬 호출
       callRpc(SUPABASE_URL, SUPABASE_ANON_KEY, "get_main_item_donors"),
       callRpc(SUPABASE_URL, SUPABASE_ANON_KEY, "get_main_money_donors"),
