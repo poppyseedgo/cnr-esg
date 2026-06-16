@@ -1,12 +1,13 @@
 // ============================================================================
-// AdminRoster — 명단 관리 (버그 #5)
+// AdminRoster — 명단 관리 (버그 #5 / 명단 세분화)
 //
-// 3개 명단을 한곳에서 조회 + CSV 내보내기:
-//   - 물품 기부자 (esg_bazaar_intake)
-//   - 금액 기부자 (esg_donations, paid)
-//   - 구매자     (esg_orders, paid)
+// 3개 명단을 사람 단위로 집계(중복 제거 + 누적)하여 조회 + CSV 내보내기:
+//   - 물품 기부자 : 이름 1회, 물품 종류/수량/책정가합 합산 (펼치면 물품 상세)
+//   - 금액 기부자 : 이름 1회, 누적 기부액·건수, 익명/실명 표시, 메인 노출 기본값
+//   - 구매자      : 이름 1회, 누적 구매액·건수 (펼치면 주문 상세)
 //
-// 상세 편집은 각 전용 탭(물품 접수 / 기부 관리 / 주문·입금확인)에서. 여기선 통합 열람/내보내기.
+// 보기 전환: [개인별 집계] ↔ [전체 내역(원본 행)]. CSV는 현재 보기 기준으로 내보냄.
+// 상세 편집은 각 전용 탭(물품 접수 / 기부 관리 / 주문·입금확인)에서.
 // ============================================================================
 
 import { useEffect, useMemo, useState } from 'react';
@@ -14,6 +15,9 @@ import {
   loadItemDonors,
   loadMoneyDonors,
   loadBuyers,
+  aggregateItemDonors,
+  aggregateMoneyDonors,
+  aggregateBuyers,
   type ItemDonorRow,
   type MoneyDonorRow,
   type BuyerRow,
@@ -21,6 +25,7 @@ import {
 import { downloadCsv, todayStampKst } from '@/utils/csv';
 
 type Tab = 'items' | 'money' | 'buyers';
+type ViewMode = 'agg' | 'raw';
 
 const TABS: { key: Tab; label: string; icon: string }[] = [
   { key: 'items', label: '물품 기부자', icon: '📦' },
@@ -36,11 +41,15 @@ const INTAKE_STATUS_LABELS: Record<string, string> = {
   unpublished: '게시 중단',
 };
 
+const typeLabel = (t: string) => (t === 'bazaar' ? '🛍 바자회' : t === 'auction' ? '🔨 경매' : t);
+
 export function AdminRoster() {
   const [tab, setTab] = useState<Tab>('items');
+  const [view, setView] = useState<ViewMode>('agg');
   const [items, setItems] = useState<ItemDonorRow[]>([]);
   const [money, setMoney] = useState<MoneyDonorRow[]>([]);
   const [buyers, setBuyers] = useState<BuyerRow[]>([]);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -64,6 +73,29 @@ export function AdminRoster() {
     void reload();
   }, []);
 
+  // 집계 (사람 단위)
+  const itemAgg = useMemo(() => aggregateItemDonors(items), [items]);
+  const moneyAgg = useMemo(() => aggregateMoneyDonors(money), [money]);
+  const buyerAgg = useMemo(() => aggregateBuyers(buyers), [buyers]);
+
+  // 탭 전환 시 펼침 초기화
+  const switchTab = (t: Tab) => {
+    setTab(t);
+    setExpanded(new Set());
+  };
+  const toggleExpand = (key: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+
+  // 헤더 카운트 (집계=사람 수 / 전체=행 수)
+  const headerCount = (t: Tab) => {
+    if (view === 'agg') return t === 'items' ? itemAgg.length : t === 'money' ? moneyAgg.length : buyerAgg.length;
+    return t === 'items' ? items.length : t === 'money' ? money.length : buyers.length;
+  };
+
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
@@ -73,65 +105,305 @@ export function AdminRoster() {
         </button>
       </div>
       <p style={{ fontSize: 12, color: '#888', margin: '0 0 16px' }}>
-        물품 기부자 · 금액 기부자 · 구매자 명단을 통합 열람하고 CSV로 내보냅니다. 상세 편집은 각 전용 탭에서 진행하세요.
+        물품 기부자 · 금액 기부자 · 구매자 명단을 <strong>사람 단위로 집계</strong>(중복 제거 + 누적)하여 열람하고 CSV로 내보냅니다.
       </p>
 
-      {/* 서브 탭 */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
-        {TABS.map((t) => {
-          const count = t.key === 'items' ? items.length : t.key === 'money' ? money.length : buyers.length;
-          const active = tab === t.key;
-          return (
+      {/* 서브 탭 + 보기 전환 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {TABS.map((t) => {
+            const active = tab === t.key;
+            return (
+              <button key={t.key} type="button" onClick={() => switchTab(t.key)} style={tabBtn(active)}>
+                {t.icon} {t.label}
+                {!loading && <span style={{ opacity: 0.7, marginLeft: 6 }}>{headerCount(t.key)}</span>}
+              </button>
+            );
+          })}
+        </div>
+        <div style={{ display: 'flex', gap: 4, marginLeft: 'auto', background: '#f0f0f0', borderRadius: 8, padding: 3 }}>
+          {(['agg', 'raw'] as ViewMode[]).map((v) => (
             <button
-              key={t.key}
+              key={v}
               type="button"
-              onClick={() => setTab(t.key)}
+              onClick={() => setView(v)}
               style={{
-                padding: '8px 14px',
-                borderRadius: 8,
-                border: '1px solid',
-                borderColor: active ? '#111' : '#ddd',
-                background: active ? '#111' : '#fff',
-                color: active ? '#fff' : '#444',
-                fontSize: 13,
+                padding: '6px 12px',
+                borderRadius: 6,
+                border: 'none',
+                background: view === v ? '#fff' : 'transparent',
+                color: view === v ? '#111' : '#888',
+                fontSize: 12,
                 fontWeight: 600,
                 cursor: 'pointer',
+                boxShadow: view === v ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
               }}
             >
-              {t.icon} {t.label}
-              {!loading && <span style={{ opacity: 0.7, marginLeft: 6 }}>{count}</span>}
+              {v === 'agg' ? '개인별 집계' : '전체 내역'}
             </button>
-          );
-        })}
+          ))}
+        </div>
       </div>
 
-      {error && (
-        <div style={{ padding: 16, background: '#fee2e2', color: '#991b1b', borderRadius: 8 }}>⚠️ {error}</div>
-      )}
+      {error && <div style={{ padding: 16, background: '#fee2e2', color: '#991b1b', borderRadius: 8 }}>⚠️ {error}</div>}
 
       {loading ? (
         <div style={{ padding: 48, textAlign: 'center', color: '#888' }}>불러오는 중…</div>
       ) : tab === 'items' ? (
-        <ItemDonorsTable rows={items} />
+        view === 'agg' ? (
+          <ItemDonorsAgg rows={itemAgg} expanded={expanded} onToggle={toggleExpand} />
+        ) : (
+          <ItemDonorsRaw rows={items} />
+        )
       ) : tab === 'money' ? (
-        <MoneyDonorsTable rows={money} />
+        view === 'agg' ? (
+          <MoneyDonorsAgg rows={moneyAgg} expanded={expanded} onToggle={toggleExpand} />
+        ) : (
+          <MoneyDonorsRaw rows={money} />
+        )
+      ) : view === 'agg' ? (
+        <BuyersAgg rows={buyerAgg} expanded={expanded} onToggle={toggleExpand} />
       ) : (
-        <BuyersTable rows={buyers} />
+        <BuyersRaw rows={buyers} />
       )}
     </div>
   );
 }
 
 // ============================================================================
-// 1) 물품 기부자
+// 물품 기부자 — 집계
 // ============================================================================
-function ItemDonorsTable({ rows }: { rows: ItemDonorRow[] }) {
-  const totalQty = useMemo(() => rows.reduce((s, r) => s + r.quantity, 0), [rows]);
-  const totalValue = useMemo(() => rows.reduce((s, r) => s + r.listed_price * r.quantity, 0), [rows]);
+function ItemDonorsAgg({
+  rows,
+  expanded,
+  onToggle,
+}: {
+  rows: ReturnType<typeof aggregateItemDonors>;
+  expanded: Set<string>;
+  onToggle: (k: string) => void;
+}) {
+  const people = rows.length;
+  const totalQty = rows.reduce((s, r) => s + r.total_qty, 0);
+  const totalValue = rows.reduce((s, r) => s + r.total_value, 0);
 
-  const handleExport = () => {
+  const handleExport = () =>
     downloadCsv(
-      `물품기부자명단_${todayStampKst()}.csv`,
+      `물품기부자_집계_${todayStampKst()}.csv`,
+      ['기부자', '부서', '구분', '물품종류수', '총수량', '책정가합'],
+      rows.map((r) => [
+        r.donor_name,
+        r.donor_dept ?? '',
+        r.is_internal ? '임직원' : '외부',
+        r.item_kinds,
+        r.total_qty,
+        r.total_value,
+      ])
+    );
+
+  return (
+    <RosterShell
+      summary={[
+        ['기부자', `${people}명`],
+        ['총 수량', `${totalQty}개`],
+        ['책정가 합계', `${totalValue.toLocaleString()}원`],
+      ]}
+      onExport={handleExport}
+      empty={rows.length === 0}
+    >
+      <Table head={['', '기부자', '부서', '구분', '물품종류', '총수량', '책정가합']}>
+        {rows.map((r) => {
+          const open = expanded.has(r.key);
+          return (
+            <FragmentRows key={r.key}>
+              <tr style={rowHover} onClick={() => onToggle(r.key)}>
+                <Td><Caret open={open} /></Td>
+                <Td strong>{r.donor_name}</Td>
+                <Td muted>{r.donor_dept ?? '-'}</Td>
+                <Td muted>{r.is_internal ? '임직원' : '외부'}</Td>
+                <Td right>{r.item_kinds}종</Td>
+                <Td right>{r.total_qty}개</Td>
+                <Td right strong>{r.total_value.toLocaleString()}원</Td>
+              </tr>
+              {open && (
+                <tr>
+                  <td colSpan={7} style={detailCell}>
+                    {r.items.map((it, i) => (
+                      <div key={i} style={detailLine}>
+                        <span style={{ flex: 1 }}>{it.name}</span>
+                        <span style={{ color: '#888', width: 90 }}>{it.category_label}</span>
+                        <span style={{ color: '#888', width: 60, textAlign: 'right' }}>{it.qty}개</span>
+                        <span style={{ color: '#888', width: 80, textAlign: 'right' }}>
+                          {INTAKE_STATUS_LABELS[it.status] ?? it.status}
+                        </span>
+                      </div>
+                    ))}
+                  </td>
+                </tr>
+              )}
+            </FragmentRows>
+          );
+        })}
+      </Table>
+    </RosterShell>
+  );
+}
+
+// ============================================================================
+// 금액 기부자 — 집계
+// ============================================================================
+function MoneyDonorsAgg({
+  rows,
+  expanded,
+  onToggle,
+}: {
+  rows: ReturnType<typeof aggregateMoneyDonors>;
+  expanded: Set<string>;
+  onToggle: (k: string) => void;
+}) {
+  const people = rows.length;
+  const total = rows.reduce((s, r) => s + r.total_amount, 0);
+
+  const handleExport = () =>
+    downloadCsv(
+      `금액기부자_집계_${todayStampKst()}.csv`,
+      ['기부자', '부서', '이메일', '누적기부액', '기부건수', '익명건수', '실명건수', '메인노출(기본)'],
+      rows.map((r) => [
+        r.donor_name,
+        r.donor_dept ?? '',
+        r.user_email,
+        r.total_amount,
+        r.donation_count,
+        r.anonymous_count,
+        r.named_count,
+        r.default_show_on_main ? '노출' : '숨김',
+      ])
+    );
+
+  return (
+    <RosterShell
+      summary={[
+        ['기부자', `${people}명`],
+        ['누적 기부액', `${total.toLocaleString()}원`],
+      ]}
+      onExport={handleExport}
+      empty={rows.length === 0}
+    >
+      <Table head={['', '기부자', '부서', '이메일', '누적 기부액', '건수', '익명', '메인노출(기본)']}>
+        {rows.map((r) => {
+          const open = expanded.has(r.key);
+          return (
+            <FragmentRows key={r.key}>
+              <tr style={rowHover} onClick={() => onToggle(r.key)}>
+                <Td><Caret open={open} /></Td>
+                <Td strong>{r.donor_name}</Td>
+                <Td muted>{r.donor_dept ?? '-'}</Td>
+                <Td muted>{r.user_email}</Td>
+                <Td right strong>{r.total_amount.toLocaleString()}원</Td>
+                <Td right>{r.donation_count}건</Td>
+                <Td muted>{r.anonymous_count > 0 ? `🕶 ${r.anonymous_count}` : '-'}</Td>
+                <Td>
+                  {r.default_show_on_main ? (
+                    <span style={{ color: '#166534', fontWeight: 600 }}>노출</span>
+                  ) : (
+                    <span style={{ color: '#991b1b', fontWeight: 600 }}>숨김(익명)</span>
+                  )}
+                </Td>
+              </tr>
+              {open && (
+                <tr>
+                  <td colSpan={8} style={detailCell}>
+                    {r.donations.map((d, i) => (
+                      <div key={i} style={detailLine}>
+                        <span style={{ flex: 1, fontFamily: 'monospace', color: '#888' }}>{d.number}</span>
+                        <span style={{ width: 110, textAlign: 'right' }}>{d.amount.toLocaleString()}원</span>
+                        <span style={{ width: 60, textAlign: 'right', color: '#888' }}>{d.anonymous ? '🕶 익명' : '실명'}</span>
+                        <span style={{ width: 130, textAlign: 'right', color: '#888' }}>{fmtKst(d.paid_at)}</span>
+                      </div>
+                    ))}
+                  </td>
+                </tr>
+              )}
+            </FragmentRows>
+          );
+        })}
+      </Table>
+    </RosterShell>
+  );
+}
+
+// ============================================================================
+// 구매자 — 집계
+// ============================================================================
+function BuyersAgg({
+  rows,
+  expanded,
+  onToggle,
+}: {
+  rows: ReturnType<typeof aggregateBuyers>;
+  expanded: Set<string>;
+  onToggle: (k: string) => void;
+}) {
+  const people = rows.length;
+  const total = rows.reduce((s, r) => s + r.total_amount, 0);
+
+  const handleExport = () =>
+    downloadCsv(
+      `구매자_집계_${todayStampKst()}.csv`,
+      ['구매자', '부서', '이메일', '누적구매액', '구매건수'],
+      rows.map((r) => [r.buyer_name, r.buyer_dept ?? '', r.user_email, r.total_amount, r.order_count])
+    );
+
+  return (
+    <RosterShell
+      summary={[
+        ['구매자', `${people}명`],
+        ['누적 구매액', `${total.toLocaleString()}원`],
+      ]}
+      onExport={handleExport}
+      empty={rows.length === 0}
+    >
+      <Table head={['', '구매자', '부서', '이메일', '누적 구매액', '건수']}>
+        {rows.map((r) => {
+          const open = expanded.has(r.key);
+          return (
+            <FragmentRows key={r.key}>
+              <tr style={rowHover} onClick={() => onToggle(r.key)}>
+                <Td><Caret open={open} /></Td>
+                <Td strong>{r.buyer_name}</Td>
+                <Td muted>{r.buyer_dept ?? '-'}</Td>
+                <Td muted>{r.user_email}</Td>
+                <Td right strong>{r.total_amount.toLocaleString()}원</Td>
+                <Td right>{r.order_count}건</Td>
+              </tr>
+              {open && (
+                <tr>
+                  <td colSpan={6} style={detailCell}>
+                    {r.orders.map((o, i) => (
+                      <div key={i} style={detailLine}>
+                        <span style={{ flex: 1, fontFamily: 'monospace', color: '#888' }}>{o.number}</span>
+                        <span style={{ width: 90, color: '#888' }}>{typeLabel(o.type)}</span>
+                        <span style={{ width: 110, textAlign: 'right' }}>{o.amount.toLocaleString()}원</span>
+                        <span style={{ width: 130, textAlign: 'right', color: '#888' }}>{fmtKst(o.paid_at)}</span>
+                      </div>
+                    ))}
+                  </td>
+                </tr>
+              )}
+            </FragmentRows>
+          );
+        })}
+      </Table>
+    </RosterShell>
+  );
+}
+
+// ============================================================================
+// 전체 내역(원본 행) — 회계/대조용
+// ============================================================================
+function ItemDonorsRaw({ rows }: { rows: ItemDonorRow[] }) {
+  const handleExport = () =>
+    downloadCsv(
+      `물품기부자_전체내역_${todayStampKst()}.csv`,
       ['기부자', '부서', '물품명', '카테고리', '책정가', '수량', '상태', '비고', '접수일시'],
       rows.map((r) => [
         r.donor_name,
@@ -145,21 +417,11 @@ function ItemDonorsTable({ rows }: { rows: ItemDonorRow[] }) {
         fmtKst(r.created_at),
       ])
     );
-  };
-
   return (
-    <RosterShell
-      summary={[
-        ['물품 수', `${rows.length}건`],
-        ['총 수량', `${totalQty}개`],
-        ['책정가 합계', `${totalValue.toLocaleString()}원`],
-      ]}
-      onExport={handleExport}
-      empty={rows.length === 0}
-    >
+    <RosterShell summary={[['물품 수', `${rows.length}건`]]} onExport={handleExport} empty={rows.length === 0}>
       <Table head={['기부자', '부서', '물품명', '카테고리', '책정가', '수량', '상태', '접수일']}>
         {rows.map((r) => (
-          <tr key={r.id} style={trStyle}>
+          <tr key={r.id}>
             <Td strong>{r.donor_name}</Td>
             <Td muted>{r.donor_dept ?? '-'}</Td>
             <Td>{r.item_name}</Td>
@@ -175,15 +437,10 @@ function ItemDonorsTable({ rows }: { rows: ItemDonorRow[] }) {
   );
 }
 
-// ============================================================================
-// 2) 금액 기부자
-// ============================================================================
-function MoneyDonorsTable({ rows }: { rows: MoneyDonorRow[] }) {
-  const total = useMemo(() => rows.reduce((s, r) => s + r.amount, 0), [rows]);
-
-  const handleExport = () => {
+function MoneyDonorsRaw({ rows }: { rows: MoneyDonorRow[] }) {
+  const handleExport = () =>
     downloadCsv(
-      `금액기부자명단_${todayStampKst()}.csv`,
+      `금액기부자_전체내역_${todayStampKst()}.csv`,
       ['기부번호', '기부자', '부서', '이메일', '금액', '입금자명', '익명표시', '완료일시', '메시지'],
       rows.map((r) => [
         r.donation_number,
@@ -197,20 +454,11 @@ function MoneyDonorsTable({ rows }: { rows: MoneyDonorRow[] }) {
         r.message ?? '',
       ])
     );
-  };
-
   return (
-    <RosterShell
-      summary={[
-        ['기부자 수', `${rows.length}명`],
-        ['기부 합계', `${total.toLocaleString()}원`],
-      ]}
-      onExport={handleExport}
-      empty={rows.length === 0}
-    >
+    <RosterShell summary={[['기부 건수', `${rows.length}건`]]} onExport={handleExport} empty={rows.length === 0}>
       <Table head={['기부번호', '기부자', '부서', '이메일', '금액', '입금자명', '익명', '완료일']}>
         {rows.map((r) => (
-          <tr key={r.id} style={trStyle}>
+          <tr key={r.id}>
             <Td mono muted>{r.donation_number}</Td>
             <Td strong>{r.donor_name}</Td>
             <Td muted>{r.donor_dept ?? '-'}</Td>
@@ -226,16 +474,10 @@ function MoneyDonorsTable({ rows }: { rows: MoneyDonorRow[] }) {
   );
 }
 
-// ============================================================================
-// 3) 구매자
-// ============================================================================
-function BuyersTable({ rows }: { rows: BuyerRow[] }) {
-  const total = useMemo(() => rows.reduce((s, r) => s + r.total_amount, 0), [rows]);
-  const typeLabel = (t: string) => (t === 'bazaar' ? '🛍 바자회' : t === 'auction' ? '🔨 경매' : t);
-
-  const handleExport = () => {
+function BuyersRaw({ rows }: { rows: BuyerRow[] }) {
+  const handleExport = () =>
     downloadCsv(
-      `구매자명단_${todayStampKst()}.csv`,
+      `구매자_전체내역_${todayStampKst()}.csv`,
       ['주문번호', '유형', '구매자', '부서', '이메일', '금액', '입금자명', '완료일시'],
       rows.map((r) => [
         r.order_number,
@@ -248,20 +490,11 @@ function BuyersTable({ rows }: { rows: BuyerRow[] }) {
         fmtKst(r.paid_at),
       ])
     );
-  };
-
   return (
-    <RosterShell
-      summary={[
-        ['구매 건수', `${rows.length}건`],
-        ['결제 합계', `${total.toLocaleString()}원`],
-      ]}
-      onExport={handleExport}
-      empty={rows.length === 0}
-    >
+    <RosterShell summary={[['구매 건수', `${rows.length}건`]]} onExport={handleExport} empty={rows.length === 0}>
       <Table head={['주문번호', '유형', '구매자', '부서', '이메일', '금액', '입금자명', '완료일']}>
         {rows.map((r) => (
-          <tr key={r.id} style={trStyle}>
+          <tr key={r.id}>
             <Td mono muted>{r.order_number}</Td>
             <Td muted>{typeLabel(r.order_type)}</Td>
             <Td strong>{r.buyer_name}</Td>
@@ -300,22 +533,7 @@ function RosterShell({
             <strong>{v}</strong>
           </div>
         ))}
-        <button
-          type="button"
-          onClick={onExport}
-          disabled={empty}
-          style={{
-            marginLeft: 'auto',
-            padding: '8px 14px',
-            background: empty ? '#f0f0f0' : '#111',
-            color: empty ? '#aaa' : '#fff',
-            border: 'none',
-            borderRadius: 6,
-            fontSize: 12,
-            fontWeight: 600,
-            cursor: empty ? 'not-allowed' : 'pointer',
-          }}
-        >
+        <button type="button" onClick={onExport} disabled={empty} style={exportBtn(empty)}>
           ⬇ CSV 내보내기
         </button>
       </div>
@@ -338,9 +556,9 @@ function Table({ head, children }: { head: string[]; children: React.ReactNode }
     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 720 }}>
       <thead>
         <tr>
-          {head.map((h) => (
+          {head.map((h, i) => (
             <th
-              key={h}
+              key={i}
               style={{
                 textAlign: 'left',
                 padding: '10px 12px',
@@ -391,7 +609,41 @@ function Td({
   );
 }
 
-const trStyle: React.CSSProperties = {};
+// React.Fragment 래퍼 (key 유지용)
+function FragmentRows({ children }: { children: React.ReactNode }) {
+  return <>{children}</>;
+}
+
+function Caret({ open }: { open: boolean }) {
+  return <span style={{ color: '#bbb', fontSize: 11, userSelect: 'none' }}>{open ? '▼' : '▶'}</span>;
+}
+
+const detailCell: React.CSSProperties = {
+  padding: '4px 12px 12px 40px',
+  background: '#fafafa',
+  borderBottom: '1px solid #f0f0f0',
+};
+const detailLine: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  fontSize: 12,
+  padding: '4px 0',
+  borderBottom: '1px dashed #eee',
+};
+const rowHover: React.CSSProperties = { cursor: 'pointer' };
+
+const tabBtn = (active: boolean): React.CSSProperties => ({
+  padding: '8px 14px',
+  borderRadius: 8,
+  border: '1px solid',
+  borderColor: active ? '#111' : '#ddd',
+  background: active ? '#111' : '#fff',
+  color: active ? '#fff' : '#444',
+  fontSize: 13,
+  fontWeight: 600,
+  cursor: 'pointer',
+});
 
 const refreshBtn = (loading: boolean): React.CSSProperties => ({
   padding: '6px 12px',
@@ -400,6 +652,18 @@ const refreshBtn = (loading: boolean): React.CSSProperties => ({
   borderRadius: 6,
   cursor: loading ? 'not-allowed' : 'pointer',
   fontSize: 12,
+});
+
+const exportBtn = (empty: boolean): React.CSSProperties => ({
+  marginLeft: 'auto',
+  padding: '8px 14px',
+  background: empty ? '#f0f0f0' : '#111',
+  color: empty ? '#aaa' : '#fff',
+  border: 'none',
+  borderRadius: 6,
+  fontSize: 12,
+  fontWeight: 600,
+  cursor: empty ? 'not-allowed' : 'pointer',
 });
 
 function fmtKst(utcIso: string | null): string {
