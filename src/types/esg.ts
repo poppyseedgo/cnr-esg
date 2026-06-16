@@ -876,6 +876,22 @@ export interface Database {
         Args: { p_donation_id: string };
         Returns: RpcResult & { donation_id?: string; donation_number?: string };
       };
+      set_donor_main_visibility: {                            // ← [2026-06-16 메인노출] override 설정
+        Args: { p_subject_type: string; p_subject_key: string; p_show: boolean };
+        Returns: RpcResult;
+      };
+      clear_donor_main_visibility: {                          // ← [2026-06-16 메인노출] override 해제(기본값)
+        Args: { p_subject_type: string; p_subject_key: string };
+        Returns: RpcResult;
+      };
+      get_main_item_donors: {                                 // ← [2026-06-16 메인노출] 공개 물품기부자 명단
+        Args: Record<string, never>;
+        Returns: { donor_name: string; donor_dept: string | null }[];
+      };
+      get_main_money_donors: {                                // ← [2026-06-16 메인노출] 공개 금액기부자 명단
+        Args: Record<string, never>;
+        Returns: { donor_name: string; donor_dept: string | null }[];
+      };
       expire_pending_donations: {
         Args: Record<string, never>;
         Returns: number;

@@ -291,3 +291,55 @@ export function aggregateBuyers(rows: BuyerRow[]): BuyerAgg[] {
   }
   return Array.from(map.values()).sort((a, b) => b.total_amount - a.total_amount);
 }
+
+// ============================================================================
+// 메인 노출 override (관리자) — esg_donor_main_visibility
+//   subject_key는 위 집계의 agg.key와 동일 규칙(SQL subject_key와도 1:1 일치).
+//   - 물품: 'u:'+donor_id 또는 'n:'+이름+'|'+부서
+//   - 금액: 'u:'+user_id  또는 'e:'+이메일
+// ============================================================================
+import { callRpc } from './supabase';
+
+export type RosterSubjectType = 'item' | 'money';
+
+export interface VisibilityOverrides {
+  item: Map<string, boolean>;   // key=subject_key → show_on_main
+  money: Map<string, boolean>;
+}
+
+/** 현재 저장된 override 전체 로드 (관리자 RLS) */
+export async function loadVisibilityOverrides(): Promise<VisibilityOverrides> {
+  const { data, error } = await supabase
+    .from('esg_donor_main_visibility')
+    .select('subject_type, subject_key, show_on_main');
+  if (error) throw error;
+  const out: VisibilityOverrides = { item: new Map(), money: new Map() };
+  for (const r of (data ?? []) as Array<{ subject_type: RosterSubjectType; subject_key: string; show_on_main: boolean }>) {
+    if (r.subject_type === 'item') out.item.set(r.subject_key, r.show_on_main);
+    else if (r.subject_type === 'money') out.money.set(r.subject_key, r.show_on_main);
+  }
+  return out;
+}
+
+/** override 설정(강제 노출/숨김) */
+export async function setMainVisibility(
+  type: RosterSubjectType,
+  subjectKey: string,
+  show: boolean
+): Promise<void> {
+  const result = (await callRpc('set_donor_main_visibility', {
+    p_subject_type: type,
+    p_subject_key: subjectKey,
+    p_show: show,
+  })) as { success: boolean; error?: string };
+  if (!result.success) throw new Error(result.error ?? '노출 설정 실패');
+}
+
+/** override 해제(기본값으로 복귀) */
+export async function clearMainVisibility(type: RosterSubjectType, subjectKey: string): Promise<void> {
+  const result = (await callRpc('clear_donor_main_visibility', {
+    p_subject_type: type,
+    p_subject_key: subjectKey,
+  })) as { success: boolean; error?: string };
+  if (!result.success) throw new Error(result.error ?? '노출 해제 실패');
+}

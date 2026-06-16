@@ -18,9 +18,14 @@ import {
   aggregateItemDonors,
   aggregateMoneyDonors,
   aggregateBuyers,
+  loadVisibilityOverrides,
+  setMainVisibility,
+  clearMainVisibility,
   type ItemDonorRow,
   type MoneyDonorRow,
   type BuyerRow,
+  type RosterSubjectType,
+  type VisibilityOverrides,
 } from '@/lib/adminRoster';
 import { downloadCsv, todayStampKst } from '@/utils/csv';
 
@@ -50,6 +55,8 @@ export function AdminRoster() {
   const [money, setMoney] = useState<MoneyDonorRow[]>([]);
   const [buyers, setBuyers] = useState<BuyerRow[]>([]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [overrides, setOverrides] = useState<VisibilityOverrides>({ item: new Map(), money: new Map() });
+  const [busyVis, setBusyVis] = useState<string | null>(null); // 처리 중인 subject_key
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -57,10 +64,16 @@ export function AdminRoster() {
     try {
       setError(null);
       setLoading(true);
-      const [i, m, b] = await Promise.all([loadItemDonors(), loadMoneyDonors(), loadBuyers()]);
+      const [i, m, b, ov] = await Promise.all([
+        loadItemDonors(),
+        loadMoneyDonors(),
+        loadBuyers(),
+        loadVisibilityOverrides(),
+      ]);
       setItems(i);
       setMoney(m);
       setBuyers(b);
+      setOverrides(ov);
     } catch (e) {
       console.error('[AdminRoster]', e);
       setError(e instanceof Error ? e.message : '명단을 불러오지 못했습니다.');
@@ -89,6 +102,42 @@ export function AdminRoster() {
       next.has(key) ? next.delete(key) : next.add(key);
       return next;
     });
+
+  // 메인 노출 override 설정(강제 노출/숨김). 낙관적 갱신 후 실패 시 reload로 복원.
+  const handleSetVis = async (type: RosterSubjectType, key: string, show: boolean) => {
+    setBusyVis(key);
+    setOverrides((prev) => {
+      const map = new Map(prev[type]);
+      map.set(key, show);
+      return { ...prev, [type]: map };
+    });
+    try {
+      await setMainVisibility(type, key, show);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '노출 설정 실패');
+      void reload();
+    } finally {
+      setBusyVis(null);
+    }
+  };
+
+  // override 해제(기본값으로 복귀)
+  const handleClearVis = async (type: RosterSubjectType, key: string) => {
+    setBusyVis(key);
+    setOverrides((prev) => {
+      const map = new Map(prev[type]);
+      map.delete(key);
+      return { ...prev, [type]: map };
+    });
+    try {
+      await clearMainVisibility(type, key);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '노출 해제 실패');
+      void reload();
+    } finally {
+      setBusyVis(null);
+    }
+  };
 
   // 헤더 카운트 (집계=사람 수 / 전체=행 수)
   const headerCount = (t: Tab) => {
@@ -151,13 +200,29 @@ export function AdminRoster() {
         <div style={{ padding: 48, textAlign: 'center', color: '#888' }}>불러오는 중…</div>
       ) : tab === 'items' ? (
         view === 'agg' ? (
-          <ItemDonorsAgg rows={itemAgg} expanded={expanded} onToggle={toggleExpand} />
+          <ItemDonorsAgg
+            rows={itemAgg}
+            expanded={expanded}
+            onToggle={toggleExpand}
+            overrides={overrides.item}
+            busyVis={busyVis}
+            onSetVis={(k, s) => handleSetVis('item', k, s)}
+            onClearVis={(k) => handleClearVis('item', k)}
+          />
         ) : (
           <ItemDonorsRaw rows={items} />
         )
       ) : tab === 'money' ? (
         view === 'agg' ? (
-          <MoneyDonorsAgg rows={moneyAgg} expanded={expanded} onToggle={toggleExpand} />
+          <MoneyDonorsAgg
+            rows={moneyAgg}
+            expanded={expanded}
+            onToggle={toggleExpand}
+            overrides={overrides.money}
+            busyVis={busyVis}
+            onSetVis={(k, s) => handleSetVis('money', k, s)}
+            onClearVis={(k) => handleClearVis('money', k)}
+          />
         ) : (
           <MoneyDonorsRaw rows={money} />
         )
@@ -177,19 +242,30 @@ function ItemDonorsAgg({
   rows,
   expanded,
   onToggle,
+  overrides,
+  busyVis,
+  onSetVis,
+  onClearVis,
 }: {
   rows: ReturnType<typeof aggregateItemDonors>;
   expanded: Set<string>;
   onToggle: (k: string) => void;
+  overrides: Map<string, boolean>;
+  busyVis: string | null;
+  onSetVis: (key: string, show: boolean) => void;
+  onClearVis: (key: string) => void;
 }) {
   const people = rows.length;
   const totalQty = rows.reduce((s, r) => s + r.total_qty, 0);
   const totalValue = rows.reduce((s, r) => s + r.total_value, 0);
+  // 물품 기부자 기본 노출 = true. override 있으면 우선.
+  const effShow = (key: string) => overrides.get(key) ?? true;
+  const shownCount = rows.filter((r) => effShow(r.key)).length;
 
   const handleExport = () =>
     downloadCsv(
       `물품기부자_집계_${todayStampKst()}.csv`,
-      ['기부자', '부서', '구분', '물품종류수', '총수량', '책정가합'],
+      ['기부자', '부서', '구분', '물품종류수', '총수량', '책정가합', '메인노출'],
       rows.map((r) => [
         r.donor_name,
         r.donor_dept ?? '',
@@ -197,6 +273,7 @@ function ItemDonorsAgg({
         r.item_kinds,
         r.total_qty,
         r.total_value,
+        effShow(r.key) ? '노출' : '숨김',
       ])
     );
 
@@ -206,11 +283,12 @@ function ItemDonorsAgg({
         ['기부자', `${people}명`],
         ['총 수량', `${totalQty}개`],
         ['책정가 합계', `${totalValue.toLocaleString()}원`],
+        ['메인 노출', `${shownCount}/${people}명`],
       ]}
       onExport={handleExport}
       empty={rows.length === 0}
     >
-      <Table head={['', '기부자', '부서', '구분', '물품종류', '총수량', '책정가합']}>
+      <Table head={['', '기부자', '부서', '구분', '물품종류', '총수량', '책정가합', '메인 노출']}>
         {rows.map((r) => {
           const open = expanded.has(r.key);
           return (
@@ -223,10 +301,20 @@ function ItemDonorsAgg({
                 <Td right>{r.item_kinds}종</Td>
                 <Td right>{r.total_qty}개</Td>
                 <Td right strong>{r.total_value.toLocaleString()}원</Td>
+                <Td>
+                  <VisibilityToggle
+                    subjectKey={r.key}
+                    defaultShow={true}
+                    override={overrides.has(r.key) ? overrides.get(r.key)! : null}
+                    busy={busyVis === r.key}
+                    onSet={onSetVis}
+                    onClear={onClearVis}
+                  />
+                </Td>
               </tr>
               {open && (
                 <tr>
-                  <td colSpan={7} style={detailCell}>
+                  <td colSpan={8} style={detailCell}>
                     {r.items.map((it, i) => (
                       <div key={i} style={detailLine}>
                         <span style={{ flex: 1 }}>{it.name}</span>
@@ -255,18 +343,29 @@ function MoneyDonorsAgg({
   rows,
   expanded,
   onToggle,
+  overrides,
+  busyVis,
+  onSetVis,
+  onClearVis,
 }: {
   rows: ReturnType<typeof aggregateMoneyDonors>;
   expanded: Set<string>;
   onToggle: (k: string) => void;
+  overrides: Map<string, boolean>;
+  busyVis: string | null;
+  onSetVis: (key: string, show: boolean) => void;
+  onClearVis: (key: string) => void;
 }) {
   const people = rows.length;
   const total = rows.reduce((s, r) => s + r.total_amount, 0);
+  // 금액 기부자 기본 노출 = 실명 건 존재(default_show_on_main). override 있으면 우선.
+  const effShow = (r: (typeof rows)[number]) => overrides.get(r.key) ?? r.default_show_on_main;
+  const shownCount = rows.filter(effShow).length;
 
   const handleExport = () =>
     downloadCsv(
       `금액기부자_집계_${todayStampKst()}.csv`,
-      ['기부자', '부서', '이메일', '누적기부액', '기부건수', '익명건수', '실명건수', '메인노출(기본)'],
+      ['기부자', '부서', '이메일', '누적기부액', '기부건수', '익명건수', '실명건수', '메인노출'],
       rows.map((r) => [
         r.donor_name,
         r.donor_dept ?? '',
@@ -275,7 +374,7 @@ function MoneyDonorsAgg({
         r.donation_count,
         r.anonymous_count,
         r.named_count,
-        r.default_show_on_main ? '노출' : '숨김',
+        effShow(r) ? '노출' : '숨김',
       ])
     );
 
@@ -284,11 +383,12 @@ function MoneyDonorsAgg({
       summary={[
         ['기부자', `${people}명`],
         ['누적 기부액', `${total.toLocaleString()}원`],
+        ['메인 노출', `${shownCount}/${people}명`],
       ]}
       onExport={handleExport}
       empty={rows.length === 0}
     >
-      <Table head={['', '기부자', '부서', '이메일', '누적 기부액', '건수', '익명', '메인노출(기본)']}>
+      <Table head={['', '기부자', '부서', '이메일', '누적 기부액', '건수', '익명', '메인 노출']}>
         {rows.map((r) => {
           const open = expanded.has(r.key);
           return (
@@ -302,11 +402,14 @@ function MoneyDonorsAgg({
                 <Td right>{r.donation_count}건</Td>
                 <Td muted>{r.anonymous_count > 0 ? `🕶 ${r.anonymous_count}` : '-'}</Td>
                 <Td>
-                  {r.default_show_on_main ? (
-                    <span style={{ color: '#166534', fontWeight: 600 }}>노출</span>
-                  ) : (
-                    <span style={{ color: '#991b1b', fontWeight: 600 }}>숨김(익명)</span>
-                  )}
+                  <VisibilityToggle
+                    subjectKey={r.key}
+                    defaultShow={r.default_show_on_main}
+                    override={overrides.has(r.key) ? overrides.get(r.key)! : null}
+                    busy={busyVis === r.key}
+                    onSet={onSetVis}
+                    onClear={onClearVis}
+                  />
                 </Td>
               </tr>
               {open && (
@@ -612,6 +715,80 @@ function Td({
 // React.Fragment 래퍼 (key 유지용)
 function FragmentRows({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
+}
+
+// 메인 노출 토글: effective = override ?? defaultShow.
+//   클릭 → 반대값으로 강제(override 설정). override 있으면 '기본' 버튼으로 해제 가능.
+//   행 펼침과 충돌하지 않도록 클릭 전파 차단.
+function VisibilityToggle({
+  subjectKey,
+  defaultShow,
+  override,
+  busy,
+  onSet,
+  onClear,
+}: {
+  subjectKey: string;
+  defaultShow: boolean;
+  override: boolean | null;
+  busy: boolean;
+  onSet: (key: string, show: boolean) => void;
+  onClear: (key: string) => void;
+}) {
+  const effective = override ?? defaultShow;
+  const overridden = override !== null;
+  const stop = (e: React.MouseEvent) => e.stopPropagation();
+
+  return (
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={stop}>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={(e) => {
+          stop(e);
+          onSet(subjectKey, !effective);
+        }}
+        title={overridden ? '관리자 강제 설정됨' : '기본값'}
+        style={{
+          padding: '3px 10px',
+          borderRadius: 999,
+          border: '1px solid',
+          borderColor: effective ? '#16a34a' : '#d4d4d4',
+          background: effective ? '#dcfce7' : '#f3f4f6',
+          color: effective ? '#166534' : '#6b7280',
+          fontSize: 11,
+          fontWeight: 700,
+          cursor: busy ? 'not-allowed' : 'pointer',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {effective ? '노출' : '숨김'}
+        {overridden && <span style={{ marginLeft: 4, opacity: 0.7 }}>•</span>}
+      </button>
+      {overridden && (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={(e) => {
+            stop(e);
+            onClear(subjectKey);
+          }}
+          title="기본값으로 복귀"
+          style={{
+            padding: '2px 6px',
+            borderRadius: 4,
+            border: '1px solid #ddd',
+            background: '#fff',
+            color: '#888',
+            fontSize: 10,
+            cursor: busy ? 'not-allowed' : 'pointer',
+          }}
+        >
+          기본
+        </button>
+      )}
+    </div>
+  );
 }
 
 function Caret({ open }: { open: boolean }) {
