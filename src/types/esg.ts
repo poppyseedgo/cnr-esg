@@ -596,6 +596,8 @@ export interface EsgDonationStatsRow {
   total_participants: number;
   bazaar_raised: number;
   auction_raised: number;
+  donation_raised: number; // ← [2026-06-16 버그#3] 자발적 기부(paid) 합산
+  donation_count: number;  // ← [2026-06-16 버그#3] 기부 완료 건수
 }
 
 // ============================================================================
@@ -869,6 +871,10 @@ export interface Database {
       cancel_donation: {
         Args: { p_donation_id: string; p_reason: string | null };
         Returns: RpcResult;
+      };
+      delete_donation: {                                      // ← [2026-06-16 버그#2] 기부 영구 삭제(관리자)
+        Args: { p_donation_id: string };
+        Returns: RpcResult & { donation_id?: string; donation_number?: string };
       };
       expire_pending_donations: {
         Args: Record<string, never>;

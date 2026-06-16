@@ -21,6 +21,13 @@
 //     --project-ref jjzcqpbwkkujttwxksvy --no-verify-jwt
 //
 //   ⚠️ --no-verify-jwt 필수 (cron이 ANON_KEY로 호출)
+//
+// ── 변경 이력 ───────────────────────────────────────────────────────────────
+//   2026-06-16  [버그 #1] 인증서 링크 깨짐 대응
+//     (1) APP_BASE_URL 미설정 시 발송을 중단(메일 보존)하여 'undefined/...' 깨진 링크 방지.
+//     (2) donation_paid: template_data에 누락된 donation_number/certificate_number를
+//         발송 직전 DB(SSOT)에서 보강(enrichTemplateData) → 메일 공란 해소.
+//     ※ 근본 원인(링크)은 APP_BASE_URL 환경변수 미설정. 배포 전 secrets 설정 필수.
 // ============================================================================
 
 // @deno-types="https://deno.land/std@0.224.0/types.d.ts"
@@ -72,6 +79,16 @@ interface OutboxRow {
 
 Deno.serve(async (_req: Request) => {
   try {
+    // ← [2026-06-16 버그#1] APP_BASE_URL 미설정 시 메일을 건드리지 않고 즉시 중단.
+    //    pending 상태로 보존되어, secrets 설정 후 다음 cron 틱에서 정상 링크로 발송됨.
+    if (!APP_BASE_URL) {
+      console.error('[process-email-outbox] APP_BASE_URL 미설정 — 발송 중단(메일 보존).');
+      return new Response(
+        JSON.stringify({ error: 'APP_BASE_URL_NOT_SET', processed: 0 }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
     // 처리할 메일 조회 (pending + failed-with-time-elapsed)
     const { data: rows, error: queryErr } = await supabase
       .from('esg_email_outbox')
@@ -120,8 +137,45 @@ Deno.serve(async (_req: Request) => {
 // 발송 1건
 // ============================================================================
 
+// ← [2026-06-16 버그#1] donation_paid 보강: mark_donation_paid가 template_data에
+//    donation_number/certificate_number를 넣지 않아 메일 칸이 공란으로 나오는 문제를
+//    발송 직전 DB(SSOT)에서 채워 해결. donation_id(이미 존재)를 키로 조회.
+//    다른 템플릿은 그대로 통과. 이미 값이 있으면 덮어쓰지 않음.
+async function enrichTemplateData(
+  templateKey: string,
+  data: Record<string, unknown>
+): Promise<Record<string, unknown>> {
+  if (templateKey !== 'donation_paid') return data;
+
+  const donationId = data.donation_id;
+  if (!donationId || typeof donationId !== 'string') return data;
+
+  const enriched: Record<string, unknown> = { ...data };
+
+  if (!enriched.donation_number) {
+    const { data: don } = await supabase
+      .from('esg_donations')
+      .select('donation_number')
+      .eq('id', donationId)
+      .maybeSingle();
+    if (don?.donation_number) enriched.donation_number = don.donation_number;
+  }
+
+  if (!enriched.certificate_number) {
+    const { data: cert } = await supabase
+      .from('esg_donation_certificates')
+      .select('certificate_number')
+      .eq('donation_id', donationId)
+      .maybeSingle();
+    if (cert?.certificate_number) enriched.certificate_number = cert.certificate_number;
+  }
+
+  return enriched;
+}
+
 async function sendOne(item: OutboxRow): Promise<void> {
-  const html = buildEmailHtml(item.template_key, item.template_data);
+  const data = await enrichTemplateData(item.template_key, item.template_data); // ← [2026-06-16 버그#1] DB 보강
+  const html = buildEmailHtml(item.template_key, data); // ← [2026-06-16] 보강된 data 사용
 
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',

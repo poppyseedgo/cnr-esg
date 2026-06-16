@@ -71,6 +71,15 @@ export async function cancelDonationAdmin(donationId: string, reason: string): P
   if (!result.success) throw new Error(result.error ?? '취소 실패');
 }
 
+// ← [2026-06-16 버그#2] 기부 영구 삭제 (Test/오등록 건 제거). 관리자 전용 RPC.
+//    인증서는 FK CASCADE로 동반 삭제되고, 실시간 뷰 esg_donation_stats에서 즉시 차감됨(버그#4).
+export async function deleteDonation(donationId: string): Promise<void> {
+  const result = (await callRpc('delete_donation', {
+    p_donation_id: donationId,
+  })) as { success: boolean; error?: string };
+  if (!result.success) throw new Error(result.error ?? '삭제 실패');
+}
+
 export async function updateAdminMemo(donationId: string, memo: string): Promise<void> {
   const { error } = await supabase
     .from('esg_donations')

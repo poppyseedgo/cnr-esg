@@ -78,6 +78,7 @@ const AdminOrders = lazyWithRetry(() => import('@/pages/admin/AdminOrders').then
 const AdminPosts = lazyWithRetry(() => import('@/pages/admin/AdminPosts').then((m) => ({ default: m.AdminPosts })));
 const AdminEmails = lazyWithRetry(() => import('@/pages/admin/AdminEmails').then((m) => ({ default: m.AdminEmails })));
 const AdminDonations = lazyWithRetry(() => import('@/pages/admin/AdminDonations').then((m) => ({ default: m.AdminDonations })));
+const AdminRoster = lazyWithRetry(() => import('@/pages/admin/AdminRoster').then((m) => ({ default: m.AdminRoster }))); // ← [추가 2026-06-16 버그#5] 명단 관리
 const AdminQA = lazyWithRetry(() => import('@/pages/admin/AdminQA').then((m) => ({ default: m.AdminQA })));
 const AdminBazaarGuide = lazyWithRetry(() => import('@/pages/admin/AdminBazaarGuide').then((m) => ({ default: m.AdminBazaarGuide })));
 const AdminFaq = lazyWithRetry(() => import('@/pages/admin/AdminFaq').then((m) => ({ default: m.AdminFaq })));
@@ -193,6 +194,7 @@ const router = createBrowserRouter([
           { path: 'auctions', element: <AdminAuctions /> },
           { path: 'orders', element: <AdminOrders /> },
           { path: 'donations', element: <AdminDonations /> },
+          { path: 'roster', element: <AdminRoster /> }, // ← [추가 2026-06-16 버그#5] 명단 관리
           { path: 'settings', element: <AdminSettings /> },
           { path: 'emails', element: <AdminEmails /> },
         ],

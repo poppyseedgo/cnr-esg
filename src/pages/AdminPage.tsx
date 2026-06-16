@@ -15,6 +15,7 @@ const adminTabs = [
   { to: '/admin/products', label: '바자회 상품', icon: '🛍' },
   { to: '/admin/orders', label: '주문/입금확인', icon: '💳' },
   { to: '/admin/donations', label: '기부 관리', icon: '💚' },
+  { to: '/admin/roster', label: '명단 관리', icon: '📋' }, // ← [추가 2026-06-16 버그#5] 통합 명단/CSV
   { to: '/admin/posts', label: '게시글 관리', icon: '📝' },
   { to: '/admin/qa', label: '상품 Q&A', icon: '❓' },
   { to: '/admin/faq', label: 'FAQ 관리', icon: '❔' },

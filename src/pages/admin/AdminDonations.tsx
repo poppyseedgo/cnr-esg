@@ -15,6 +15,7 @@ import {
   loadAllDonations,
   markDonationPaid,
   cancelDonationAdmin,
+  deleteDonation,
   updateAdminMemo,
   subscribeDonationsAdmin,
   type LoadAllDonationsFilters,
@@ -258,6 +259,30 @@ function DonationCard({ donation, onChange }: { donation: EsgDonationRow; onChan
     }
   };
 
+  // ← [2026-06-16 버그#2] Test/오등록 건 영구 삭제. 'paid'였다면 총 모금액에서도 즉시 빠짐(버그#4).
+  const handleDelete = async () => {
+    const isPaid = donation.payment_status === 'paid';
+    if (
+      !confirm(
+        `[${donation.donation_number}] ${donation.amount.toLocaleString()}원 기부 내역을 영구 삭제합니다.\n\n` +
+          (isPaid
+            ? '⚠️ 완료(paid) 건입니다. 삭제 시 발급된 인증서가 함께 삭제되고 "총 모금액"에서도 차감됩니다.\n\n'
+            : '') +
+          '이 작업은 되돌릴 수 없습니다. 진행하시겠습니까?'
+      )
+    )
+      return;
+    setBusy(true);
+    try {
+      await deleteDonation(donation.id);
+      onChange();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '삭제 실패');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div
       style={{
@@ -458,6 +483,15 @@ function DonationCard({ donation, onChange }: { donation: EsgDonationRow; onChan
             취소 사유: {donation.cancelled_reason}
           </span>
         )}
+        {/* ← [2026-06-16 버그#2] 모든 상태에서 영구 삭제 가능 (Test 건 정리용) */}
+        <button
+          type="button"
+          onClick={handleDelete}
+          disabled={busy}
+          style={{ ...actionBtn('danger', busy), marginLeft: 'auto' }}
+        >
+          🗑 영구 삭제
+        </button>
       </div>
     </div>
   );
