@@ -16,6 +16,7 @@ import {
   markDonationPaid,
   cancelDonationAdmin,
   deleteDonation,
+  resendDonationCertificate,
   updateAdminMemo,
   subscribeDonationsAdmin,
   type LoadAllDonationsFilters,
@@ -259,7 +260,7 @@ function DonationCard({ donation, onChange }: { donation: EsgDonationRow; onChan
     }
   };
 
-  // ← [2026-06-16 버그#2] Test/오등록 건 영구 삭제. 'paid'였다면 총 모금액에서도 즉시 빠짐(버그#4).
+  // ← [2026-06-16] Test/오등록 건 영구 삭제. 'paid'였다면 총 모금액에서도 즉시 빠짐(버그#4).
   const handleDelete = async () => {
     const isPaid = donation.payment_status === 'paid';
     if (
@@ -278,6 +279,27 @@ function DonationCard({ donation, onChange }: { donation: EsgDonationRow; onChan
       onChange();
     } catch (e) {
       alert(e instanceof Error ? e.message : '삭제 실패');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // ← [2026-06-16] 인증서 메일 재발송 (깨진 링크 수신자 포함). 완료 건만 노출.
+  const handleResend = async () => {
+    if (
+      !confirm(
+        `[${donation.donation_number}] 기부금 인증서 메일을 재발송합니다.\n\n` +
+          `수신: ${donation.user_email}\n\n` +
+          `"기부금 인증서가 도착했습니다" 메일이 발송됩니다(최대 1분 소요). 진행하시겠습니까?`
+      )
+    )
+      return;
+    setBusy(true);
+    try {
+      const { to_email } = await resendDonationCertificate(donation.id);
+      alert(`재발송 접수 완료${to_email ? ` → ${to_email}` : ''}\n잠시 후 발송됩니다.`);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '재발송 실패');
     } finally {
       setBusy(false);
     }
@@ -461,22 +483,41 @@ function DonationCard({ donation, onChange }: { donation: EsgDonationRow; onChan
           </>
         )}
         {donation.payment_status === 'paid' && (
-          <Link
-            to={`/donate/${donation.id}/certificate`}
-            target="_blank"
-            style={{
-              padding: '8px 14px',
-              background: '#fff',
-              border: '1px solid #16a34a',
-              color: '#16a34a',
-              borderRadius: 4,
-              textDecoration: 'none',
-              fontSize: 12,
-              fontWeight: 600,
-            }}
-          >
-            📜 인증서 보기
-          </Link>
+          <>
+            <Link
+              to={`/donate/${donation.id}/certificate`}
+              target="_blank"
+              style={{
+                padding: '8px 14px',
+                background: '#fff',
+                border: '1px solid #16a34a',
+                color: '#16a34a',
+                borderRadius: 4,
+                textDecoration: 'none',
+                fontSize: 12,
+                fontWeight: 600,
+              }}
+            >
+              📜 인증서 보기
+            </Link>
+            <button
+              type="button"
+              onClick={handleResend}
+              disabled={busy}
+              style={{
+                padding: '8px 14px',
+                background: '#16a34a',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 4,
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: busy ? 'not-allowed' : 'pointer',
+              }}
+            >
+              📧 인증서 재발송
+            </button>
+          </>
         )}
         {donation.cancelled_reason && (
           <span style={{ fontSize: 11, color: '#888', alignSelf: 'center' }}>

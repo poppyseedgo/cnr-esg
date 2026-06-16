@@ -28,6 +28,8 @@
 //     (2) donation_paid: template_data에 누락된 donation_number/certificate_number를
 //         발송 직전 DB(SSOT)에서 보강(enrichTemplateData) → 메일 공란 해소.
 //     ※ 근본 원인(링크)은 APP_BASE_URL 환경변수 미설정. 배포 전 secrets 설정 필수.
+//   2026-06-16  [재발송] 'donation_certificate_resend' 템플릿 추가
+//     ("기부금 인증서가 도착했습니다") — 관리자 선택 재발송용. enrich 대상에 포함.
 // ============================================================================
 
 // @deno-types="https://deno.land/std@0.224.0/types.d.ts"
@@ -145,7 +147,7 @@ async function enrichTemplateData(
   templateKey: string,
   data: Record<string, unknown>
 ): Promise<Record<string, unknown>> {
-  if (templateKey !== 'donation_paid') return data;
+  if (templateKey !== 'donation_paid' && templateKey !== 'donation_certificate_resend') return data; // ← [2026-06-16] 재발송 포함
 
   const donationId = data.donation_id;
   if (!donationId || typeof donationId !== 'string') return data;
@@ -257,6 +259,8 @@ function buildEmailHtml(templateKey: string, data: Record<string, unknown>): str
       return tmplDonationCreated(data);
     case 'donation_paid':
       return tmplDonationPaid(data);
+    case 'donation_certificate_resend':                 // ← [2026-06-16] 인증서 재발송
+      return tmplDonationCertificateResend(data);
     default:
       return wrap(`<p>알 수 없는 템플릿: ${escapeHtml(templateKey)}</p>`);
   }
@@ -516,6 +520,27 @@ ${button('📜 인증서 보기 / 다운로드', `${APP_BASE_URL}/donate/${data.
 <p style="font-size:13px;color:#444;line-height:1.7;margin-top:24px;">
 모금된 금액은 사내 ESG 활동과 공익 기부에 사용됩니다.<br>
 보내주신 마음이 더 큰 변화로 이어질 수 있도록 소중히 사용하겠습니다.
+</p>
+`);
+}
+
+// 11. 기부금 인증서 재발송 ("기부금 인증서가 도착했습니다")
+//     ← [2026-06-16] 깨진 링크로 잘못 전달받은 분 포함, 관리자가 선택적으로 재발송.
+function tmplDonationCertificateResend(data: Record<string, unknown>): string {
+  return wrap(`
+<h2 style="margin:0 0 12px;font-size:18px;color:#222;">📜 기부금 인증서가 도착했습니다</h2>
+<p>${escapeHtml(data.user_name)}님, 기부에 참여해 주셔서 다시 한 번 감사드립니다.</p>
+${alertBox('💚 아래 버튼을 눌러 기부 인증서를 확인하고 다운로드하실 수 있습니다.', 'success')}
+${infoBox([
+  ['기부 번호', escapeHtml(data.donation_number)],
+  ['인증서 번호', escapeHtml(data.certificate_number)],
+  ['기부 금액', `${formatAmount(data.amount)}원`],
+  ['확인 일시', `${formatKst(data.paid_at)} (KST)`],
+])}
+${button('📜 인증서 보기 / 다운로드', `${APP_BASE_URL}/donate/${data.donation_id}/certificate`, '#16a34a')}
+<p style="font-size:12px;color:#888;line-height:1.7;margin-top:16px;">
+이전에 받으신 안내 메일의 인증서 링크가 정상적으로 열리지 않았던 경우, 위 버튼을 이용해 주세요.<br>
+문의: space@cnrres.com
 </p>
 `);
 }

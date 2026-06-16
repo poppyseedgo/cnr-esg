@@ -616,7 +616,8 @@ export type EsgEmailTemplateKey =
   | 'auction_cancelled'
   | 'post_hidden'
   | 'donation_created'
-  | 'donation_paid';
+  | 'donation_paid'
+  | 'donation_certificate_resend'; // ← [2026-06-16] 인증서 재발송
 
 export interface EsgEmailOutboxRow {
   id: string;
@@ -875,6 +876,10 @@ export interface Database {
       delete_donation: {                                      // ← [2026-06-16 버그#2] 기부 영구 삭제(관리자)
         Args: { p_donation_id: string };
         Returns: RpcResult & { donation_id?: string; donation_number?: string };
+      };
+      resend_donation_certificate: {                          // ← [2026-06-16] 인증서 메일 재발송(관리자)
+        Args: { p_donation_id: string };
+        Returns: RpcResult & { idempotency_key?: string; to_email?: string };
       };
       set_donor_main_visibility: {                            // ← [2026-06-16 메인노출] override 설정
         Args: { p_subject_type: string; p_subject_key: string; p_show: boolean };

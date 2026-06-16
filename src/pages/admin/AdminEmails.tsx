@@ -51,6 +51,7 @@ const TEMPLATE_LABELS: Record<EsgEmailTemplateKey, string> = {
   post_hidden: '🙈 게시글 숨김',
   donation_created: '💚 기부 신청',
   donation_paid: '🎉 기부 확인 (인증서)',
+  donation_certificate_resend: '📧 인증서 재발송', // ← [2026-06-16]
 };
 
 export function AdminEmails() {

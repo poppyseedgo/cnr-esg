@@ -80,6 +80,18 @@ export async function deleteDonation(donationId: string): Promise<void> {
   if (!result.success) throw new Error(result.error ?? '삭제 실패');
 }
 
+// ← [2026-06-16] 기부금 인증서 메일 재발송. 완료(paid) + 인증서 존재 건만.
+//    새 outbox 행을 적재 → cron Edge Function이 다음 틱에 발송. 반환에 수신 이메일 포함.
+export async function resendDonationCertificate(
+  donationId: string
+): Promise<{ to_email?: string }> {
+  const result = (await callRpc('resend_donation_certificate', {
+    p_donation_id: donationId,
+  })) as { success: boolean; error?: string; to_email?: string };
+  if (!result.success) throw new Error(result.error ?? '재발송 실패');
+  return { to_email: result.to_email };
+}
+
 export async function updateAdminMemo(donationId: string, memo: string): Promise<void> {
   const { error } = await supabase
     .from('esg_donations')
