@@ -21,6 +21,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { ThumbnailUploader, DetailImagesUploader } from '@/components/ImageUploader';
 import { DonorPicker, type DonorValue } from '@/components/admin/DonorPicker';
+import { MarkdownEditor } from '@/components/MarkdownEditor'; // ← [2026-06-16] 검수 메모 에디터화
 import { useDraft } from '@/hooks/useDraft'; // ← [2026-06-16] 작성 내용 자동 임시저장
 import { UNSAVED_CONFIRM_MSG } from '@/hooks/useUnsavedGuard'; // ← [2026-06-16] 취소 확인 메시지
 import {
@@ -277,13 +278,14 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess, onDirtyChange }
       </Field>
 
       <Field label="검수 메모 (선택)">
-        <textarea
+        <MarkdownEditor
           value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder="상태/하자/검수 결과 등 내부 메모"
+          onChange={setNote}
+          uploaderKind="bazaar"
+          uploaderOwnerId={ownerId}
+          minHeight={220}
           disabled={saving}
-          rows={2}
-          style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit' }}
+          placeholder="상태/하자/검수 결과, 상세 사이즈, 링크 등 — 마크다운/일부 HTML 지원"
         />
       </Field>
 
@@ -319,7 +321,20 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess, onDirtyChange }
         </p>
       )}
 
-      <div style={{ display: 'flex', gap: 6, marginTop: 16 }}>
+      <div
+        style={{
+          display: 'flex',
+          gap: 6,
+          marginTop: 16,
+          position: 'sticky',     // ← [2026-06-16] 모달 바텀에 고정(스크롤해도 항상 보임)
+          bottom: 0,
+          background: '#fff',
+          paddingTop: 12,
+          paddingBottom: 4,
+          borderTop: '1px solid #eee',
+          zIndex: 1,
+        }}
+      >
         <button
           type="button"
           onClick={save}

@@ -155,6 +155,11 @@
   padding: 20px;
   padding-bottom: 82px;                      /* 20 + 62(fade) */
 }
+/* [2026-06-16] 폼 자체 sticky 푸터(저장/취소) 사용 모달 — fade용 하단 패딩 제거해 CTA가 바텀에 밀착 */
+.esg-modal__contents--big.esg-modal__contents--form-footer,
+.esg-modal__contents--medium.esg-modal__contents--form-footer {
+  padding-bottom: 16px;
+}
 
 /* ── 대표 이미지 (Big 본문 전용) ────────────────────────────── */
 .esg-modal__hero {

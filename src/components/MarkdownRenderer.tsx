@@ -8,6 +8,9 @@
 // ============================================================================
 
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';        // 자동 링크/테이블/취소선/줄바꿈 등 GFM
+import rehypeRaw from 'rehype-raw';         // 본문 내 일부 HTML 태그 파싱
+import rehypeSanitize from 'rehype-sanitize'; // XSS 방지(안전 태그만 허용)
 
 interface MarkdownRendererProps {
   content: string;
@@ -32,7 +35,10 @@ export function MarkdownRenderer({ content, compact = false }: MarkdownRendererP
       }}
     >
       <ReactMarkdown
-        // 보안: HTML 허용 안 함 (기본값). 링크는 새 창
+        // GFM(자동 링크·테이블·취소선·체크리스트) + 안전 범위 HTML 허용
+        //   rehypeRaw로 HTML 파싱 → rehypeSanitize로 위험 태그/속성 제거(스크립트·이벤트핸들러·style 차단)
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeRaw, rehypeSanitize]}
         components={{
           h1: ({ children }) => (
             <h1 style={{ fontSize: 24, fontWeight: 700, margin: '20px 0 12px' }}>{children}</h1>
@@ -120,6 +126,20 @@ export function MarkdownRenderer({ content, compact = false }: MarkdownRendererP
           hr: () => <hr style={{ border: 'none', borderTop: '1px solid #eee', margin: '20px 0' }} />,
           strong: ({ children }) => <strong style={{ fontWeight: 700 }}>{children}</strong>,
           em: ({ children }) => <em style={{ fontStyle: 'italic' }}>{children}</em>,
+          del: ({ children }) => <del style={{ color: '#888' }}>{children}</del>,
+          table: ({ children }) => (
+            <div style={{ overflowX: 'auto', margin: '12px 0' }}>
+              <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '0.95em' }}>{children}</table>
+            </div>
+          ),
+          th: ({ children }) => (
+            <th style={{ border: '1px solid #e5e5e5', padding: '6px 10px', background: '#fafafa', textAlign: 'left', fontWeight: 600 }}>
+              {children}
+            </th>
+          ),
+          td: ({ children }) => (
+            <td style={{ border: '1px solid #e5e5e5', padding: '6px 10px' }}>{children}</td>
+          ),
         }}
       >
         {content}

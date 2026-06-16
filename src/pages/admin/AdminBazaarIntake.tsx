@@ -225,6 +225,7 @@ export function AdminBazaarIntake() {
             ariaLabel={formMode.type === 'edit' ? '접수 정보 수정' : '물품 접수 등록'}
             onClose={closeForm}
             isDirty={formDirty}
+            contentsClassName="esg-modal__contents--form-footer"
             header={
               <div className="esg-modal__title-group">
                 <h2 className="esg-modal__title esg-modal__title--big">
