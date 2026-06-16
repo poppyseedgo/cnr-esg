@@ -1,0 +1,160 @@
+/* ============================================================================
+ * RichEditor.css — TipTap WYSIWYG 에디터 스타일
+ *   - 툴바/버튼 + 본문(ProseMirror) 타이포그래피
+ *   - 본문 스타일은 MarkdownRenderer 출력과 톤을 맞춤(#222, 1.7, 링크 #0ea5e9)
+ * ========================================================================== */
+
+.rich-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ── 툴바 ───────────────────────────────────────────────────────────────── */
+.rich-editor__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  background: #fafafa;
+  border: 1px solid #eee;
+  border-radius: 6px;
+}
+
+.rich-editor__btn {
+  min-width: 30px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: #fff;
+  color: #333;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.rich-editor__btn:hover {
+  background: #f0f0f0;
+}
+.rich-editor__btn.is-active {
+  background: #111;
+  color: #fff;
+  border-color: #111;
+}
+.rich-editor__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.rich-editor__divider {
+  width: 1px;
+  height: 18px;
+  background: #e0e0e0;
+  margin: 0 2px;
+}
+
+/* ── 이미지 업로더 줄 ───────────────────────────────────────────────────── */
+.rich-editor__image {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: #fff;
+  border: 1px dashed #ddd;
+  border-radius: 6px;
+}
+.rich-editor__image-label {
+  font-size: 11px;
+  color: #666;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ── 본문(ProseMirror) ──────────────────────────────────────────────────── */
+.rich-editor__content {
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 12px;
+  background: #fff;
+}
+.rich-editor__content .ProseMirror {
+  outline: none;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #222;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.rich-editor__content .ProseMirror > * + * {
+  margin-top: 10px;
+}
+.rich-editor__content .ProseMirror h2 {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 18px 0 10px;
+}
+.rich-editor__content .ProseMirror h3 {
+  font-size: 17px;
+  font-weight: 600;
+  margin: 14px 0 8px;
+}
+.rich-editor__content .ProseMirror ul,
+.rich-editor__content .ProseMirror ol {
+  padding-left: 24px;
+}
+.rich-editor__content .ProseMirror li {
+  margin: 4px 0;
+}
+.rich-editor__content .ProseMirror blockquote {
+  border-left: 3px solid #e0e0e0;
+  padding-left: 12px;
+  color: #555;
+  margin: 10px 0;
+}
+.rich-editor__content .ProseMirror code {
+  background: #f3f4f6;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+.rich-editor__content .ProseMirror pre {
+  background: #1e1e1e;
+  color: #eee;
+  padding: 12px;
+  border-radius: 8px;
+  overflow-x: auto;
+}
+.rich-editor__content .ProseMirror pre code {
+  background: none;
+  padding: 0;
+  color: inherit;
+}
+.rich-editor__content .ProseMirror a {
+  color: #0ea5e9;
+  text-decoration: underline;
+}
+.rich-editor__content .ProseMirror img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  display: block;
+  margin: 10px 0;
+}
+.rich-editor__content .ProseMirror hr {
+  border: none;
+  border-top: 1px solid #eee;
+  margin: 16px 0;
+}
+
+/* placeholder (빈 첫 문단) */
+.rich-editor__content .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: #aaa;
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
