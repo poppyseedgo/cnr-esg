@@ -8,7 +8,8 @@
 //   - ESC 닫기 + 외부 클릭 닫기 + X 버튼
 // ============================================================================
 
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
+import { useUnsavedGuard, UNSAVED_CONFIRM_MSG } from '@/hooks/useUnsavedGuard';
 
 interface FormModalProps {
   open: boolean;
@@ -17,18 +18,39 @@ interface FormModalProps {
   /** 모달 최대 너비 (기본 720px) */
   maxWidth?: number;
   children: React.ReactNode;
+  /** 작성 중 여부 — true면 닫기 시 확인 + 새로고침 경고 */
+  isDirty?: boolean;
+  /** 배경 클릭 닫기 허용. 기본 false(실수 닫힘 방지) */
+  closeOnBackdrop?: boolean;
+  /** dirty 확인 메시지 */
+  confirmMessage?: string;
 }
 
-export function FormModal({ open, onClose, title, maxWidth = 720, children }: FormModalProps) {
-  // ESC 키로 닫기
+export function FormModal({
+  open,
+  onClose,
+  title,
+  maxWidth = 720,
+  children,
+  isDirty = false,
+  closeOnBackdrop = false,
+  confirmMessage = UNSAVED_CONFIRM_MSG,
+}: FormModalProps) {
+  // 작성 중 이탈 방어
+  const confirmClose = useUnsavedGuard(open && isDirty, confirmMessage);
+  const requestClose = useCallback(() => {
+    if (confirmClose()) onClose();
+  }, [confirmClose, onClose]);
+
+  // ESC 키로 닫기 (작성 중이면 확인)
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') requestClose();
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [open, onClose]);
+  }, [open, requestClose]);
 
   // body 스크롤 잠금
   useEffect(() => {
@@ -44,7 +66,13 @@ export function FormModal({ open, onClose, title, maxWidth = 720, children }: Fo
 
   return (
     <div
-      onClick={onClose}
+      onClick={
+        closeOnBackdrop
+          ? (e) => {
+              if (e.target === e.currentTarget && confirmClose()) onClose();
+            }
+          : undefined
+      }
       style={{
         position: 'fixed',
         inset: 0,
@@ -86,7 +114,7 @@ export function FormModal({ open, onClose, title, maxWidth = 720, children }: Fo
           <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>{title}</h2>
           <button
             type="button"
-            onClick={onClose}
+            onClick={requestClose}
             aria-label="닫기"
             style={{
               width: 32,

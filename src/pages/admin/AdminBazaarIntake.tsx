@@ -69,6 +69,7 @@ export function AdminBazaarIntake() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [formMode, setFormMode] = useState<FormMode>(null);
+  const [formDirty, setFormDirty] = useState(false); // ← [2026-06-16] 물품 폼 작성중 여부(닫기 가드)
 
   // 토스트
   const [toast, setToast] = useState<string | null>(null);
@@ -116,7 +117,10 @@ export function AdminBazaarIntake() {
     [rows, filter]
   );
 
-  const closeForm = () => setFormMode(null);
+  const closeForm = () => {
+    setFormDirty(false);
+    setFormMode(null);
+  };
 
   const handleFormSuccess = (mode: FormMode) => {
     setFormMode(null);
@@ -220,6 +224,7 @@ export function AdminBazaarIntake() {
             size="big"
             ariaLabel={formMode.type === 'edit' ? '접수 정보 수정' : '물품 접수 등록'}
             onClose={closeForm}
+            isDirty={formDirty}
             header={
               <div className="esg-modal__title-group">
                 <h2 className="esg-modal__title esg-modal__title--big">
@@ -232,6 +237,7 @@ export function AdminBazaarIntake() {
               initial={formMode.type === 'edit' ? formMode.row : undefined}
               onCancel={closeForm}
               onSuccess={() => handleFormSuccess(formMode)}
+              onDirtyChange={setFormDirty}
             />
           </ModalShell>,
           document.body

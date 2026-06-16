@@ -17,10 +17,12 @@
 //   <BazaarIntakeForm initial={row} onCancel={...} onSuccess={...} /> // 수정
 // ============================================================================
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { ThumbnailUploader, DetailImagesUploader } from '@/components/ImageUploader';
 import { DonorPicker, type DonorValue } from '@/components/admin/DonorPicker';
+import { useDraft } from '@/hooks/useDraft'; // ← [2026-06-16] 작성 내용 자동 임시저장
+import { UNSAVED_CONFIRM_MSG } from '@/hooks/useUnsavedGuard'; // ← [2026-06-16] 취소 확인 메시지
 import {
   createIntake,
   updateIntake,
@@ -33,30 +35,43 @@ interface BazaarIntakeFormProps {
   initial?: EsgBazaarIntakeRow;
   onCancel: () => void;
   onSuccess: () => void;
+  /** 작성 중 여부 변경 통지 — 부모(ModalShell)가 닫기 가드에 사용 */
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
-export function BazaarIntakeForm({ initial, onCancel, onSuccess }: BazaarIntakeFormProps) {
+export function BazaarIntakeForm({ initial, onCancel, onSuccess, onDirtyChange }: BazaarIntakeFormProps) {
   const { currentUser } = useCurrentUser();
   const isEdit = !!initial;
 
   // 사진 업로드용 owner id (수정이면 실제 id, 신규면 임시)
   const [ownerId] = useState(() => initial?.id ?? `new-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
 
-  const [name, setName] = useState(initial?.name ?? '');
-  const [category, setCategory] = useState<BazaarCategory>(initial?.category ?? 'clothing');
+  // ── [2026-06-16] 작성 내용 자동 임시저장(localStorage) ──────────────────
+  type BazaarDraft = {
+    name: string; category: BazaarCategory; donor: DonorValue | null;
+    originalPrice: number | ''; listedPrice: number | ''; quantity: number | '';
+    intakePhotos: string[]; publishPhoto: string | null; note: string;
+  };
+  const draftKey = `esg:draft:bazaar:${initial?.id ?? 'new'}`;
+  const draft = useDraft<BazaarDraft>(draftKey);
+  const d0 = useMemo(() => draft.load(), [draft]);
+
+  const [name, setName] = useState(d0?.name ?? initial?.name ?? '');
+  const [category, setCategory] = useState<BazaarCategory>(d0?.category ?? initial?.category ?? 'clothing');
   const [donor, setDonor] = useState<DonorValue | null>(
-    initial
-      ? { id: initial.donor_id, name: initial.donor_name_snapshot, dept: initial.donor_dept_snapshot, avatar_url: null }
-      : null
+    d0?.donor ??
+      (initial
+        ? { id: initial.donor_id, name: initial.donor_name_snapshot, dept: initial.donor_dept_snapshot, avatar_url: null }
+        : null)
   );
   // 숫자 입력은 number | '' 로 둬야 비우고(=공백) 자유롭게 타이핑 가능. // ← [모바일 버그수정]
   // (이전 `Number(value) || 0` 패턴은 값을 지우면 즉시 0으로 되돌려 입력이 막혔음)
-  const [originalPrice, setOriginalPrice] = useState<number | ''>(initial?.original_price ?? '');
-  const [listedPrice, setListedPrice] = useState<number | ''>(initial?.listed_price ?? ''); // ← [수정] 0 기본 → 빈값(타이핑 가능)
-  const [quantity, setQuantity] = useState<number | ''>(initial?.quantity ?? 1);             // ← [수정] number → number|''
-  const [intakePhotos, setIntakePhotos] = useState<string[]>(initial?.intake_photos ?? []); // ← [수정] 단일→배열(최대 5장)
-  const [publishPhoto, setPublishPhoto] = useState<string | null>(initial?.publish_photo_url ?? null);
-  const [note, setNote] = useState(initial?.note ?? '');
+  const [originalPrice, setOriginalPrice] = useState<number | ''>(d0?.originalPrice ?? initial?.original_price ?? '');
+  const [listedPrice, setListedPrice] = useState<number | ''>(d0?.listedPrice ?? initial?.listed_price ?? ''); // ← [수정] 0 기본 → 빈값(타이핑 가능)
+  const [quantity, setQuantity] = useState<number | ''>(d0?.quantity ?? initial?.quantity ?? 1);             // ← [수정] number → number|''
+  const [intakePhotos, setIntakePhotos] = useState<string[]>(d0?.intakePhotos ?? initial?.intake_photos ?? []); // ← [수정] 단일→배열(최대 5장)
+  const [publishPhoto, setPublishPhoto] = useState<string | null>(d0?.publishPhoto ?? initial?.publish_photo_url ?? null);
+  const [note, setNote] = useState(d0?.note ?? initial?.note ?? '');
 
   // 게시 여부:
   //  - 신규: 'pending'(검수 대기) | 'publish'(바로 게시)
@@ -65,6 +80,34 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess }: BazaarIntakeF
   const [reflectOnSave, setReflectOnSave] = useState(initial?.publish_status === 'published');
 
   const [saving, setSaving] = useState(false);
+
+  // ── [2026-06-16] dirty 판정 + 부모 통지 + 자동 임시저장 ─────────────────
+  const isDirty =
+    !saving &&
+    (name.trim() !== (initial?.name ?? '') ||
+      category !== (initial?.category ?? 'clothing') ||
+      (donor?.name ?? '') !== (initial?.donor_name_snapshot ?? '') ||
+      String(originalPrice) !== String(initial?.original_price ?? '') ||
+      String(listedPrice) !== String(initial?.listed_price ?? '') ||
+      String(quantity) !== String(initial?.quantity ?? 1) ||
+      note.trim() !== (initial?.note ?? '') ||
+      intakePhotos.length !== (initial?.intake_photos?.length ?? 0) ||
+      (publishPhoto ?? '') !== (initial?.publish_photo_url ?? ''));
+
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]); // 언마운트 시 해제
+
+  useEffect(() => {
+    const id = setTimeout(() => {
+      if (saving) return;
+      if (isDirty)
+        draft.save({ name, category, donor, originalPrice, listedPrice, quantity, intakePhotos, publishPhoto, note });
+      else draft.clear();
+    }, 600);
+    return () => clearTimeout(id);
+  }, [isDirty, name, category, donor, originalPrice, listedPrice, quantity, intakePhotos, publishPhoto, note, saving, draft]);
 
   const validate = (forPublish: boolean): string | null => {
     if (!name.trim()) return '물건 이름을 입력해주세요.';
@@ -129,6 +172,7 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess }: BazaarIntakeF
         await publishIntake(intakeId);
       }
 
+      draft.clear(); // ← [2026-06-16] 저장 성공 → 임시저장 삭제
       onSuccess();
     } catch (e) {
       alert(e instanceof Error ? e.message : '저장 실패');
@@ -296,7 +340,9 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess }: BazaarIntakeF
         </button>
         <button
           type="button"
-          onClick={onCancel}
+          onClick={() => {
+            if (!isDirty || window.confirm(UNSAVED_CONFIRM_MSG)) onCancel();
+          }}
           disabled={saving}
           style={{ padding: '10px 16px', background: '#fff', border: '1px solid #ddd', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}
         >

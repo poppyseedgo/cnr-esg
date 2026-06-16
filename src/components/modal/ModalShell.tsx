@@ -25,7 +25,8 @@
 //   2026-06-01  모바일 bottom sheet 변환 — drag handle + touch 제스처
 // ============================================================================
 
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, type ReactNode } from 'react';
+import { useUnsavedGuard, UNSAVED_CONFIRM_MSG } from '@/hooks/useUnsavedGuard';
 
 export type ModalSize = 'big' | 'medium';
 
@@ -45,15 +46,27 @@ interface Props {
   ariaLabel?: string;
   /** Contents div에 추가 클래스 (모달별 배경 등 커스터마이즈, 예: bazaar 그라데이션) */
   contentsClassName?: string;
+  /** 작성 중 여부 — true면 닫기(X·ESC·취소·드래그) 시 확인 + 새로고침 경고 */
+  isDirty?: boolean;
+  /** 배경(dim) 클릭으로 닫기 허용. 기본 false(실수 닫힘 방지) — 단순 조회 모달만 true 권장 */
+  closeOnBackdrop?: boolean;
+  /** dirty 확인 메시지 커스터마이즈 */
+  confirmMessage?: string;
 }
 
 // 모바일 bottom sheet 닫기 임계값
 const CLOSE_THRESHOLD_PX = 100;     // 100px 이상 끌면 닫기
 const CLOSE_ANIMATION_MS = 280;     // 슬라이드 다운 후 onClose
 
-export function ModalShell({ size, onClose, header, children, footer, ariaLabel, contentsClassName }: Props) {
+export function ModalShell({ size, onClose, header, children, footer, ariaLabel, contentsClassName, isDirty = false, closeOnBackdrop = false, confirmMessage = UNSAVED_CONFIRM_MSG }: Props) {
   // 모달 박스 = drag sheet 같은 노드라 ref 하나로 충분
   const sheetRef = useRef<HTMLDivElement>(null);
+
+  // 작성 중 이탈 방어: beforeunload + 닫기 확인
+  const confirmClose = useUnsavedGuard(isDirty, confirmMessage);
+  const requestClose = useCallback(() => {
+    if (confirmClose()) onClose();
+  }, [confirmClose, onClose]);
 
   // 드래그 상태 — ref로 관리 (setState 60Hz 리렌더 피함)
   const dragRef = useRef({
@@ -62,14 +75,14 @@ export function ModalShell({ size, onClose, header, children, footer, ariaLabel,
     currentDelta: 0,
   });
 
-  // ESC 닫기
+  // ESC 닫기 (작성 중이면 확인)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') requestClose();
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [requestClose]);
 
   // body scroll lock
   useEffect(() => {
@@ -124,9 +137,13 @@ export function ModalShell({ size, onClose, header, children, footer, ariaLabel,
     sheetRef.current.style.transition = 'transform 0.28s cubic-bezier(0.32, 0.72, 0, 1)';
 
     if (delta > CLOSE_THRESHOLD_PX) {
-      // 닫기: 슬라이드 다운 후 onClose
-      sheetRef.current.style.transform = 'translateY(100%)';
-      setTimeout(onClose, CLOSE_ANIMATION_MS);
+      // 작성 중이면 확인 — 진행 시에만 슬라이드 다운 후 onClose, 아니면 원위치
+      if (confirmClose()) {
+        sheetRef.current.style.transform = 'translateY(100%)';
+        setTimeout(onClose, CLOSE_ANIMATION_MS);
+      } else {
+        sheetRef.current.style.transform = '';
+      }
     } else {
       // 원위치 (스냅백)
       sheetRef.current.style.transform = '';
@@ -136,7 +153,13 @@ export function ModalShell({ size, onClose, header, children, footer, ariaLabel,
   return (
     <div
       className="esg-modal__overlay"
-      onClick={onClose}
+      onClick={
+        closeOnBackdrop
+          ? (e) => {
+              if (e.target === e.currentTarget && confirmClose()) onClose();
+            }
+          : undefined
+      }
       role="dialog"
       aria-modal="true"
       aria-label={ariaLabel}
@@ -162,7 +185,7 @@ export function ModalShell({ size, onClose, header, children, footer, ariaLabel,
         {/* Header */}
         <header className={`esg-modal__header esg-modal__header--${size}`}>
           <div className="esg-modal__header-inner">{header}</div>
-          <button className="esg-modal__close" onClick={onClose} aria-label="닫기" type="button">
+          <button className="esg-modal__close" onClick={requestClose} aria-label="닫기" type="button">
             <img src="/icons/close.svg" alt="" />
           </button>
         </header>
@@ -182,7 +205,7 @@ export function ModalShell({ size, onClose, header, children, footer, ariaLabel,
               <button
                 key={i}
                 className={`esg-modal__btn esg-modal__btn--${btn.variant}`}
-                onClick={btn.onClick}
+                onClick={btn.variant === 'close' ? requestClose : btn.onClick}
                 disabled={btn.disabled}
                 type="button"
               >

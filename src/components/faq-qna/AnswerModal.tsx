@@ -75,6 +75,7 @@ export function AnswerModal({ question, onClose, onSuccess }: Props) {
     <ModalShell
       size="medium"
       onClose={onClose}
+      isDirty={!submitting && content.trim().length > 0}
       ariaLabel="답변 하기"
       header={<p className="esg-modal__title esg-modal__title--medium">답변 하기</p>}
       footer={[

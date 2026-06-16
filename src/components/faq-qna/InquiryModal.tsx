@@ -81,6 +81,7 @@ export function InquiryModal({ onClose, onSuccess }: Props) {
     <ModalShell
       size="medium"
       onClose={onClose}
+      isDirty={!submitting && content.trim().length > 0}
       ariaLabel="문의 하기"
       header={
         <p className="esg-modal__title esg-modal__title--medium">문의 하기</p>
