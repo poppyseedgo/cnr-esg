@@ -27,6 +27,7 @@
 //   2026-06-08  접수 3카드 정렬·폰트 재대조 — 값 16→18px, 기간·장소 값 가운데 정렬,
 //               시간 그룹 gap 8→4, 시간카드 pb-20. (이전) 섹션① "참여 기간"→"접수 방법": 접수 기간/장소/시간
 //               3카드(라임·회색 배지) 추가, 날짜 6/22→6/19, 선물문구 "나눔 인증서와 씨앗 키트"
+//   2026-06-16  Figma 1035:964 재대조 — 접수 마감 6/19→6/26, 안내문구 "6월 26일까지 ~ 접수해주세요"
 // ============================================================================
 
 import './BazaarGuide.css';
@@ -94,7 +95,7 @@ export function BazaarGuide() {
             <p className="bazaar-method__label">물품 접수 기간</p>
             <div className="bazaar-method__value-row">
               <p className="bazaar-method__value">
-                6/8(월) <span className="bazaar-method__muted">부터</span> 6/19(금){' '}
+                6/8(월) <span className="bazaar-method__muted">부터</span> 6/26(금){' '}
                 <span className="bazaar-method__muted">까지</span>
               </p>
             </div>
@@ -123,7 +124,7 @@ export function BazaarGuide() {
         {/* 안내 문구 */}
         <div className="bazaar-section__body">
           <p>
-            <strong>6월 8일</strong> 부터 <strong>6월 19일</strong> 까지 바자회 물품을 접수하세요.
+            <strong>6월 26일</strong> 까지 바자회 물품을 접수해주세요.
           </p>
           <p>
             바자회 물품에 참여하신 모든 분들에게는{' '}
