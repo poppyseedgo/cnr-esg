@@ -145,7 +145,10 @@ function card(d, x, y) {
   let g = `  <rect x="${x}" y="${y}" width="${COLW}" height="${CARDH}" rx="16" fill="#ffffff"/>`;
   if (dept) {
     g += `\n  <text class="nm" x="${x + 18}" y="${y + 36}">${esc(trunc(name, 10))}</text>`;
-    g += `\n  <text class="dp" x="${x + 18}" y="${y + 58}">${esc(trunc(dept, 16))}</text>`;
+    const maxDW = COLW - 36;                                          // 카드 내부 가용 폭(좌우 패딩 18)
+    const fit = deptWidth(dept) > maxDW                                // 폭 넘으면 자간만 좁혀 풀네임 유지
+      ? ` textLength="${maxDW}" lengthAdjust="spacingAndGlyphs"` : "";
+    g += `\n  <text class="dp" x="${x + 18}" y="${y + 58}"${fit}>${esc(dept)}</text>`;
   } else {
     g += `\n  <text class="nm" x="${x + 18}" y="${y + CARDH / 2 + 8}">${esc(trunc(name, 10))}</text>`;
   }
@@ -172,6 +175,12 @@ function kstStamp() {
 function trunc(s, n) {
   s = String(s == null ? "" : s);
   return s.length > n ? s.slice(0, n - 1) + "\u2026" : s;
+}
+
+function deptWidth(s) {                                              // 13px 기준 대략 폭(한글~13, 라틴~7)
+  let w = 0;
+  for (const ch of String(s == null ? "" : s)) w += /[\x00-\x7F]/.test(ch) ? 7 : 13;
+  return w;
 }
 
 function esc(s) {
