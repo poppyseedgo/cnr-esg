@@ -32,6 +32,7 @@ export function MarkdownRenderer({ content, compact = false }: MarkdownRendererP
         lineHeight: 1.7,
         color: '#222',
         wordBreak: 'break-word',
+        overflowWrap: 'anywhere', // 긴 URL/토큰도 컨테이너 밖으로 안 넘치게
       }}
     >
       <ReactMarkdown

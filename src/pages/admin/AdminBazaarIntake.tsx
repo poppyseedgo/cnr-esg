@@ -333,7 +333,7 @@ function IntakeCard({
               </Link>
             )}
           </div>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{row.name}</div>
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, overflowWrap: 'anywhere' }}>{row.name}</div>
           <div style={{ fontSize: 12, color: '#666', display: 'flex', flexWrap: 'wrap', gap: 12 }}>
             <span>기증자: <strong>{row.donor_name_snapshot}</strong>{row.donor_dept_snapshot ? ` · ${row.donor_dept_snapshot}` : ''}</span>
             <span>
@@ -346,7 +346,24 @@ function IntakeCard({
             </span>
             <span>수량 <strong>{row.quantity}</strong></span>
           </div>
-          {row.note && <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>📝 {row.note}</div>}
+          {row.note && (
+            <div
+              style={{
+                fontSize: 12,
+                color: '#999',
+                marginTop: 4,
+                overflowWrap: 'anywhere',  // 공백 없는 URL도 강제 줄바꿈
+                wordBreak: 'break-word',
+                display: '-webkit-box',
+                WebkitLineClamp: 2,        // 목록에선 2줄까지만(전체는 '수정'에서)
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+              }}
+              title={row.note}
+            >
+              📝 {row.note}
+            </div>
+          )}
         </div>
 
         {/* 상태별 액션 */}
