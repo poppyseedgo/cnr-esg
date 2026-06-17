@@ -22,6 +22,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { ThumbnailUploader, DetailImagesUploader } from '@/components/ImageUploader';
 import { DonorPicker, type DonorValue } from '@/components/admin/DonorPicker';
 import { RichEditor } from '@/components/RichEditor'; // ← [2026-06-17] 검수 메모 WYSIWYG 전환
+import { updateProduct } from '@/lib/adminProducts'; // ← [2026-06-17] 검수 메모 → 상품 상세 밀어넣기
 import { useDraft } from '@/hooks/useDraft'; // ← [2026-06-16] 작성 내용 자동 임시저장
 import { UNSAVED_CONFIRM_MSG } from '@/hooks/useUnsavedGuard'; // ← [2026-06-16] 취소 확인 메시지
 import {
@@ -81,6 +82,28 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess, onDirtyChange }
   const [reflectOnSave, setReflectOnSave] = useState(initial?.publish_status === 'published');
 
   const [saving, setSaving] = useState(false);
+  const [pushing, setPushing] = useState(false); // ← [2026-06-17] 상품 상세로 밀어넣기 진행중
+
+  // 검수 메모 → 연결된 상품의 상세설명으로 밀어넣기(덮어쓰기). 폼 저장과 별개로 즉시 반영.
+  const pushNoteToProduct = async () => {
+    if (!initial?.product_id) return;
+    if (
+      !confirm(
+        "현재 '검수 메모' 내용을 이 물품의 '상품 상세설명'에 덮어씁니다.\n" +
+          '상품 페이지에 즉시 반영되며, 이 폼의 저장과는 별개입니다.\n계속할까요?'
+      )
+    )
+      return;
+    setPushing(true);
+    try {
+      await updateProduct(initial.product_id, { description: note || null });
+      alert('상품 상세설명에 반영했습니다.');
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '반영 실패');
+    } finally {
+      setPushing(false);
+    }
+  };
 
   // ── [2026-06-16] dirty 판정 + 부모 통지 + 자동 임시저장 ─────────────────
   const isDirty =
@@ -287,6 +310,28 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess, onDirtyChange }
           disabled={saving}
           placeholder="상태/하자/검수 결과, 상세 사이즈, 링크 등을 입력하세요."
         />
+        {isEdit && initial?.product_id && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+            <button
+              type="button"
+              onClick={pushNoteToProduct}
+              disabled={saving || pushing || !note.trim()}
+              title="현재 검수 메모 내용을 연결된 상품의 상세설명으로 복사합니다."
+              style={{
+                padding: '6px 12px',
+                fontSize: 12,
+                fontWeight: 600,
+                border: '1px solid #ddd',
+                borderRadius: 6,
+                background: '#fff',
+                color: saving || pushing || !note.trim() ? '#bbb' : '#333',
+                cursor: saving || pushing || !note.trim() ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {pushing ? '반영 중…' : '📤 상품 상세설명으로 보내기'}
+            </button>
+          </div>
+        )}
       </Field>
 
       {/* 검수 후 최종 게시 여부 */}

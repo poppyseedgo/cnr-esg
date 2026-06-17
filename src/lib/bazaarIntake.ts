@@ -189,6 +189,22 @@ export async function updateIntake(id: string, patch: UpdateIntakePatch): Promis
 }
 
 // ============================================================================
+// 상품 상세 → 검수 메모 밀어넣기 (양방향 동기화 버튼 中 한 방향)
+//   상품에 연결된 검수 항목(product_id 1:1 매칭)의 note 를 덮어씀.
+//   연결된 검수 항목이 없으면(스탠드얼론 상품 등) false 반환.
+//   ※ 반대 방향(검수 메모 → 상품 상세)은 updateProduct(productId,{description}) 사용.
+// ============================================================================
+export async function pushNoteToLinkedIntake(productId: string, note: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('esg_bazaar_intake')
+    .update({ note, updated_at: new Date().toISOString() })
+    .eq('product_id', productId)
+    .select('id');
+  if (error) throw error;
+  return (data?.length ?? 0) > 0;
+}
+
+// ============================================================================
 // 접수 삭제
 //   게시된 항목(연결 상품 존재)은 삭제 대신 "게시 중단" 권장 → 가드.
 // ============================================================================

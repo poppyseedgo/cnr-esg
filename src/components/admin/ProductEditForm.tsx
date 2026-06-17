@@ -11,6 +11,7 @@
 
 import { useState } from 'react';
 import { updateProduct, deleteProduct } from '@/lib/adminProducts';
+import { pushNoteToLinkedIntake } from '@/lib/bazaarIntake'; // ← [2026-06-17] 상품 상세 → 검수 메모 밀어넣기
 import { getAvailableStock } from '@/lib/products';
 import { ThumbnailUploader, DetailImagesUploader } from '@/components/ImageUploader';
 import { RichEditor } from '@/components/RichEditor';
@@ -37,6 +38,27 @@ export function ProductEditForm({
   pinnedCount,                                                // ← [2026-06-17]
 }: ProductEditFormProps) {
   const [busy, setBusy] = useState(false);
+  const [pushing, setPushing] = useState(false); // ← [2026-06-17] 검수 메모로 밀어넣기 진행중
+
+  // 상품 상세설명 → 연결된 검수 메모로 밀어넣기(덮어쓰기). 폼 저장과 별개로 즉시 반영.
+  const pushDescToNote = async () => {
+    if (
+      !confirm(
+        "현재 '상품 상세설명' 내용을 연결된 '검수 메모'에 덮어씁니다.\n" +
+          '이 폼의 저장과는 별개로 즉시 반영됩니다.\n계속할까요?'
+      )
+    )
+      return;
+    setPushing(true);
+    try {
+      const ok = await pushNoteToLinkedIntake(product.id, description || '');
+      alert(ok ? '검수 메모에 반영했습니다.' : '연결된 검수 항목이 없습니다.');
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '반영 실패');
+    } finally {
+      setPushing(false);
+    }
+  };
   const [name, setName] = useState(product.name);
   const [description, setDescription] = useState(product.description ?? '');
   const [price, setPrice] = useState(product.price);
@@ -147,6 +169,26 @@ export function ProductEditForm({
           minHeight={200}
           placeholder="상품의 상세 설명을 입력하세요."
         />
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+          <button
+            type="button"
+            onClick={pushDescToNote}
+            disabled={busy || pushing}
+            title="현재 상품 상세설명 내용을 연결된 검수 메모로 복사합니다."
+            style={{
+              padding: '6px 12px',
+              fontSize: 12,
+              fontWeight: 600,
+              border: '1px solid #ddd',
+              borderRadius: 6,
+              background: '#fff',
+              color: busy || pushing ? '#bbb' : '#333',
+              cursor: busy || pushing ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {pushing ? '반영 중…' : '📥 검수 메모로 보내기'}
+          </button>
+        </div>
       </Field>
       <Field label="썸네일">
         <ThumbnailUploader
