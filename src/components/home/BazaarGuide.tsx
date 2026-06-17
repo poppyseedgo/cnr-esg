@@ -113,10 +113,6 @@ export function BazaarGuide() {
                 <span className="bazaar-badge bazaar-badge--ok">접수 가능 시간</span>
                 <span className="bazaar-method__value">10:00~14:00</span>
               </div>
-              <div className="bazaar-method__time-row">
-                <span className="bazaar-badge bazaar-badge--muted">접수 마지막 날</span>
-                <span className="bazaar-method__value">09:00~10:00</span>
-              </div>
             </div>
           </div>
         </div>
