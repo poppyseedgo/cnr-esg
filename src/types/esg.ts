@@ -890,6 +890,10 @@ export interface Database {
         Args: { p_subject_type: string; p_subject_key: string };
         Returns: RpcResult;
       };
+      set_donor_force_anonymous: {                            // ← [2026-06-17] 명단 익명 강제(money)
+        Args: { p_subject_type: string; p_subject_key: string; p_anonymous: boolean };
+        Returns: RpcResult;
+      };
       get_main_item_donors: {                                 // ← [2026-06-16 메인노출] 공개 물품기부자 명단
         Args: Record<string, never>;
         Returns: { donor_name: string; donor_dept: string | null; avatar_url: string | null; is_anonymous: boolean; seed: string }[];

@@ -306,18 +306,27 @@ export type RosterSubjectType = 'item' | 'money';
 export interface VisibilityOverrides {
   item: Map<string, boolean>;   // key=subject_key → show_on_main
   money: Map<string, boolean>;
+  forceAnonMoney: Map<string, boolean>; // ← [2026-06-17] 금액 기부자 명단 익명 강제(표시상)
 }
 
 /** 현재 저장된 override 전체 로드 (관리자 RLS) */
 export async function loadVisibilityOverrides(): Promise<VisibilityOverrides> {
   const { data, error } = await supabase
     .from('esg_donor_main_visibility')
-    .select('subject_type, subject_key, show_on_main');
+    .select('subject_type, subject_key, show_on_main, force_anonymous');
   if (error) throw error;
-  const out: VisibilityOverrides = { item: new Map(), money: new Map() };
-  for (const r of (data ?? []) as Array<{ subject_type: RosterSubjectType; subject_key: string; show_on_main: boolean }>) {
+  const out: VisibilityOverrides = { item: new Map(), money: new Map(), forceAnonMoney: new Map() };
+  for (const r of (data ?? []) as Array<{
+    subject_type: RosterSubjectType;
+    subject_key: string;
+    show_on_main: boolean;
+    force_anonymous: boolean;
+  }>) {
     if (r.subject_type === 'item') out.item.set(r.subject_key, r.show_on_main);
-    else if (r.subject_type === 'money') out.money.set(r.subject_key, r.show_on_main);
+    else if (r.subject_type === 'money') {
+      out.money.set(r.subject_key, r.show_on_main);
+      out.forceAnonMoney.set(r.subject_key, r.force_anonymous);
+    }
   }
   return out;
 }
@@ -343,4 +352,21 @@ export async function clearMainVisibility(type: RosterSubjectType, subjectKey: s
     p_subject_key: subjectKey,
   })) as { success: boolean; error?: string };
   if (!result.success) throw new Error(result.error ?? '노출 해제 실패');
+}
+
+/**
+ * 명단 익명 강제(money 전용). true면 실명 기부여도 전광판에 '익명'으로 표시.
+ * 노출 여부(show_on_main)와는 독립 — 통계/총모금액은 변하지 않음(표시 이름만 가림).
+ */
+export async function setForceAnonymous(
+  type: RosterSubjectType,
+  subjectKey: string,
+  anonymous: boolean
+): Promise<void> {
+  const result = (await callRpc('set_donor_force_anonymous', {
+    p_subject_type: type,
+    p_subject_key: subjectKey,
+    p_anonymous: anonymous,
+  })) as { success: boolean; error?: string };
+  if (!result.success) throw new Error(result.error ?? '익명 처리 실패');
 }

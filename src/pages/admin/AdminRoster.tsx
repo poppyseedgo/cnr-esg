@@ -21,6 +21,7 @@ import {
   loadVisibilityOverrides,
   setMainVisibility,
   clearMainVisibility,
+  setForceAnonymous,
   type ItemDonorRow,
   type MoneyDonorRow,
   type BuyerRow,
@@ -55,7 +56,7 @@ export function AdminRoster() {
   const [money, setMoney] = useState<MoneyDonorRow[]>([]);
   const [buyers, setBuyers] = useState<BuyerRow[]>([]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [overrides, setOverrides] = useState<VisibilityOverrides>({ item: new Map(), money: new Map() });
+  const [overrides, setOverrides] = useState<VisibilityOverrides>({ item: new Map(), money: new Map(), forceAnonMoney: new Map() });
   const [busyVis, setBusyVis] = useState<string | null>(null); // 처리 중인 subject_key
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -133,6 +134,24 @@ export function AdminRoster() {
       await clearMainVisibility(type, key);
     } catch (e) {
       alert(e instanceof Error ? e.message : '노출 해제 실패');
+      void reload();
+    } finally {
+      setBusyVis(null);
+    }
+  };
+
+  // 명단 익명 강제(money 전용). 낙관적 갱신 후 실패 시 reload 복원.
+  const handleSetAnon = async (key: string, anon: boolean) => {
+    setBusyVis(key);
+    setOverrides((prev) => {
+      const map = new Map(prev.forceAnonMoney);
+      map.set(key, anon);
+      return { ...prev, forceAnonMoney: map };
+    });
+    try {
+      await setForceAnonymous('money', key, anon);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '익명 처리 실패');
       void reload();
     } finally {
       setBusyVis(null);
@@ -219,9 +238,11 @@ export function AdminRoster() {
             expanded={expanded}
             onToggle={toggleExpand}
             overrides={overrides.money}
+            forceAnon={overrides.forceAnonMoney}
             busyVis={busyVis}
             onSetVis={(k, s) => handleSetVis('money', k, s)}
             onClearVis={(k) => handleClearVis('money', k)}
+            onSetAnon={handleSetAnon}
           />
         ) : (
           <MoneyDonorsRaw rows={money} />
@@ -344,17 +365,21 @@ function MoneyDonorsAgg({
   expanded,
   onToggle,
   overrides,
+  forceAnon,
   busyVis,
   onSetVis,
   onClearVis,
+  onSetAnon,
 }: {
   rows: ReturnType<typeof aggregateMoneyDonors>;
   expanded: Set<string>;
   onToggle: (k: string) => void;
   overrides: Map<string, boolean>;
+  forceAnon: Map<string, boolean>;
   busyVis: string | null;
   onSetVis: (key: string, show: boolean) => void;
   onClearVis: (key: string) => void;
+  onSetAnon: (key: string, anon: boolean) => void;
 }) {
   const people = rows.length;
   const total = rows.reduce((s, r) => s + r.total_amount, 0);
@@ -365,7 +390,7 @@ function MoneyDonorsAgg({
   const handleExport = () =>
     downloadCsv(
       `금액기부자_집계_${todayStampKst()}.csv`,
-      ['기부자', '부서', '이메일', '누적기부액', '기부건수', '익명건수', '실명건수', '메인노출'],
+      ['기부자', '부서', '이메일', '누적기부액', '기부건수', '익명건수', '실명건수', '메인노출', '명단표시'],
       rows.map((r) => [
         r.donor_name,
         r.donor_dept ?? '',
@@ -375,6 +400,7 @@ function MoneyDonorsAgg({
         r.anonymous_count,
         r.named_count,
         effShow(r) ? '노출' : '숨김',
+        r.named_count === 0 ? '익명(기본)' : (forceAnon.get(r.key) ?? false) ? '익명(강제)' : '실명',
       ])
     );
 
@@ -388,7 +414,7 @@ function MoneyDonorsAgg({
       onExport={handleExport}
       empty={rows.length === 0}
     >
-      <Table head={['', '기부자', '부서', '이메일', '누적 기부액', '건수', '익명', '메인 노출']}>
+      <Table head={['', '기부자', '부서', '이메일', '누적 기부액', '건수', '익명', '메인 노출', '명단 익명']}>
         {rows.map((r) => {
           const open = expanded.has(r.key);
           return (
@@ -411,10 +437,19 @@ function MoneyDonorsAgg({
                     onClear={onClearVis}
                   />
                 </Td>
+                <Td>
+                  <AnonToggle
+                    subjectKey={r.key}
+                    alreadyAnon={r.named_count === 0}
+                    forced={forceAnon.get(r.key) ?? false}
+                    busy={busyVis === r.key}
+                    onSet={onSetAnon}
+                  />
+                </Td>
               </tr>
               {open && (
                 <tr>
-                  <td colSpan={8} style={detailCell}>
+                  <td colSpan={9} style={detailCell}>
                     {r.donations.map((d, i) => (
                       <div key={i} style={detailLine}>
                         <span style={{ flex: 1, fontFamily: 'monospace', color: '#888' }}>{d.number}</span>
@@ -715,6 +750,59 @@ function Td({
 // React.Fragment 래퍼 (key 유지용)
 function FragmentRows({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
+}
+
+// 명단 익명 토글(money 전용): forced=true면 실명 기부여도 전광판에 '익명'으로 표시.
+//   본인이 전부 익명으로 기부한 사람(alreadyAnon)은 기본 익명이라 토글 비활성.
+//   행 펼침과 충돌하지 않도록 클릭 전파 차단.
+function AnonToggle({
+  subjectKey,
+  alreadyAnon,
+  forced,
+  busy,
+  onSet,
+}: {
+  subjectKey: string;
+  alreadyAnon: boolean;
+  forced: boolean;
+  busy: boolean;
+  onSet: (key: string, anon: boolean) => void;
+}) {
+  const stop = (e: React.MouseEvent) => e.stopPropagation();
+  if (alreadyAnon) {
+    return (
+      <span style={{ fontSize: 11, color: '#9ca3af' }} title="본인이 전부 익명으로 기부 — 기본 익명">
+        익명(기본)
+      </span>
+    );
+  }
+  return (
+    <span style={{ display: 'inline-flex' }} onClick={stop}>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={(e) => {
+          stop(e);
+          onSet(subjectKey, !forced);
+        }}
+        title={forced ? '명단에서 익명 처리됨 — 클릭 시 실명 표시로 되돌림' : '클릭 시 명단에서 익명 처리'}
+        style={{
+          padding: '3px 10px',
+          borderRadius: 999,
+          border: '1px solid',
+          borderColor: forced ? '#7c3aed' : '#d4d4d4',
+          background: forced ? '#ede9fe' : '#f3f4f6',
+          color: forced ? '#6d28d9' : '#6b7280',
+          fontSize: 11,
+          fontWeight: 700,
+          cursor: busy ? 'not-allowed' : 'pointer',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {forced ? '🕶 익명' : '실명 표시'}
+      </button>
+    </span>
+  );
 }
 
 // 메인 노출 토글: effective = override ?? defaultShow.
