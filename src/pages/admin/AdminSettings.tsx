@@ -19,7 +19,7 @@ import {
   kstInputToUtcIso,
   utcIsoToKstInput,
 } from '@/lib/settings';
-import { MarkdownEditor } from '@/components/MarkdownEditor';
+import { RichEditor } from '@/components/RichEditor';
 import { MarkdownRenderer } from '@/components/MarkdownRenderer';
 import type {
   EsgSettingsValueMap,
@@ -703,14 +703,14 @@ function DeliveryInfoSection({
         </>
       ) : (
         <div>
-          <MarkdownEditor
+          <RichEditor
             value={form}
             onChange={setForm}
             uploaderKind="bazaar"
             uploaderOwnerId="delivery-info"
             disabled={saving}
             minHeight={240}
-            placeholder="상품 수령 안내를 작성해주세요. 마크다운 지원."
+            placeholder="상품 수령 안내를 작성해주세요."
           />
           <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
             <button

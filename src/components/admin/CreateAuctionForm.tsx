@@ -10,7 +10,7 @@ import { useState } from 'react';
 import { createAuction, type CreateAuctionInput } from '@/lib/adminAuctions';
 import { kstInputToUtcIso } from '@/lib/settings';
 import { ThumbnailUploader, DetailImagesUploader } from '@/components/ImageUploader';
-import { MarkdownEditor } from '@/components/MarkdownEditor';
+import { RichEditor } from '@/components/RichEditor';
 
 interface CreateAuctionFormProps {
   onCancel: () => void;
@@ -73,15 +73,15 @@ export function CreateAuctionForm({ onCancel, onSuccess }: CreateAuctionFormProp
       <Field label="상품명 *">
         <input type="text" value={productName} onChange={(e) => setProductName(e.target.value)} placeholder="예: 🌳 (한정판) C&R 29주년 식수 명패" disabled={saving} style={inputStyle} />
       </Field>
-      <Field label="상세 설명 (마크다운)">
-        <MarkdownEditor
+      <Field label="상세 설명">
+        <RichEditor
           value={description}
           onChange={setDescription}
           uploaderKind="auction"
           uploaderOwnerId={tempId}
           disabled={saving}
           minHeight={200}
-          placeholder="경매 상품의 상세 설명을 입력하세요. 마크다운 문법 지원."
+          placeholder="경매 상품의 상세 설명을 입력하세요."
         />
       </Field>
       <Field label="썸네일">
