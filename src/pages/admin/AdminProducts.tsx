@@ -2,11 +2,15 @@
 // AdminProducts — 바자회 상품 어드민 페이지
 //
 // 편집 폼은 ProductEditForm 공통 컴포넌트 사용 (상세 페이지와 코드 공유).
+//
+// 변경 이력:
+//   2026-06-17  [정책㉠] 카드에 숨김/숨김해제 1-click CTA 추가 (수정 폼 진입 불필요).
+//               완료 주문/Q&A 상품은 하드삭제 대신 숨김으로 유도.
 // ============================================================================
 
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { loadAllProducts } from '@/lib/adminProducts';
+import { loadAllProducts, hideProduct, unhideProduct } from '@/lib/adminProducts'; // ← [정책㉠] 숨김 API 임포트
 import { subscribeProducts, getAvailableStock } from '@/lib/products';
 import { ProductEditForm } from '@/components/admin/ProductEditForm';
 import { CreateProductForm } from '@/components/admin/CreateProductForm';
@@ -129,8 +133,36 @@ export function AdminProducts() {
 
 function ProductAdminCard({ product, onChange }: { product: EsgProductRow; onChange: () => void }) {
   const [editing, setEditing] = useState(false);
+  const [busy, setBusy] = useState(false);                    // ← [정책㉠] 숨김/해제 처리 중 잠금
   const statusColor = STATUS_COLORS[product.status];
   const available = getAvailableStock(product);
+
+  // ← [정책㉠] 숨김 처리 (소프트삭제) — 1-click
+  const handleHide = async () => {
+    if (!confirm(`"${product.name}"을(를) 숨김 처리할까요?\n사용자 화면에서 보이지 않지만 주문·Q&A 이력은 보존됩니다.`)) return;
+    setBusy(true);
+    try {
+      await hideProduct(product.id);
+      onChange();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '숨김 처리 실패');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // ← [정책㉠] 숨김 해제 — 가용재고에 따라 on_sale/sold_out 복귀
+  const handleUnhide = async () => {
+    setBusy(true);
+    try {
+      await unhideProduct(product.id);
+      onChange();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '숨김 해제 실패');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <div
@@ -179,22 +211,62 @@ function ProductAdminCard({ product, onChange }: { product: EsgProductRow; onCha
         </div>
 
         {!editing && (
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            style={{
-              padding: '4px 10px',
-              background: '#fff',
-              border: '1px solid #111',
-              color: '#111',
-              borderRadius: 4,
-              cursor: 'pointer',
-              fontSize: 11,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            ✏️ 수정
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              style={{
+                padding: '4px 10px',
+                background: '#fff',
+                border: '1px solid #111',
+                color: '#111',
+                borderRadius: 4,
+                cursor: 'pointer',
+                fontSize: 11,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              ✏️ 수정
+            </button>
+            {/* ← [정책㉠] 숨김/숨김해제 1-click CTA (수정 폼 진입 불필요) */}
+            {product.status === 'hidden' ? (
+              <button
+                type="button"
+                onClick={handleUnhide}
+                disabled={busy}
+                style={{
+                  padding: '4px 10px',
+                  background: '#fff',
+                  border: '1px solid #16a34a',
+                  color: '#16a34a',
+                  borderRadius: 4,
+                  cursor: busy ? 'not-allowed' : 'pointer',
+                  fontSize: 11,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                ↩️ 숨김 해제
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleHide}
+                disabled={busy}
+                style={{
+                  padding: '4px 10px',
+                  background: '#fff',
+                  border: '1px solid #999',
+                  color: '#555',
+                  borderRadius: 4,
+                  cursor: busy ? 'not-allowed' : 'pointer',
+                  fontSize: 11,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                🙈 숨김
+              </button>
+            )}
+          </div>
         )}
       </div>
 

@@ -102,7 +102,7 @@ export function ProductEditForm({
   const handleDelete = async () => {
     const ok = confirm(
       `"${product.name}"을(를) 영구 삭제합니다. 되돌릴 수 없습니다.\n\n` +
-        `진행 중인 주문이 있으면 삭제 대신 "숨김" 처리하세요.\n계속하시겠습니까?`
+        `완료된 주문·Q&A·진행 중 주문이 있으면 삭제할 수 없습니다. 이 경우 "숨김" 처리하세요.\n계속하시겠습니까?` // ← [정책㉠] 문구 정정
     );
     if (!ok) return;
     setBusy(true);

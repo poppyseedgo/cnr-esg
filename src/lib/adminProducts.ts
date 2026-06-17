@@ -4,9 +4,15 @@
 // 함수:
 //   - createProduct(input)        : 새 상품 등록 (어드민만 RLS 통과)
 //   - updateProduct(id, patch)    : 상품 수정
-//   - deleteProduct(id)           : 상품 삭제
-//                                   ※ reserved_stock > 0 또는 주문이 있으면 status='hidden' 권장
+//   - deleteProduct(id)           : 상품 하드삭제 (정책 ㉠ 가드)
+//   - hideProduct(id)             : 상품 숨김 (소프트삭제 = status='hidden')
+//   - unhideProduct(id)           : 숨김 해제 (가용재고>0 → on_sale, else sold_out)
 //   - loadAllProducts()           : 모든 상품 (hidden 포함)
+//
+// [삭제 정책 ㉠] (2026-06-17 고지님 결정)
+//   - 완료(paid) 주문 또는 Q&A가 있는 상품 → 하드삭제 금지, "숨김"만 허용.
+//   - DB BEFORE DELETE 트리거(20260617_001)가 최종 강제. lib은 친화 메시지용 사전 점검.
+//   - 진행 중(pending) 주문(reserved_stock>0)도 차단 → 숨김 유도.
 //
 // 동시성:
 //   - reserved_stock은 create_bazaar_order RPC가 관리 → 어드민이 직접 변경 안 함
@@ -114,28 +120,88 @@ export async function updateProduct(id: string, patch: UpdateProductPatch): Prom
 }
 
 /**
- * 상품 삭제.
+ * 상품 하드삭제 — 정책 ㉠ 가드.
  *
- * 주의:
- *   - reserved_stock > 0 이면 진행 중 주문 존재 → 삭제 대신 status='hidden' 권장
- *   - 이미 결제 완료된 주문이 있어도 외래키(esg_order_items.product_id)가 SET NULL이라 DB는 허용
- *     단, 사용자 마이페이지에서 product_name_snapshot으로만 표시되므로 영향 없음
+ * 차단 조건 (하나라도 해당하면 throw → 숨김 유도):
+ *   1) reserved_stock > 0           : 진행 중(pending) 주문 존재
+ *   2) 완료(paid) 주문 항목 존재     : 판매 이력 보존 필요
+ *   3) Q&A 존재                      : 문의 이력 보존 필요
+ * 모두 0이면 물리 DELETE. (DB BEFORE DELETE 트리거가 최종 강제 — 여기선 친화 메시지용 사전 점검)
+ *
+ * 참고: FK는 cart_items=CASCADE / order_items=SET NULL / bazaar_intake=SET NULL.
+ *       흔적 없는 상품 삭제 시 정상 연쇄 처리됨.
  */
 export async function deleteProduct(id: string): Promise<void> {
-  // 진행 중 주문 체크
+  // 1) 진행 중(pending) 주문 — reserved_stock                          // ← [정책㉠] 기존 가드 유지
   const { data: product, error: fetchErr } = await supabase
     .from('esg_products')
     .select('reserved_stock, name')
     .eq('id', id)
     .single();
   if (fetchErr) throw fetchErr;
-
-  if (product?.reserved_stock > 0) {
+  if ((product?.reserved_stock ?? 0) > 0) {                              // ← null 안전 비교
     throw new Error(
-      `진행 중인 주문이 ${product.reserved_stock}개 있습니다. 삭제 대신 "숨김(hidden)" 상태로 변경하세요.`
+      `진행 중인 주문이 ${product.reserved_stock}개 있습니다. 삭제 대신 "숨김"으로 변경하세요.`
     );
   }
 
+  // 2) 완료(paid) 주문 항목 존재 여부                                   // ← [정책㉠ 신규] 완료 주문 차단
+  const { count: paidCount, error: paidErr } = await supabase
+    .from('esg_order_items')
+    .select('id, esg_orders!inner(payment_status)', { count: 'exact', head: true })
+    .eq('product_id', id)
+    .eq('esg_orders.payment_status', 'paid');
+  if (paidErr) throw paidErr;
+  if ((paidCount ?? 0) > 0) {
+    throw new Error(
+      `완료된 주문이 ${paidCount}건 있어 삭제할 수 없습니다. 판매 이력 보존을 위해 "숨김"으로 변경하세요.`
+    );
+  }
+
+  // 3) 상품 Q&A 존재 여부                                              // ← [정책㉠ 신규] Q&A 차단
+  const { count: qnaCount, error: qnaErr } = await supabase
+    .from('esg_product_questions')
+    .select('id', { count: 'exact', head: true })
+    .eq('product_id', id);
+  if (qnaErr) throw qnaErr;
+  if ((qnaCount ?? 0) > 0) {
+    throw new Error(
+      `등록된 Q&A가 ${qnaCount}건 있어 삭제할 수 없습니다. 문의 이력 보존을 위해 "숨김"으로 변경하세요.`
+    );
+  }
+
+  // 흔적 없음 → 하드 삭제 (트리거 백스톱 통과)                          // ← 기존 동작
   const { error } = await supabase.from('esg_products').delete().eq('id', id);
+  if (error) throw error;
+}
+
+/**
+ * 상품 숨김 (소프트삭제 = status='hidden'). 정책 ㉠의 권장 경로.
+ * 사용자 화면(목록/상세)에서 비노출되지만 주문/Q&A 이력은 그대로 보존.
+ */
+export async function hideProduct(id: string): Promise<void> {            // ← [정책㉠ 신규] 숨김 API
+  const { error } = await supabase
+    .from('esg_products')
+    .update({ status: 'hidden', updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+/**
+ * 숨김 해제 — 가용재고(stock-reserved_stock)에 따라 on_sale / sold_out 복귀.
+ */
+export async function unhideProduct(id: string): Promise<void> {          // ← [정책㉠ 신규] 숨김 해제 API
+  const { data, error: fErr } = await supabase
+    .from('esg_products')
+    .select('stock, reserved_stock')
+    .eq('id', id)
+    .single();
+  if (fErr) throw fErr;
+  const available = (data?.stock ?? 0) - (data?.reserved_stock ?? 0);     // ← 가용재고 산출
+  const status: EsgProductStatus = available > 0 ? 'on_sale' : 'sold_out';
+  const { error } = await supabase
+    .from('esg_products')
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq('id', id);
   if (error) throw error;
 }
