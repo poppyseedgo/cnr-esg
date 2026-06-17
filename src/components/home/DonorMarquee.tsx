@@ -21,6 +21,7 @@
 // 변경 이력:
 //   2026-06-16  최초 작성 — Figma 1433:295
 //   2026-06-16  [수정] 풀블리드(100vw) + margin 기반 seamless 루프로 재작성(끊김/너비 해결)
+//   2026-06-17  [수정] 밴드 세로 패딩 16px → 24px (고지님 요청, Figma py16 대비 상향)
 // ============================================================================
 
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -224,7 +225,7 @@ export function DonorMarquee() {
         marginBottom: 24,
         background: '#fff',
         overflow: 'hidden',
-        padding: '16px 0',
+        padding: '24px 0', // ← 세로 패딩 16px→24px (고지님 요청 2026-06-17)
       }}
     >
       <style>{MARQUEE_CSS}</style>
