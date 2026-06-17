@@ -9,6 +9,13 @@
 //   5. 익명 옵션 (어드민은 본명 확인 가능)
 //   6. 제출 → /donate/{id} 이동
 // ============================================================================
+// [변경 이력]
+// 2026-06-17 : 퀵금액 버튼 동작 변경 (선택형 → 누적형)
+//   - onClick: setAmount(v) → 이전 금액에 v를 더함 (여러 번 클릭 누적)
+//   - 선택 하이라이트(amount===v) 제거 → 누적형에선 버그성 표시이므로 삭제
+//   - 라벨에 "+" 접두사 추가 (누적 의미 명확화)
+//   - "초기화" 버튼 추가 (잘못 누적 시 0으로 리셋, 직접입력 외 되돌림 경로 보완)
+// ============================================================================
 
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -100,22 +107,42 @@ export function DonatePage() {
             <button
               key={v}
               type="button"
-              onClick={() => setAmount(v)}
+              onClick={() => setAmount((prev) => (typeof prev === 'number' ? prev : 0) + v)} // ← 선택→누적: 누를 때마다 v원 더하기(빈값이면 0부터)
               style={{
                 padding: '10px 8px',
-                background: amount === v ? '#16a34a' : '#fff',
-                color: amount === v ? '#fff' : '#444',
-                border: `1px solid ${amount === v ? '#16a34a' : '#ddd'}`,
+                background: '#fff',          // ← 누적형이라 선택 하이라이트(amount===v) 제거
+                color: '#16a34a',            // ← 더하기 버튼 강조용 그린 텍스트(고정)
+                border: '1px solid #bbf7d0', // ← 고정 테두리(선택 분기 삭제)
                 borderRadius: 8,
                 cursor: 'pointer',
                 fontSize: 13,
-                fontWeight: 600,
+                fontWeight: 700,            // ← 가독성 위해 600→700
               }}
             >
-              {(v / 10000).toLocaleString()}만
+              +{(v / 10000).toLocaleString()}만   {/* ← 누적 의미 명확화: "+" 접두사 추가 */}
             </button>
           ))}
         </div>
+        {/* ← 누적 금액 초기화 버튼: amount가 양수일 때만 노출 (잘못 누른 경우 0으로 리셋) */}
+        {typeof amount === 'number' && amount > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+            <button
+              type="button"
+              onClick={() => setAmount('')} // ← 누적값 초기화(빈값으로 리셋)
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#888',
+                fontSize: 12,
+                cursor: 'pointer',
+                textDecoration: 'underline',
+                padding: 0,
+              }}
+            >
+              초기화
+            </button>
+          </div>
+        )}
         <input
           type="number"
           value={amount === '' ? '' : amount}
