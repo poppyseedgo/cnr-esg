@@ -7,6 +7,7 @@
 //   - deleteProduct(id)           : 상품 하드삭제 (정책 ㉠ 가드)
 //   - hideProduct(id)             : 상품 숨김 (소프트삭제 = status='hidden')
 //   - unhideProduct(id)           : 숨김 해제 (가용재고>0 → on_sale, else sold_out)
+//   - reorderProducts(orderedIds) : 어드민 드래그 재정렬 (sort_order 1..N 일괄, reorder_products RPC)
 //   - loadAllProducts()           : 모든 상품 (hidden 포함)
 //
 // [삭제 정책 ㉠] (2026-06-17 고지님 결정)
@@ -49,6 +50,7 @@ export type UpdateProductPatch = Partial<
     | 'detail_images'
     | 'status'
     | 'sort_order'
+    | 'is_pinned'     // ← [2026-06-17] 상품 고정
     | 'is_new'        // ← [2026-06-09]
     | 'sale_price'    // ← [2026-06-09]
   >
@@ -204,4 +206,15 @@ export async function unhideProduct(id: string): Promise<void> {          // ←
     .update({ status, updated_at: new Date().toISOString() })
     .eq('id', id);
   if (error) throw error;
+}
+
+/**
+ * 어드민 전체 리스트 드래그 재정렬.                                       // ← [2026-06-17 신규]
+ * 받은 id 순서대로 sort_order = 1..N 일괄 재할당 (reorder_products RPC, 관리자만, 원자적).
+ * 고정과 무관하게 전체 물품 대상. (고정 그룹 내부 순서도 이 sort_order로 결정됨)
+ */
+export async function reorderProducts(orderedIds: string[]): Promise<void> {
+  const { data, error } = await supabase.rpc('reorder_products', { p_ids: orderedIds });
+  if (error) throw error;
+  if (data && data.success === false) throw new Error(data.error ?? '재정렬에 실패했습니다.');
 }

@@ -24,6 +24,8 @@ interface ProductEditFormProps {
   onDeleted?: () => void;
   /** 삭제 버튼 표시 여부 (기본 true) */
   showDelete?: boolean;
+  /** 현재 고정된 상품 수 (체크박스에 N/8 표시용, 선택) */   // ← [2026-06-17]
+  pinnedCount?: number;
 }
 
 export function ProductEditForm({
@@ -32,6 +34,7 @@ export function ProductEditForm({
   onCancel,
   onDeleted,
   showDelete = true,
+  pinnedCount,                                                // ← [2026-06-17]
 }: ProductEditFormProps) {
   const [busy, setBusy] = useState(false);
   const [name, setName] = useState(product.name);
@@ -43,11 +46,15 @@ export function ProductEditForm({
   const [status, setStatus] = useState<EsgProductStatus>(product.status);
   const [sortOrder, setSortOrder] = useState(product.sort_order);
   const [isNew, setIsNew] = useState(product.is_new);                                  // ← [2026-06-09]
+  const [isPinned, setIsPinned] = useState(product.is_pinned);                         // ← [2026-06-17] 상품 고정
   const [salePrice, setSalePrice] = useState<number | ''>(product.sale_price ?? '');   // ← [2026-06-09]
 
   // ← [2026-06-09] 세일 유효성/할인율 미리보기
   const saleActive = salePrice !== '' && salePrice >= 0 && salePrice < price;
   const discountPct = saleActive ? Math.round(((price - (salePrice as number)) / price) * 100) : null;
+
+  // ← [2026-06-17] 고정 8개 도달 && 현재 미고정 → 새 고정 불가(체크박스 비활성)
+  const pinFull = typeof pinnedCount === 'number' && pinnedCount >= 8 && !product.is_pinned;
 
   const save = async () => {
     if (!name.trim()) {
@@ -83,6 +90,7 @@ export function ProductEditForm({
       // ← [2026-06-09] 새 상품 / 세일가 diff. 세일가는 정상가 미만일 때만 적용, 아니면 null.
       const nextSale = saleActive ? (salePrice as number) : null;
       if (isNew !== product.is_new) patch.is_new = isNew;
+      if (isPinned !== product.is_pinned) patch.is_pinned = isPinned;   // ← [2026-06-17] 고정 diff
       if (nextSale !== product.sale_price) patch.sale_price = nextSale;
 
       if (Object.keys(patch).length === 0) {
@@ -228,6 +236,29 @@ export function ProductEditForm({
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, height: 36, fontSize: 13, color: '#333' }}>
             <input type="checkbox" checked={isNew} onChange={(e) => setIsNew(e.target.checked)} disabled={busy} style={{ width: 16, height: 16 }} />
             "새 상품" 뱃지 표시
+          </label>
+        </Field>
+        {/* ← [2026-06-17] 상품 고정 — 체크 시 리스트 맨 앞. 순서는 위 '정렬 순서' 숫자로 결정. */}
+        <Field label={`상품 고정 (리스트 맨 앞)${typeof pinnedCount === 'number' ? ` · ${pinnedCount}/8` : ''}`}>
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              height: 36,
+              fontSize: 13,
+              color: pinFull ? '#aaa' : '#333',
+            }}
+            title={pinFull ? '고정은 최대 8개입니다. 다른 상품을 해제하세요.' : undefined}
+          >
+            <input
+              type="checkbox"
+              checked={isPinned}
+              onChange={(e) => setIsPinned(e.target.checked)}
+              disabled={busy || pinFull}                    // ← 8개 찼고 미고정이면 체크 불가
+              style={{ width: 16, height: 16 }}
+            />
+            📌 이 상품을 고정 {pinFull ? '(최대 8개 도달)' : ''}
           </label>
         </Field>
         <Field label="세일가 (원) · 비우면 세일 없음">

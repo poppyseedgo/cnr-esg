@@ -315,6 +315,7 @@ export interface EsgProductRow {
   detail_images: string[]; // jsonb array
   status: EsgProductStatus;
   sort_order: number;
+  is_pinned: boolean;         // ← [2026-06-17] 상품 고정(리스트 맨 앞). 최대 8개.
   is_new: boolean;            // ← [2026-06-09] "새 상품" 라벨(수동)
   sale_price: number | null;  // ← [2026-06-09] 세일가(수동). NULL=세일 아님. 앱에서 sale_price<price 일 때만 세일
   created_at: string;

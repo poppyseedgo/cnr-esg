@@ -27,7 +27,7 @@ export interface LoadProductsOptions {
   offset?: number; // ← [2026-06-04]
 }
 
-/** 상품 목록 (정렬: sort_order ASC, 그 다음 created_at) */
+/** 상품 목록 (정렬: 고정(is_pinned) 먼저 → sort_order ASC → created_at) */
 export async function loadProducts(opts: LoadProductsOptions = {}): Promise<EsgProductRow[]> {
   const { scope = 'all', limit, offset = 0 } = opts;
   const statuses: EsgProductStatus[] = scope === 'on_sale_only' ? ['on_sale'] : ['on_sale', 'sold_out'];
@@ -36,6 +36,7 @@ export async function loadProducts(opts: LoadProductsOptions = {}): Promise<EsgP
     .from('esg_products')
     .select('*')
     .in('status', statuses)
+    .order('is_pinned', { ascending: false })  // ← [2026-06-17] 고정 상품 맨 앞
     .order('sort_order', { ascending: true })
     .order('created_at', { ascending: false });
 

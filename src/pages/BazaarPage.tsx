@@ -24,10 +24,14 @@ export function BazaarPage() {
   const { period, status } = getActivity('bazaar');
   const { isAdmin } = useCurrentUser();
 
-  // 무한 스크롤 — 12개씩 누적 로드 (sort_order, created_at)
+  // ← [2026-06-17] 품절 제외 필터
+  const [hideSoldOut, setHideSoldOut] = useState(false);
+
+  // 무한 스크롤 — 12개씩 누적 로드 (고정 먼저 → sort_order → created_at)
   const fetchPage = useCallback(
-    (offset: number, limit: number) => loadProducts({ scope: 'all', offset, limit }),
-    []
+    (offset: number, limit: number) =>
+      loadProducts({ scope: hideSoldOut ? 'on_sale_only' : 'all', offset, limit }), // ← 필터 ON이면 on_sale만
+    [hideSoldOut]
   );
   const {
     items: products,
@@ -37,7 +41,7 @@ export function BazaarPage() {
     sentinelRef,
     reload,
     refresh,
-  } = useInfiniteScroll<EsgProductRow>(fetchPage, { pageSize: 12 });
+  } = useInfiniteScroll<EsgProductRow>(fetchPage, { pageSize: 12, deps: [hideSoldOut] }); // ← deps로 토글 시 리셋
 
   const [createOpen, setCreateOpen] = useState(false);
 
@@ -122,6 +126,30 @@ export function BazaarPage() {
           )}
         </div>
       )}
+
+      {/* ← [2026-06-17] 품절 제외 필터 */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+        <button
+          type="button"
+          onClick={() => setHideSoldOut((v) => !v)}
+          aria-pressed={hideSoldOut}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '6px 12px',
+            borderRadius: 999,
+            border: `1px solid ${hideSoldOut ? '#16a34a' : '#ddd'}`,
+            background: hideSoldOut ? '#16a34a' : '#fff',
+            color: hideSoldOut ? '#fff' : '#555',
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: 'pointer',
+          }}
+        >
+          {hideSoldOut ? '☑' : '☐'} 품절 제외
+        </button>
+      </div>
 
       {/* 상품 그리드 */}
       {initialLoading ? (
