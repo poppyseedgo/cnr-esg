@@ -38,6 +38,8 @@ import {
   type InspectionStatus,
 } from '@/lib/bazaarIntake';
 import { BazaarIntakeForm } from '@/components/admin/BazaarIntakeForm';
+import { SearchBar } from '@/components/SearchBar'; // ← [2026-06-17] 물품/기증자 검색
+import { matchesQuery } from '@/utils/search';
 import { ModalShell } from '@/components/modal/ModalShell';
 import '@/components/home/EventModal.css'; // ← .esg-modal__* 클래스 보장
 import type { EsgBazaarIntakeRow, EsgBazaarIntakePublishStatus } from '@/types/esg';
@@ -66,6 +68,7 @@ export function AdminBazaarIntake() {
   // rows = "전체" 목록 한 배열 (카운트/표시의 단일 소스)
   const [rows, setRows] = useState<EsgBazaarIntakeRow[]>([]);
   const [filter, setFilter] = useState<IntakeFilter>('all');
+  const [query, setQuery] = useState(''); // ← [2026-06-17] 물품 이름/기증자 검색어
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [formMode, setFormMode] = useState<FormMode>(null);
@@ -111,10 +114,15 @@ export function AdminBazaarIntake() {
     return c;
   }, [rows]);
 
-  // 표시 목록 — 같은 rows에서 필터링
+  // 표시 목록 — 같은 rows에서 상태 + 검색어(물품 이름/기증자) 필터링
   const visible = useMemo(
-    () => (filter === 'all' ? rows : rows.filter((r) => r.publish_status === filter)),
-    [rows, filter]
+    () =>
+      rows.filter(
+        (r) =>
+          (filter === 'all' || r.publish_status === filter) &&
+          matchesQuery(query, r.name, r.donor_name_snapshot, r.donor_dept_snapshot)
+      ),
+    [rows, filter, query]
   );
 
   const closeForm = () => {
@@ -193,6 +201,14 @@ export function AdminBazaarIntake() {
             </button>
           );
         })}
+      </div>
+
+      {/* 검색 (물품 이름 / 기증자) */}
+      <div style={{ marginBottom: 16 }}>
+        <SearchBar value={query} onChange={setQuery} placeholder="물품 이름 · 기증자 검색" width={320} />
+        {query.trim() && (
+          <span style={{ marginLeft: 10, fontSize: 12, color: '#888' }}>{visible.length}건</span>
+        )}
       </div>
 
       {loading ? (

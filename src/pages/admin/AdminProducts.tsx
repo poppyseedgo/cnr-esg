@@ -13,6 +13,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { loadAllProducts, hideProduct, unhideProduct, reorderProducts } from '@/lib/adminProducts'; // ← [고정/정렬] reorderProducts
 import { subscribeProducts, getAvailableStock } from '@/lib/products';
+import { SearchBar } from '@/components/SearchBar'; // ← [2026-06-17] 상품 이름 검색
+import { matchesQuery } from '@/utils/search';
 import { ProductEditForm } from '@/components/admin/ProductEditForm';
 import { CreateProductForm } from '@/components/admin/CreateProductForm';
 import type { EsgProductRow, EsgProductStatus } from '@/types/esg';
@@ -33,6 +35,7 @@ export function AdminProducts() {
   const [products, setProducts] = useState<EsgProductRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState(''); // ← [2026-06-17] 상품 이름 검색어
   const [creating, setCreating] = useState(false);
 
   // ← [고정/정렬] 드래그 재정렬 상태
@@ -41,6 +44,9 @@ export function AdminProducts() {
   const [reordering, setReordering] = useState(false);       // 재정렬 저장 중
 
   const pinnedCount = products.filter((p) => p.is_pinned).length; // ← [고정] N/8 표시용
+  // ← [2026-06-17] 검색: 이름 매칭. 검색 중에는 드래그 정렬 비활성화(부분목록 인덱스 손상 방지)
+  const searching = query.trim().length > 0;
+  const visibleProducts = searching ? products.filter((p) => matchesQuery(query, p.name)) : products;
 
   const reload = async () => {
     try {
@@ -141,6 +147,17 @@ export function AdminProducts() {
         </div>
       )}
 
+      {products.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
+          <SearchBar value={query} onChange={setQuery} placeholder="상품 이름 검색" width={320} />
+          {searching && (
+            <span style={{ fontSize: 12, color: '#888' }}>
+              {visibleProducts.length}건 · 검색 중에는 순서 변경이 비활성화됩니다
+            </span>
+          )}
+        </div>
+      )}
+
       {products.length === 0 ? (
         <div style={emptyStyle}>
           <div style={{ fontSize: 48, marginBottom: 12, opacity: 0.5 }}>🛍</div>
@@ -149,17 +166,24 @@ export function AdminProducts() {
             우측 상단 "➕ 새 상품 등록" 버튼으로 추가하세요.
           </p>
         </div>
+      ) : visibleProducts.length === 0 ? (
+        <div style={emptyStyle}>
+          <p style={{ margin: 0, color: '#888' }}>검색 결과가 없습니다.</p>
+        </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {products.map((p, i) => (
-            // ← [고정/정렬] 행 = 드롭 타깃, 왼쪽 ⠿ 핸들만 draggable
+          {visibleProducts.map((p, i) => (
+            // ← [고정/정렬] 행 = 드롭 타깃, 왼쪽 ⠿ 핸들만 draggable (검색 중엔 비활성)
             <div
               key={p.id}
               onDragOver={(e) => {
+                if (searching) return;
                 e.preventDefault();
                 if (dragOverIndex !== i) setDragOverIndex(i);
               }}
-              onDrop={() => handleDrop(i)}
+              onDrop={() => {
+                if (!searching) handleDrop(i);
+              }}
               style={{
                 display: 'flex',
                 gap: 8,
@@ -169,7 +193,7 @@ export function AdminProducts() {
               }}
             >
               <div
-                draggable
+                draggable={!searching}
                 onDragStart={() => {
                   dragIndexRef.current = i;
                 }}
@@ -177,16 +201,17 @@ export function AdminProducts() {
                   dragIndexRef.current = null;
                   setDragOverIndex(null);
                 }}
-                title="드래그하여 순서 변경"
+                title={searching ? '검색 중에는 순서를 변경할 수 없습니다' : '드래그하여 순서 변경'}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   padding: '0 6px',
-                  cursor: 'grab',
+                  cursor: searching ? 'default' : 'grab',
                   color: '#c4c4c4',
                   fontSize: 20,
                   userSelect: 'none',
                   flexShrink: 0,
+                  opacity: searching ? 0.3 : 1,
                 }}
               >
                 ⠿

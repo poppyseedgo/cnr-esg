@@ -25,11 +25,12 @@ export interface LoadProductsOptions {
   scope?: 'all' | 'on_sale_only';
   limit?: number;  // ← [2026-06-04] 무한 스크롤 페이징
   offset?: number; // ← [2026-06-04]
+  search?: string; // ← [2026-06-17] 상품 이름 검색(서버사이드 ilike, %·_ 는 리터럴)
 }
 
 /** 상품 목록 (정렬: 고정(is_pinned) 먼저 → sort_order ASC → created_at) */
 export async function loadProducts(opts: LoadProductsOptions = {}): Promise<EsgProductRow[]> {
-  const { scope = 'all', limit, offset = 0 } = opts;
+  const { scope = 'all', limit, offset = 0, search } = opts;
   const statuses: EsgProductStatus[] = scope === 'on_sale_only' ? ['on_sale'] : ['on_sale', 'sold_out'];
 
   let query = supabase
@@ -39,6 +40,12 @@ export async function loadProducts(opts: LoadProductsOptions = {}): Promise<EsgP
     .order('is_pinned', { ascending: false })  // ← [2026-06-17] 고정 상품 맨 앞
     .order('sort_order', { ascending: true })
     .order('created_at', { ascending: false });
+
+  const q = (search ?? '').trim();
+  if (q) {
+    const safe = q.replace(/[\\%_]/g, '\\$&'); // %, _ 는 와일드카드 아닌 리터럴로 처리
+    query = query.ilike('name', `%${safe}%`); // ← [2026-06-17] 이름 부분일치
+  }
 
   if (typeof limit === 'number') query = query.range(offset, offset + limit - 1); // ← [2026-06-04] 페이징
 

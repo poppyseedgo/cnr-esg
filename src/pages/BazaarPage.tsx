@@ -12,6 +12,7 @@ import { useEventPhase } from '@/hooks/useEventPhase';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll'; // ← [2026-06-04] 무한 스크롤
 import { loadProducts, subscribeProducts } from '@/lib/products';
+import { SearchBar } from '@/components/SearchBar'; // ← [2026-06-17] 상품 이름 검색
 import { formatKSTDate } from '@/utils/time';
 import { ProductCard } from '@/components/ProductCard';
 import { InfiniteScrollFooter } from '@/components/InfiniteScrollFooter'; // ← [2026-06-04]
@@ -27,11 +28,19 @@ export function BazaarPage() {
   // ← [2026-06-17] 품절 제외 필터
   const [hideSoldOut, setHideSoldOut] = useState(false);
 
+  // ← [2026-06-17] 상품 이름 검색 (입력 → 300ms 디바운스 → 서버 재조회)
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchInput.trim()), 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
   // 무한 스크롤 — 12개씩 누적 로드 (고정 먼저 → sort_order → created_at)
   const fetchPage = useCallback(
     (offset: number, limit: number) =>
-      loadProducts({ scope: hideSoldOut ? 'on_sale_only' : 'all', offset, limit }), // ← 필터 ON이면 on_sale만
-    [hideSoldOut]
+      loadProducts({ scope: hideSoldOut ? 'on_sale_only' : 'all', offset, limit, search }), // ← 필터 ON이면 on_sale만 / 검색어 서버 전달
+    [hideSoldOut, search]
   );
   const {
     items: products,
@@ -41,7 +50,7 @@ export function BazaarPage() {
     sentinelRef,
     reload,
     refresh,
-  } = useInfiniteScroll<EsgProductRow>(fetchPage, { pageSize: 12, deps: [hideSoldOut] }); // ← deps로 토글 시 리셋
+  } = useInfiniteScroll<EsgProductRow>(fetchPage, { pageSize: 12, deps: [hideSoldOut, search] }); // ← deps로 토글/검색 시 리셋
 
   const [createOpen, setCreateOpen] = useState(false);
 
@@ -127,8 +136,18 @@ export function BazaarPage() {
         </div>
       )}
 
-      {/* ← [2026-06-17] 품절 제외 필터 */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+      {/* ← [2026-06-17] 검색 + 품절 제외 필터 */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 12,
+          flexWrap: 'wrap',
+          marginTop: 16,
+        }}
+      >
+        <SearchBar value={searchInput} onChange={setSearchInput} placeholder="상품 이름 검색" width={320} />
         <button
           type="button"
           onClick={() => setHideSoldOut((v) => !v)}
@@ -168,7 +187,9 @@ export function BazaarPage() {
           }}
         >
           <div style={{ fontSize: 48, marginBottom: 12, opacity: 0.5 }}>🛍</div>
-          <p style={{ margin: 0, color: '#888' }}>아직 등록된 상품이 없습니다.</p>
+          <p style={{ margin: 0, color: '#888' }}>
+            {search ? '검색 결과가 없습니다.' : '아직 등록된 상품이 없습니다.'}
+          </p>
         </div>
       ) : (
         <div
