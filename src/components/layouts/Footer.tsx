@@ -24,11 +24,15 @@
 // ============================================================================
 
 import { Link } from 'react-router-dom';
+import { DonorMarquee } from '@/components/home/DonorMarquee'; // ← [2026-06-18] 기부자 전광판 푸터 상단 고정
 import './Footer.css';
 
 export function Footer() {
   return (
     <footer className="esg-footer">
+      {/* ── 기부자 전광판 (모든 페이지 푸터 최상단) ── */}
+      <DonorMarquee placement="footer" />
+
       {/* ── 상단: 메뉴 + ESG 안내 ── */}
       <div className="esg-footer__top">
         <div className="esg-footer__menu-row">

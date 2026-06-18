@@ -121,7 +121,7 @@ function buildCycle(blocks: Block[], today: string, keyPrefix: string): ReactNod
   return els;
 }
 
-export function DonorMarquee() {
+export function DonorMarquee({ placement = 'home' }: { placement?: 'home' | 'footer' } = {}) {
   const [money, setMoney] = useState<MainDonor[]>([]);
   const [items, setItems] = useState<MainDonor[]>([]);
   const [ready, setReady] = useState(false);
@@ -221,8 +221,8 @@ export function DonorMarquee() {
         width: 'auto',
         marginLeft: 'calc(50% - 50vw)',
         marginRight: 'calc(50% - 50vw)',
-        marginTop: -24,
-        marginBottom: 24,
+        marginTop: placement === 'footer' ? 0 : -24, // ← [2026-06-18] 푸터에선 위 콘텐츠와 겹치지 않게 0
+        marginBottom: placement === 'footer' ? 0 : 24, // ← 푸터에선 푸터 본문에 밀착
         background: '#fff',
         overflow: 'hidden',
         padding: '24px 0', // ← 세로 패딩 16px→24px (고지님 요청 2026-06-17)
