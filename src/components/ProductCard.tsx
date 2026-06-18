@@ -5,7 +5,7 @@
 // ============================================================================
 
 import { Link } from 'react-router-dom';
-import { getAvailableStock, isSoldOut } from '@/lib/products';
+import { getAvailableStock, isSoldOut, isNewProduct } from '@/lib/products';
 import type { EsgProductRow } from '@/types/esg';
 
 interface ProductCardProps {
@@ -44,6 +44,26 @@ export function ProductCard({ product }: ProductCardProps) {
           position: 'relative',
         }}
       >
+        {/* ← [2026-06-17] 완전 새 상품 뱃지 (좌상단). 품절 시 아래 오버레이가 덮음 */}
+        {isNewProduct(product) && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 8,
+              left: 8,
+              padding: '3px 8px',
+              background: '#0ea5e9',
+              color: '#fff',
+              borderRadius: 4,
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: 0.2,
+              boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
+            }}
+          >
+            새 상품
+          </div>
+        )}
         {soldOut && (
           <div
             style={{

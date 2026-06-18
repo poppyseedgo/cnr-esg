@@ -17,6 +17,7 @@ import {
   loadProduct,
   getAvailableStock,
   isSoldOut,
+  isNewProduct,
   subscribeProducts,
 } from '@/lib/products';
 import { addToCart } from '@/lib/cart';
@@ -281,6 +282,23 @@ export function BazaarProductPage() {
         {/* 정보 */}
         <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>
+            {isNewProduct(product) && (
+              <span
+                style={{
+                  display: 'inline-block',
+                  marginBottom: 8,
+                  padding: '3px 10px',
+                  background: '#0ea5e9',
+                  color: '#fff',
+                  borderRadius: 4,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  letterSpacing: 0.2,
+                }}
+              >
+                🆕 새 상품
+              </span>
+            )}
             <h1 style={{ margin: 0, fontSize: 22, lineHeight: 1.4 }}>{product.name}</h1>
             <div style={{ marginTop: 12, fontSize: 28, fontWeight: 700, color: '#222' }}>
               {product.price.toLocaleString()}원

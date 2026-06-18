@@ -113,6 +113,7 @@ export interface CreateIntakeInput {
   intake_photos: string[];          // 물건 사진(접수/검수 기록) — 최대 5장 // ← [수정 2026-06-08]
   publish_photo_url: string | null; // 게시할 물건 사진(상품 썸네일)
   note: string | null;
+  is_new?: boolean;                 // ← [2026-06-17] 완전 새 상품
   created_by: string | null;        // 접수 등록 관리자 id
 }
 
@@ -138,6 +139,7 @@ export async function createIntake(input: CreateIntakeInput): Promise<EsgBazaarI
     intake_photos: input.intake_photos ?? [],
     publish_photo_url: input.publish_photo_url,
     note: input.note,
+    is_new: input.is_new ?? false,
     created_by: input.created_by,
   };
 
@@ -169,6 +171,7 @@ export type UpdateIntakePatch = Partial<
     | 'intake_photos'
     | 'publish_photo_url'
     | 'note'
+    | 'is_new'
   >
 >;
 

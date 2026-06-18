@@ -362,6 +362,7 @@ export interface EsgBazaarIntakeRow {   // ← [추가]
   publish_status: EsgBazaarIntakePublishStatus;
   product_id: string | null;          // 게시 시 연결되는 esg_products.id
   note: string | null;
+  is_new: boolean;                    // ← [2026-06-17] 완전 새 상품(게시 시 상품 is_new로 전달)
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -380,6 +381,7 @@ export interface EsgBazaarIntakeInsert {   // ← [추가]
   publish_photo_url: string | null;
   note: string | null;
   created_by: string | null;
+  is_new?: boolean;                               // ← [2026-06-17] 기본 false
   publish_status?: EsgBazaarIntakePublishStatus;  // 기본 'pending'
 }
 

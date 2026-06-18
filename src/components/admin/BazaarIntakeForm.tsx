@@ -53,6 +53,7 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess, onDirtyChange }
     name: string; category: BazaarCategory; donor: DonorValue | null;
     originalPrice: number | ''; listedPrice: number | ''; quantity: number | '';
     intakePhotos: string[]; publishPhoto: string | null; note: string;
+    isNew: boolean;
   };
   const draftKey = `esg:draft:bazaar:${initial?.id ?? 'new'}`;
   const draft = useDraft<BazaarDraft>(draftKey);
@@ -74,6 +75,7 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess, onDirtyChange }
   const [intakePhotos, setIntakePhotos] = useState<string[]>(d0?.intakePhotos ?? initial?.intake_photos ?? []); // ← [수정] 단일→배열(최대 5장)
   const [publishPhoto, setPublishPhoto] = useState<string | null>(d0?.publishPhoto ?? initial?.publish_photo_url ?? null);
   const [note, setNote] = useState(d0?.note ?? initial?.note ?? '');
+  const [isNew, setIsNew] = useState(d0?.isNew ?? initial?.is_new ?? false); // ← [2026-06-17] 완전 새 상품
 
   // 게시 여부:
   //  - 신규: 'pending'(검수 대기) | 'publish'(바로 게시)
@@ -116,7 +118,8 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess, onDirtyChange }
       String(quantity) !== String(initial?.quantity ?? 1) ||
       note.trim() !== (initial?.note ?? '') ||
       intakePhotos.length !== (initial?.intake_photos?.length ?? 0) ||
-      (publishPhoto ?? '') !== (initial?.publish_photo_url ?? ''));
+      (publishPhoto ?? '') !== (initial?.publish_photo_url ?? '') ||
+      isNew !== (initial?.is_new ?? false));
 
   useEffect(() => {
     onDirtyChange?.(isDirty);
@@ -127,11 +130,11 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess, onDirtyChange }
     const id = setTimeout(() => {
       if (saving) return;
       if (isDirty)
-        draft.save({ name, category, donor, originalPrice, listedPrice, quantity, intakePhotos, publishPhoto, note });
+        draft.save({ name, category, donor, originalPrice, listedPrice, quantity, intakePhotos, publishPhoto, note, isNew });
       else draft.clear();
     }, 600);
     return () => clearTimeout(id);
-  }, [isDirty, name, category, donor, originalPrice, listedPrice, quantity, intakePhotos, publishPhoto, note, saving, draft]);
+  }, [isDirty, name, category, donor, originalPrice, listedPrice, quantity, intakePhotos, publishPhoto, note, isNew, saving, draft]);
 
   const validate = (forPublish: boolean): string | null => {
     if (!name.trim()) return '물건 이름을 입력해주세요.';
@@ -172,6 +175,7 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess, onDirtyChange }
           intake_photos: intakePhotos,
           publish_photo_url: publishPhoto,
           note: note.trim() || null,
+          is_new: isNew,
         });
       } else {
         const row = await createIntake({
@@ -186,6 +190,7 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess, onDirtyChange }
           intake_photos: intakePhotos,
           publish_photo_url: publishPhoto,
           note: note.trim() || null,
+          is_new: isNew,
           created_by: currentUser?.id ?? null,
         });
         intakeId = row.id;
@@ -298,6 +303,19 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess, onDirtyChange }
 
       <Field label="게시할 물건 사진 (상품 썸네일)">
         <ThumbnailUploader kind="bazaar" ownerId={ownerId} value={publishPhoto} onChange={setPublishPhoto} disabled={saving} compress />
+      </Field>
+
+      <Field label="새 상품 여부">
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, height: 36, fontSize: 13, color: '#333' }}>
+          <input
+            type="checkbox"
+            checked={isNew}
+            onChange={(e) => setIsNew(e.target.checked)}
+            disabled={saving}
+            style={{ width: 16, height: 16 }}
+          />
+          완전 새 상품(미사용)입니다 — 게시 시 상품에 "새 상품" 뱃지 표시
+        </label>
       </Field>
 
       <Field label="검수 메모 (선택)">

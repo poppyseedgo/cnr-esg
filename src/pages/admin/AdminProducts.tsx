@@ -310,6 +310,12 @@ function ProductAdminCard({
                 📌 고정
               </span>
             )}
+            {/* ← [2026-06-17] 완전 새 상품 배지 */}
+            {product.is_new && (
+              <span style={{ padding: '2px 8px', background: '#e0f2fe', color: '#075985', borderRadius: 4, fontSize: 11, fontWeight: 700 }}>
+                🆕 새 상품
+              </span>
+            )}
             <span style={{ fontSize: 11, color: '#bbb', fontFamily: 'monospace' }}>
               ID: {product.id.slice(0, 8)}
             </span>
