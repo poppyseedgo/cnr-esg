@@ -63,8 +63,7 @@ export function BlurImage({
     objectFit: 'cover',
     objectPosition,
     display: 'block',
-    filter: 'blur(12px)',
-    transform: 'scale(1.08)', // 블러 가장자리 비침 방지
+    filter: 'blur(8px)',          // 가장자리 비침은 컨테이너 overflow:hidden이 클립 → scale 불필요
     opacity: loaded ? 0 : 1,
     transition: 'opacity 0.3s ease',
   };
@@ -73,7 +72,15 @@ export function BlurImage({
     // 실제 이미지가 height:auto로 박스 높이를 정의 → 블러는 그 뒤를 채움
     return (
       <div style={{ position: 'relative', width: '100%', overflow: 'hidden', background: '#f2f2f2' }}>
-        {lqip && <img src={lqip} aria-hidden="true" alt="" style={blurLayer} />}
+        {lqip && (
+          <img
+            src={lqip}
+            aria-hidden="true"
+            alt=""
+            style={blurLayer}
+            onError={(e) => { e.currentTarget.style.display = "none"; }}
+          />
+        )}
         <img
           src={full ?? undefined}
           alt={alt}
@@ -109,7 +116,15 @@ export function BlurImage({
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden', background: '#f2f2f2' }}>
-      {lqip && <img src={lqip} aria-hidden="true" alt="" style={blurLayer} />}
+      {lqip && (
+          <img
+            src={lqip}
+            aria-hidden="true"
+            alt=""
+            style={blurLayer}
+            onError={(e) => { e.currentTarget.style.display = "none"; }}
+          />
+        )}
       <img
         src={full ?? undefined}
         alt={alt}

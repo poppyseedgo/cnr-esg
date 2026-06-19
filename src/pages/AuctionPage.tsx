@@ -206,7 +206,7 @@ function AuctionCard({ auction }: { auction: EsgAuctionRow }) {
             ? '#f2f2f2'
             : 'linear-gradient(135deg, #fef3c7, #fed7aa)',
           position: 'relative',
-          overflow: 'hidden', // 블러 레이어 scale(1.08) 비침 클립
+          overflow: 'hidden', // 블러 레이어 가장자리 비침 클립 (scale 미사용 — 6/19 제거됨)
         }}
       >
         {/* 썸네일 이미지 — lazy + LQIP 블러업 (배지보다 먼저 = 아래) */}

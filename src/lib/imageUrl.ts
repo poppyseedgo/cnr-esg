@@ -25,20 +25,22 @@ const RENDER_MARKER = '/storage/v1/render/image/public/';
  * @param url    저장된 public 이미지 URL
  * @param width  목표 가로 px (레티나 고려해 표시폭의 ~1.5~2배 권장)
  * @param quality JPEG 품질 0~100 (기본 70)
- * @param resize 'cover'(채움·크롭, 기본) | 'contain' | 'fill'
+ * @param quality JPEG 품질 0~100 (기본 70)
+ *
+ * 주의: 서버에서 크롭하지 않고 width 기준 "비례 축소"만 한다(height 자동).
+ *   박스 맞춤(cover/contain)은 호출측 CSS object-fit이 담당 → 프레이밍이 원본과 일치.
  */
 export function thumbUrl(
   url: string | null | undefined,
   width: number,
-  quality = 70,
-  resize: 'cover' | 'contain' | 'fill' = 'cover'
+  quality = 70
 ): string | undefined {
   if (!url) return undefined;
   const idx = url.indexOf(PUBLIC_MARKER);
   if (idx === -1) return url; // Supabase public URL이 아니면 변환하지 않음
   const rendered = url.replace(PUBLIC_MARKER, RENDER_MARKER);
   const sep = rendered.includes('?') ? '&' : '?';
-  return `${rendered}${sep}width=${width}&quality=${quality}&resize=${resize}`;
+  return `${rendered}${sep}width=${width}&quality=${quality}`;
 }
 
 /**
