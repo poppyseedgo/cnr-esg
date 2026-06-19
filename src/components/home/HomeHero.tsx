@@ -30,6 +30,7 @@
 
 import { useSearchParams } from 'react-router-dom';
 import type { EventModalKey } from './eventModalContent';
+import { HERO_LQIP } from './heroLqip'; // ← [2026-06-18] 히어로 사진 LQIP(블러 플레이스홀더)
 import './HomeHero.css';
 
 export function HomeHero() {
@@ -59,7 +60,7 @@ export function HomeHero() {
           <div className="esg-hero__tile" aria-hidden="true">
             <div
               className="esg-hero__bg esg-hero__photo esg-hero__zoom"
-              style={{ backgroundImage: "url('/home/home-01.jpg')" }}
+              style={{ backgroundImage: `url('/home/home-01.jpg'), url(${HERO_LQIP['01']})` }}
             />
           </div>
 
@@ -88,7 +89,7 @@ export function HomeHero() {
           <div className="esg-hero__tile" aria-hidden="true">
             <div
               className="esg-hero__bg esg-hero__photo esg-hero__zoom"
-              style={{ backgroundImage: "url('/home/home-02.jpg')" }}
+              style={{ backgroundImage: `url('/home/home-02.jpg'), url(${HERO_LQIP['02']})` }}
             />
           </div>
 
@@ -142,7 +143,7 @@ export function HomeHero() {
           <div className="esg-hero__tile" aria-hidden="true">
             <div
               className="esg-hero__bg esg-hero__photo esg-hero__zoom"
-              style={{ backgroundImage: "url('/home/home-03.jpg')" }}
+              style={{ backgroundImage: `url('/home/home-03.jpg'), url(${HERO_LQIP['03']})` }}
             />
           </div>
 
@@ -182,7 +183,7 @@ export function HomeHero() {
           <div className="esg-hero__tile" aria-hidden="true">
             <div
               className="esg-hero__bg esg-hero__photo esg-hero__zoom"
-              style={{ backgroundImage: "url('/home/home-04.jpg')" }}
+              style={{ backgroundImage: `url('/home/home-04.jpg'), url(${HERO_LQIP['04']})` }}
             />
           </div>
 
