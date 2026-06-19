@@ -20,6 +20,7 @@
 
 import { useEffect, useMemo, useState } from 'react'; // ← idx 상태/정렬 메모/리셋 effect
 import { thumbUrl, fallbackToOriginal } from '@/lib/imageUrl'; // ← [2026-06-18] 썸네일 변환
+import { BlurImage } from './BlurImage'; // ← [2026-06-18] 대표 이미지 블러업
 
 interface PostImageGalleryProps {
   /** esg_posts_with_images.images (id/url/sort_order) */
@@ -65,17 +66,12 @@ export function PostImageGallery({ images }: PostImageGalleryProps) {
           background: '#f2f2f2',  // ← Figma bg-[#f2f2f2] (로딩 placeholder)
         }}
       >
-        <img
-          src={thumbUrl(sorted[safeIdx].url, 1080, 78) ?? undefined} // ← [2026-06-18] 상세 표시폭에 맞춘 변환
-          onError={fallbackToOriginal(sorted[safeIdx].url)}
-          loading="lazy"
-          decoding="async"
+        <BlurImage
+          url={sorted[safeIdx].url}
+          width={1080}
+          quality={78}
+          intrinsic            // ← 원본 비율 유지(height:auto) + 뒤 블러 채움
           alt={`이미지 ${safeIdx + 1}`}
-          style={{
-            width: '100%',        // ← 폭은 컨테이너 가득
-            height: 'auto',       // ← [핵심] 원본 비율 유지(4/3 강제 크롭 제거)
-            display: 'block',     // ← 하단 inline 여백 제거
-          }}
         />
 
         {/* 위치 카운터 — 여러 장일 때만 */}
