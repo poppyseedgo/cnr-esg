@@ -834,6 +834,21 @@ export interface Database {
         Args: Record<string, never>;
         Returns: boolean;
       };
+      // ← [2026-06-19] 게시글 이미지 원자적 재구성 RPC (delete+insert+esg_posts 갱신 단일 트랜잭션)
+      esg_update_post_with_images: {
+        Args: {
+          p_post_id: string;
+          p_patch: Partial<{
+            title: string;
+            content: string;
+            category: EsgPostCategory;
+            is_anonymous: boolean;
+            status: EsgPostStatus;
+          }>;
+          p_images: Array<{ url: string; sort_order: number; focus_x: number; focus_y: number }>;
+        };
+        Returns: { ok: boolean; removed_urls: string[]; cover_image_url: string | null };
+      };
       create_bazaar_order: {
         Args: CreateBazaarOrderInput;
         Returns: CreateBazaarOrderResult;

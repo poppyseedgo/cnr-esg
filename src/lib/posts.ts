@@ -35,7 +35,7 @@
 //   - 익명 처리는 DB view에서 자동 마스킹 (프론트는 신경 안 써도 됨)
 // ============================================================================
 
-import { supabase as _supabase } from './supabase';
+import { supabase as _supabase, callRpc } from './supabase'; // ← [2026-06-19] callRpc: 타입 안전 RPC 호출 헬퍼
 import { loadPublicProfiles } from './profiles'; // ← [좋아요 누른 사람 조회] 이름/부서/아바타
 import { compressImage } from './productImages'; // ← [2026-06-18] 게시물 이미지 업로드 압축 재사용
 import type {
@@ -282,42 +282,36 @@ export async function updatePost(
     throw e;
   }
 
-  // 2) 현재 이미지 행 조회 → 제거 대상 파악
-  const { data: curRows, error: curErr } = await supabase
-    .from('esg_post_images').select('image_url').eq('post_id', id);
-  if (curErr) { await cleanupImages(uploaded.map((u) => u.url)); throw curErr; } // ← [수정]
-  const currentUrls = ((curRows ?? []) as Array<{ image_url: string }>).map((r) => r.image_url);
-  const keepUrls = keep.map((k) => k.url);                              // ← [추가] 유지 URL 목록
-  const removedUrls = currentUrls.filter((u) => !keepUrls.includes(u)); // 더 이상 안 쓰는 파일
-
-  // 3) 최종 이미지 = 유지(순서, focus 유지) + 새 업로드(focus)
-  const finalImages = [                                                 // ← [수정] url+focus 단위
+  // 2) 최종 이미지 = 유지(순서·focus 유지) + 새 업로드(focus), sort_order 0..n 부여
+  const finalImages = [                                                 // ← url+focus 단위
     ...keep.map((k) => ({ url: k.url, focusX: k.focusX, focusY: k.focusY })),
     ...uploaded,
   ];
+  const imagesJson = finalImages.map((im, i) => ({                      // ← RPC 전달용(snake_case)
+    url: im.url,
+    sort_order: i,
+    focus_x: im.focusX,
+    focus_y: im.focusY,
+  }));
 
-  // 4) 이미지 행 재구성: delete-all + insert-all
-  //    (sort_order CHECK 0..2 / UNIQUE(post_id,sort_order)라 임시값 불가 → 전체 교체가 안전)
-  const { error: delErr } = await supabase.from('esg_post_images').delete().eq('post_id', id);
-  if (delErr) { await cleanupImages(uploaded.map((u) => u.url)); throw delErr; } // ← [수정]
-  if (finalImages.length > 0) {
-    const rows = finalImages.map((im, i) => ({                          // ← [수정] focus 포함
-      post_id: id,
-      image_url: im.url,
-      sort_order: i,
-      focus_x: im.focusX,
-      focus_y: im.focusY,
-    }));
-    const { error: insErr } = await supabase.from('esg_post_images').insert(rows);
-    if (insErr) { await cleanupImages(uploaded.map((u) => u.url)); throw insErr; } // ← [수정]
+  // 3) [2026-06-19 근본수정] 비원자 delete+insert+update → 원자적 RPC 1회 호출.
+  //    esg_post_images 삭제+삽입 + esg_posts patch/cover 동기화가 단일 트랜잭션이라,
+  //    부분 실패 시 전체 롤백 → '이미지 0행 + cover 잔존' 불일치 상태가 구조적으로 불가능.
+  //    제거 대상 파일 목록(removed_urls)도 RPC가 권위 있게 산출해 반환 → 별도 사전조회 불필요.
+  let removedUrls: string[] = [];                                       // ← Storage 정리 대상(성공 후)
+  try {
+    const res = await callRpc('esg_update_post_with_images', {          // ← 원자적 호출(권한검증 내장)
+      p_post_id: id,
+      p_patch: patch,                                                   // {title,content,is_anonymous,...} 있는 키만 반영
+      p_images: imagesJson,
+    });
+    removedUrls = res?.removed_urls ?? [];                              // ← 더 이상 안 쓰는 파일
+  } catch (e) {
+    await cleanupImages(uploaded.map((u) => u.url));                    // ← RPC 실패 = DB 롤백됨 → 방금 올린 파일만 정리
+    throw e;
   }
 
-  // 5) esg_posts patch + cover_image_url 동기화(첫 이미지)
-  const { error: upErr } = await supabase
-    .from('esg_posts').update({ ...patch, cover_image_url: finalImages[0]?.url ?? null }).eq('id', id); // ← [수정]
-  if (upErr) throw upErr;
-
-  // 6) DB 반영 성공 후, 제거된 파일 Storage 삭제 (마지막에)
+  // 4) DB 반영(커밋) 성공 후, 제거된 파일 Storage 삭제 (best-effort, 마지막에)
   if (removedUrls.length > 0) await cleanupImages(removedUrls);
 
   const full = await loadPost(id);
