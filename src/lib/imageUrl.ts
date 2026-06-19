@@ -23,12 +23,12 @@ const RENDER_MARKER = '/storage/v1/render/image/public/';
 /**
  * 표시 크기에 맞춘 변환 URL 반환.
  * @param url    저장된 public 이미지 URL
- * @param width  목표 가로 px (레티나 고려해 표시폭의 ~1.5~2배 권장)
- * @param quality JPEG 품질 0~100 (기본 70)
+ * @param width  바운딩박스 한 변 px (정사각 N×N). 레티나 고려해 표시폭의 ~1.5~2배 권장.
  * @param quality JPEG 품질 0~100 (기본 70)
  *
- * 주의: 서버에서 크롭하지 않고 width 기준 "비례 축소"만 한다(height 자동).
- *   박스 맞춤(cover/contain)은 호출측 CSS object-fit이 담당 → 프레이밍이 원본과 일치.
+ * 방식: N×N 정사각 바운딩박스 + resize=contain 으로 "원본 비율을 보존한 비례 축소"만 수행.
+ *   (?width 만 주면 Supabase가 세로를 원본으로 고정해 이미지를 찌그러뜨리므로 금지 — 아래 본문 주석 참고.)
+ *   박스 맞춤(cover)·크롭기준점(object-position)은 호출측 CSS가 담당 → 프레이밍이 원본과 일치.
  */
 export function thumbUrl(
   url: string | null | undefined,
@@ -40,7 +40,15 @@ export function thumbUrl(
   if (idx === -1) return url; // Supabase public URL이 아니면 변환하지 않음
   const rendered = url.replace(PUBLIC_MARKER, RENDER_MARKER);
   const sep = rendered.includes('?') ? '&' : '?';
-  return `${rendered}${sep}width=${width}&quality=${quality}`;
+  // ── [2026-06-19 근본수정] width만 주면 안 되는 이유 ───────────────────────────
+  //   Supabase 변환에 ?width=N 만 주면 "가로=N, 세로=원본"으로 처리되어 이미지가
+  //   세로로 찌그러진다(실측: 정사각 1512²→640×1512, ar 1.00→0.42; 세로 730×1000→640×1000).
+  //   이 왜곡 이미지가 다시 CSS object-fit:cover 박스에 들어가 '이중 크롭→과확대'가 됨.
+  //   해결: N×N 정사각 바운딩박스 + resize=contain → 원본 '비율을 보존'한 채 비례 축소만
+  //   수행(실측: 1512²→640², 730×1000→467×640, 1165×979→640×538 — 모두 원본 ar 유지).
+  //   서버는 비례 축소만, 박스 맞춤(cover)·크롭기준점(object-position)은 CSS가 담당 →
+  //   프레이밍이 '원본 그대로'가 되어 과확대가 사라진다. width = 바운딩박스 한 변(px).
+  return `${rendered}${sep}width=${width}&height=${width}&resize=contain&quality=${quality}`;
 }
 
 /**
