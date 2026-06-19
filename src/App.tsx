@@ -25,6 +25,7 @@ import { AuthProvider } from '@/hooks/useCurrentUser';
 import { AppLayout } from '@/components/layouts/AppLayout';
 import { RequireAuth } from '@/components/routing/RequireAuth';
 import { RequireAdmin } from '@/components/routing/RequireAdmin';
+import { RouteError } from '@/components/routing/RouteError'; // ← [2026-06-18] 라우트 에러 폴백
 import { ActivityGate } from '@/components/ActivityGate';
 
 // ----------------------------------------------------------------------------
@@ -91,6 +92,7 @@ const AdminQnaEvent = lazyWithRetry(() => import('@/pages/admin/AdminQnaEvent').
 const router = createBrowserRouter([
   {
     element: <AppLayout />,
+    errorElement: <RouteError />, // ← [2026-06-18] 청크/렌더 실패 시 친절한 복구 UI(모바일 대응)
     children: [
       // 공개 페이지 (비로그인 OK)
       { path: '/', element: <HomePage /> },

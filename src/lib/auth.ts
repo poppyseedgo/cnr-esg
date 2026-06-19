@@ -117,7 +117,9 @@ export async function fetchProfile(userId: string): Promise<CurrentUser | null> 
 
   if (error) {
     console.error('[auth] fetchProfile error:', error);
-    return null;
+    // 네트워크/쿼리 오류는 throw → 호출측(applySession)이 재시도·구분.
+    // (여기서 null을 반환하면 "미허용 계정"으로 오인돼 강제 로그아웃됨 — 모바일 접속 불가 원인)
+    throw error;
   }
   if (!data) {
     console.warn('[auth] profile not found for user:', userId);

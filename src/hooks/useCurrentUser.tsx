@@ -87,11 +87,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     // 2단계: DB profile 조회 (정확한 role, dept, is_active 검증)
-    const profile = await fetchProfile(sessionUser.id);
+    //   - fetchProfile은 "미허용(도메인/비활성/없음)"이면 null, "네트워크/쿼리 오류"면 throw.
+    //   - 모바일 등 불안정 네트워크 대비 최대 3회 재시도.
+    //   - 끝까지 실패(throw)하면: 세션 유지(강제 로그아웃 금지) + 로딩 해제 + 안내.
+    //     → 일시 오류로 정상 사용자가 튕기던 버그(모바일 접속 불가) 방지.
+    let profile: CurrentUser | null = null;
+    let fetchFailed = false;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        profile = await fetchProfile(sessionUser.id);
+        fetchFailed = false;
+        break;
+      } catch (e) {
+        fetchFailed = true;
+        console.error(`[auth] fetchProfile attempt ${attempt + 1} failed:`, e);
+        if (attempt < 2) {
+          await new Promise((r) => setTimeout(r, 600 * (attempt + 1)));
+        }
+      }
+    }
     if (!mountedRef.current) return;
 
+    if (fetchFailed) {
+      // 네트워크/쿼리 오류 — 로그아웃하지 않고 임시 user 유지, 로딩만 해제.
+      setAuthError('네트워크 문제로 사용자 정보를 확인하지 못했습니다. 잠시 후 새로고침 해주세요.');
+      setLoading(false);
+      return;
+    }
+
     if (!profile) {
-      // 도메인 불일치 또는 비활성 사용자 → 강제 로그아웃
+      // 도메인 불일치 또는 비활성 사용자 → 강제 로그아웃 (진짜 미허용일 때만)
       setAuthError(
         '로그인이 허용되지 않은 계정입니다. 회사 이메일(@cnrres.com)로 로그인해주세요. ' +
           '계정이 비활성 상태일 수도 있습니다.'
@@ -122,11 +147,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // 1) 앱 시작 시 기존 세션 확인 (새로고침 후 자동 로그인 유지)
     // ────────────────────────────────────────────────────────────
     (async () => {
-      const { data, error } = await supabase.auth.getSession();
-      if (error) {
-        console.error('[auth] getSession error:', error);
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (error) {
+          console.error('[auth] getSession error:', error);
+        }
+        await applySession(data.session?.user ?? null);
+      } catch (e) {
+        // getSession 자체 실패(네트워크 등) — 무한 로딩 방지
+        console.error('[auth] getSession threw:', e);
+        if (mountedRef.current) setLoading(false);
       }
-      await applySession(data.session?.user ?? null);
     })();
 
     // ────────────────────────────────────────────────────────────

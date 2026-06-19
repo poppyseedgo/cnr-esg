@@ -23,21 +23,12 @@
 //   2026-06-01  Figma 1027:736 v2 — col1 제거(평면화), 행2 구조변경, © 텍스트→SVG 로고
 // ============================================================================
 
-import { Link, useLocation } from 'react-router-dom';
-import { DonorMarquee } from '@/components/home/DonorMarquee'; // ← [2026-06-18] 기부자 전광판 푸터 상단 고정
+import { Link } from 'react-router-dom';
 import './Footer.css';
 
 export function Footer() {
-  // 어드민(/admin*)에서는 전광판 미렌더 — 무거운 어드민 화면 위에 무한 애니메이션/
-  // ResizeObserver/realtime 전광판이 상주하면 버벅임·렌더 루프 유발. 내부 관리 화면엔 불필요.
-  const { pathname } = useLocation();
-  const isAdmin = pathname === '/admin' || pathname.startsWith('/admin/');
-
   return (
     <footer className="esg-footer">
-      {/* ── 기부자 전광판 (어드민 제외 모든 페이지 푸터 최상단) ── */}
-      {!isAdmin && <DonorMarquee placement="footer" />}
-
       {/* ── 상단: 메뉴 + ESG 안내 ── */}
       <div className="esg-footer__top">
         <div className="esg-footer__menu-row">
