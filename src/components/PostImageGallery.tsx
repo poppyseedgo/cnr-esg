@@ -19,6 +19,7 @@
 // ============================================================================
 
 import { useEffect, useMemo, useState } from 'react'; // ← idx 상태/정렬 메모/리셋 effect
+import { thumbUrl, fallbackToOriginal } from '@/lib/imageUrl'; // ← [2026-06-18] 썸네일 변환
 
 interface PostImageGalleryProps {
   /** esg_posts_with_images.images (id/url/sort_order) */
@@ -65,7 +66,10 @@ export function PostImageGallery({ images }: PostImageGalleryProps) {
         }}
       >
         <img
-          src={sorted[safeIdx].url}                 // ← 현재 대표 이미지
+          src={thumbUrl(sorted[safeIdx].url, 1080, 78) ?? undefined} // ← [2026-06-18] 상세 표시폭에 맞춘 변환
+          onError={fallbackToOriginal(sorted[safeIdx].url)}
+          loading="lazy"
+          decoding="async"
           alt={`이미지 ${safeIdx + 1}`}
           style={{
             width: '100%',        // ← 폭은 컨테이너 가득
@@ -132,7 +136,10 @@ export function PostImageGallery({ images }: PostImageGalleryProps) {
                 }}
               >
                 <img
-                  src={img.url}
+                  src={thumbUrl(img.url, 160) ?? undefined} // ← [2026-06-18] 70px 썸네일용 소형 변환
+                  onError={fallbackToOriginal(img.url)}
+                  loading="lazy"
+                  decoding="async"
                   alt=""
                   style={{
                     width: '100%',

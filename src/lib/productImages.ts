@@ -46,7 +46,7 @@ export interface UploadProductImageOptions {
  *   - 디코딩/인코딩 실패하거나 결과가 더 크면 원본 유지
  *   → 어떤 경우에도 "원본 업로드"로 안전하게 폴백.
  */
-async function compressImage(
+export async function compressImage(
   file: File,
   maxDimension = 1600,
   quality = 0.82

@@ -37,6 +37,7 @@
 
 import { supabase as _supabase } from './supabase';
 import { loadPublicProfiles } from './profiles'; // ← [좋아요 누른 사람 조회] 이름/부서/아바타
+import { compressImage } from './productImages'; // ← [2026-06-18] 게시물 이미지 업로드 압축 재사용
 import type {
   EsgPostCategory,
   EsgPostInsert,
@@ -343,18 +344,23 @@ export async function uploadPostImage(file: File, userId: string): Promise<strin
   if (!file.type.startsWith('image/')) {
     throw new Error('이미지 파일만 업로드할 수 있습니다.');
   }
-  if (file.size > 10 * 1024 * 1024) {
+
+  // [2026-06-18] 업로드 전 클라이언트 압축(리사이즈) — 무압축 원본 저장으로 인한
+  //   목록/상세 로딩 지연의 근본 차단. compressImage는 GIF/소용량/실패 시 원본으로 안전 폴백.
+  const outFile = await compressImage(file); // 기본 maxDim 1600 / quality 0.82
+
+  if (outFile.size > 10 * 1024 * 1024) {
     throw new Error('이미지 크기는 10MB 이하여야 합니다.');
   }
 
   // 안전한 파일명 생성
-  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+  const ext = (outFile.name.split('.').pop() || 'jpg').toLowerCase();
   const safeName = `${Date.now()}_${Math.random().toString(36).slice(2, 10)}.${ext}`;
   const path = `${userId}/${safeName}`;
 
-  const { error } = await supabase.storage.from('esg-posts').upload(path, file, {
+  const { error } = await supabase.storage.from('esg-posts').upload(path, outFile, {
     cacheControl: '3600',
-    contentType: file.type,
+    contentType: outFile.type,
     upsert: false,
   });
   if (error) throw error;
