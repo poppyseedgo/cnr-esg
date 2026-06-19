@@ -6,6 +6,7 @@
 
 import { Link } from 'react-router-dom';
 import { getAvailableStock, isSoldOut, isNewProduct } from '@/lib/products';
+import { BlurImage } from './BlurImage'; // ← [2026-06-19] 썸네일 lazy+블러업
 import type { EsgProductRow } from '@/types/esg';
 
 interface ProductCardProps {
@@ -39,11 +40,18 @@ export function ProductCard({ product }: ProductCardProps) {
           width: '100%',
           aspectRatio: '1 / 1',
           background: product.thumbnail_url
-            ? `url(${product.thumbnail_url}) center / cover`
+            ? '#f2f2f2'
             : 'linear-gradient(135deg, #e0f2fe, #ddd6fe)',
           position: 'relative',
+          overflow: 'hidden', // 블러 레이어 scale(1.08) 비침 클립
         }}
       >
+        {/* 썸네일 이미지 — lazy + LQIP 블러업 (배지보다 먼저 = 아래) */}
+        {product.thumbnail_url && (
+          <div style={{ position: 'absolute', inset: 0 }}>
+            <BlurImage url={product.thumbnail_url} width={640} />
+          </div>
+        )}
         {/* ← [2026-06-17] 완전 새 상품 뱃지 (좌상단). 품절 시 아래 오버레이가 덮음 */}
         {isNewProduct(product) && (
           <div

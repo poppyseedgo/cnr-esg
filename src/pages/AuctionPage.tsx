@@ -26,6 +26,7 @@ import { formatTimeLeft } from '@/lib/orders';
 import { formatKSTDate, formatKSTFull } from '@/utils/time';
 import { FormModal } from '@/components/FormModal';
 import { InfiniteScrollFooter } from '@/components/InfiniteScrollFooter'; // ← [2026-06-04]
+import { BlurImage } from '@/components/BlurImage'; // ← [2026-06-19] 썸네일 lazy+블러업
 import { CreateAuctionForm } from '@/components/admin/CreateAuctionForm';
 import type { EsgAuctionRow } from '@/types/esg';
 
@@ -202,11 +203,18 @@ function AuctionCard({ auction }: { auction: EsgAuctionRow }) {
           width: '100%',
           aspectRatio: '4 / 3',
           background: auction.thumbnail_url
-            ? `url(${auction.thumbnail_url}) center / cover`
+            ? '#f2f2f2'
             : 'linear-gradient(135deg, #fef3c7, #fed7aa)',
           position: 'relative',
+          overflow: 'hidden', // 블러 레이어 scale(1.08) 비침 클립
         }}
       >
+        {/* 썸네일 이미지 — lazy + LQIP 블러업 (배지보다 먼저 = 아래) */}
+        {auction.thumbnail_url && (
+          <div style={{ position: 'absolute', inset: 0 }}>
+            <BlurImage url={auction.thumbnail_url} width={640} />
+          </div>
+        )}
         <span
           style={{
             position: 'absolute',

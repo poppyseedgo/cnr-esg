@@ -12,6 +12,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
+import { BlurImage } from '@/components/BlurImage'; // ← [2026-06-19] 이미지 lazy+블러업
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEventPhase } from '@/hooks/useEventPhase';
 import {
@@ -947,11 +948,9 @@ function ImageCarousel({
         overflow: 'hidden',
       }}
     >
-      <img
-        src={images[currentIdx]}
-        alt={`이미지 ${currentIdx + 1}`}
-        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-      />
+      <div style={{ position: 'absolute', inset: 0 }}>
+        <BlurImage url={images[currentIdx]} width={1080} quality={78} alt={`이미지 ${currentIdx + 1}`} />
+      </div>
       {!single && (
         <>
           <button type="button" onClick={goPrev} style={{ ...arrowStyle, left: 12 }} aria-label="이전">
