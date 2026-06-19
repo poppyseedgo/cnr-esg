@@ -59,7 +59,8 @@
 // ============================================================================
 
 import { UserChip } from './UserChip';
-import type { EsgPostCategory, EsgPostWithImagesRow } from '@/types/esg';
+import { BlurImage } from './BlurImage'; // ← [2026-06-18] LQIP 블러업 커버
+import type { EsgPostCategory, EsgPostCardRow } from '@/types/esg';
 
 // ── Figma 스펙 토큰 ─────────────────────────────────────────────────────────
 const CARD_SHADOW = '12px 12px 12px rgba(0,0,0,0.04)';
@@ -141,7 +142,7 @@ function CommentIcon({ size = 24 }: { size?: number }) {
 }
 
 interface PostListCardProps {
-  post: EsgPostWithImagesRow;
+  post: EsgPostCardRow;
   avatarUrl: string | null;
   isMine: boolean;
   isAdmin: boolean;
@@ -219,16 +220,10 @@ export function PostListCard({
             flexShrink: 0,
           }}
         >
-          <img
-            src={post.cover_image_url ?? undefined}
-            alt=""
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              objectPosition: `${coverFocusX}% ${coverFocusY}%`, // ← [2026-06-11] 커버 크롭 기준점
-              display: 'block',
-            }}
+          <BlurImage
+            url={post.cover_image_url}
+            width={640}
+            objectPosition={`${coverFocusX}% ${coverFocusY}%`} // ← [2026-06-11] 커버 크롭 기준점
           />
         </div>
       )}
@@ -323,7 +318,7 @@ export function PostListCard({
                 minHeight: hasImage ? '2.8em' : undefined,
               }}
             >
-              {post.content}
+              {post.excerpt}
             </p>
           </div>
         </div>

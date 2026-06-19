@@ -590,7 +590,14 @@ export interface EsgCommentPublicRow {
 /** esg_posts_with_images — 게시글 + 이미지 배열 JOIN view */
 export interface EsgPostWithImagesRow extends EsgPostPublicRow {
   images: Array<{ id: string; url: string; sort_order: number; focus_x: number; focus_y: number }>; // ← [2026-06-11] focus 추가
+  excerpt: string; // ← [2026-06-18] 카드 미리보기용 발췌(앞 300자). 상세에선 content 사용.
 }
+
+/**
+ * 목록(카드) 전용 행 — content를 제외해 페이로드 감소. 미리보기는 excerpt 사용.
+ * loadPosts()가 반환. 상세는 EsgPostWithImagesRow(content 포함)를 사용.
+ */
+export type EsgPostCardRow = Omit<EsgPostWithImagesRow, 'content'>;
 
 /** esg_donation_stats — 실시간 모금 현황 */
 export interface EsgDonationStatsRow {

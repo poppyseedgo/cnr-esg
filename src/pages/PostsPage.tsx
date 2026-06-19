@@ -28,7 +28,7 @@ import type { EventModalKey } from '@/components/home/eventModalContent'; // ←
 import type {
   EsgActivityKey,
   EsgPostCategory,
-  EsgPostWithImagesRow,
+  EsgPostCardRow,
 } from '@/types/esg';
 
 interface CategoryMeta {
@@ -121,7 +121,7 @@ function CategoryContent({ meta }: { meta: CategoryMeta }) {
     reload,
     refresh,
     setItems,
-  } = useInfiniteScroll<EsgPostWithImagesRow>(fetchPage, {
+  } = useInfiniteScroll<EsgPostCardRow>(fetchPage, {
     pageSize: POSTS_PAGE_SIZE,
     deps: [meta.key],
   });
@@ -478,7 +478,7 @@ function PostGrid({
   onToggleLike,
   onPostClick,
 }: {
-  posts: EsgPostWithImagesRow[];
+  posts: EsgPostCardRow[];
   avatarMap: Map<string, string | null>; // ← [추가] user_id→avatar_url
   currentUserId: string | null;
   isAdmin: boolean;

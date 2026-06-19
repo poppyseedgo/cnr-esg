@@ -43,6 +43,7 @@ import type {
   EsgPostInsert,
   EsgPostUpdate,
   EsgPostWithImagesRow,
+  EsgPostCardRow,
 } from '@/types/esg';
 
 // ============================================================================
@@ -88,11 +89,15 @@ export interface LoadPostsOptions {
 export async function loadPosts(
   category?: EsgPostCategory,
   opts: LoadPostsOptions = {}
-): Promise<EsgPostWithImagesRow[]> {
+): Promise<EsgPostCardRow[]> {
   const { limit = 50, offset = 0 } = opts;
+  // [2026-06-18] 목록은 content 제외 — 긴 본문 대신 excerpt(발췌)만 받아 페이로드 절감.
+  const LIST_COLUMNS =
+    'id,category,user_id,user_email,user_name,user_dept,is_anonymous,title,' +
+    'cover_image_url,status,like_count,comment_count,created_at,updated_at,images,excerpt';
   let query = supabase
     .from('esg_posts_with_images')
-    .select('*')
+    .select(LIST_COLUMNS)
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
 
@@ -100,7 +105,7 @@ export async function loadPosts(
 
   const { data, error } = await query;
   if (error) throw error;
-  return (data ?? []) as EsgPostWithImagesRow[];
+  return (data ?? []) as EsgPostCardRow[];
 }
 
 /** 단일 게시글 조회 */
