@@ -5,20 +5,23 @@
 //   - 상품 목록 (sort_order 순)
 //   - 활동 상태 가드 (active일 때만 구매 가능, 시각만 안내)
 //   - Realtime 갱신 (재고 변경 즉시 반영)
+//   - 태그 메뉴 필터 (?tag=slug, 칩 클릭 → 해당 태그 상품만)   // ← [2026-06-22]
 // ============================================================================
 
 import { useEffect, useState, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom'; // ← [2026-06-22] 태그 필터 URL 동기화
 import { useEventPhase } from '@/hooks/useEventPhase';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll'; // ← [2026-06-04] 무한 스크롤
 import { loadProducts, subscribeProducts } from '@/lib/products';
+import { listTagsWithCount } from '@/lib/tags'; // ← [2026-06-22] 태그 메뉴
 import { SearchBar } from '@/components/SearchBar'; // ← [2026-06-17] 상품 이름 검색
 import { formatKSTDate } from '@/utils/time';
 import { ProductCard } from '@/components/ProductCard';
 import { InfiniteScrollFooter } from '@/components/InfiniteScrollFooter'; // ← [2026-06-04]
 import { FormModal } from '@/components/FormModal';
 import { CreateProductForm } from '@/components/admin/CreateProductForm';
-import type { EsgProductRow } from '@/types/esg';
+import type { EsgProductRow, EsgTagWithCount } from '@/types/esg'; // ← [2026-06-22] EsgTagWithCount
 
 export function BazaarPage() {
   const { getActivity } = useEventPhase();
@@ -36,11 +39,34 @@ export function BazaarPage() {
     return () => clearTimeout(t);
   }, [searchInput]);
 
+  // ── [2026-06-22] 태그 메뉴 필터 ────────────────────────────────────────
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTagSlug = searchParams.get('tag') ?? '';
+  const [tags, setTags] = useState<EsgTagWithCount[]>([]);
+  const reloadTags = useCallback(() => {
+    listTagsWithCount().then(setTags).catch(() => {/* 메뉴 로드 실패는 조용히(필터 없이 동작) */});
+  }, []);
+  useEffect(() => { reloadTags(); }, [reloadTags]);
+
+  // slug → id 변환(태그 로드 후 결정). 존재하지 않는 slug면 undefined → 전체 표시.
+  const activeTag = tags.find((t) => t.slug === activeTagSlug);
+  const activeTagId = activeTag?.id;
+
+  // 칩 클릭: 같은 태그 재클릭 = 해제, 다른 태그 = 교체
+  const selectTag = (slug: string) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (slug && slug !== activeTagSlug) next.set('tag', slug);
+      else next.delete('tag');
+      return next;
+    });
+  };
+
   // 무한 스크롤 — 12개씩 누적 로드 (고정 먼저 → sort_order → created_at)
   const fetchPage = useCallback(
     (offset: number, limit: number) =>
-      loadProducts({ scope: hideSoldOut ? 'on_sale_only' : 'all', offset, limit, search }), // ← 필터 ON이면 on_sale만 / 검색어 서버 전달
-    [hideSoldOut, search]
+      loadProducts({ scope: hideSoldOut ? 'on_sale_only' : 'all', offset, limit, search, tagId: activeTagId }), // ← [2026-06-22] 태그 필터
+    [hideSoldOut, search, activeTagId]
   );
   const {
     items: products,
@@ -50,7 +76,7 @@ export function BazaarPage() {
     sentinelRef,
     reload,
     refresh,
-  } = useInfiniteScroll<EsgProductRow>(fetchPage, { pageSize: 12, deps: [hideSoldOut, search] }); // ← deps로 토글/검색 시 리셋
+  } = useInfiniteScroll<EsgProductRow>(fetchPage, { pageSize: 12, deps: [hideSoldOut, search, activeTagId] }); // ← [2026-06-22] 태그 변경 시 리셋
 
   const [createOpen, setCreateOpen] = useState(false);
 
@@ -58,9 +84,10 @@ export function BazaarPage() {
   useEffect(() => {
     const cleanup = subscribeProducts(() => {
       refresh();
+      reloadTags(); // ← [2026-06-22] 상품 변경 시 태그 카운트도 갱신
     });
     return cleanup;
-  }, [refresh]);
+  }, [refresh, reloadTags]);
 
   return (
     <div>
@@ -170,6 +197,23 @@ export function BazaarPage() {
         </button>
       </div>
 
+      {/* ← [2026-06-22] 태그 메뉴 — 칩 클릭 시 해당 태그 상품만(?tag=slug). 상품 있는 태그만 노출 */}
+      {tags.some((t) => t.product_count > 0) && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+          <TagChip label="전체" active={!activeTagSlug} onClick={() => selectTag('')} />
+          {tags
+            .filter((t) => t.product_count > 0)
+            .map((t) => (
+              <TagChip
+                key={t.id}
+                label={`#${t.name} ${t.product_count}`}
+                active={t.slug === activeTagSlug}
+                onClick={() => selectTag(t.slug)}
+              />
+            ))}
+        </div>
+      )}
+
       {/* 상품 그리드 */}
       {initialLoading ? (
         <BazaarSkeleton />
@@ -188,7 +232,11 @@ export function BazaarPage() {
         >
           <div style={{ fontSize: 48, marginBottom: 12, opacity: 0.5 }}>🛍</div>
           <p style={{ margin: 0, color: '#888' }}>
-            {search ? '검색 결과가 없습니다.' : '아직 등록된 상품이 없습니다.'}
+            {search
+              ? '검색 결과가 없습니다.'
+              : activeTag
+                ? `'#${activeTag.name}' 태그의 상품이 없습니다.`
+                : '아직 등록된 상품이 없습니다.'}
           </p>
         </div>
       ) : (
@@ -225,6 +273,30 @@ export function BazaarPage() {
         }
       `}</style>
     </div>
+  );
+}
+
+// ← [2026-06-22] 태그 메뉴 칩
+function TagChip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      style={{
+        padding: '6px 12px',
+        borderRadius: 999,
+        border: `1px solid ${active ? '#111' : '#ddd'}`,
+        background: active ? '#111' : '#fff',
+        color: active ? '#fff' : '#555',
+        fontSize: 13,
+        fontWeight: 600,
+        cursor: 'pointer',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {label}
+    </button>
   );
 }
 
