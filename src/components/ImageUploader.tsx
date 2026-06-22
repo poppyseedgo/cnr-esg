@@ -21,10 +21,14 @@
 //     onChange={(urls) => setForm({...form, detail_images: urls})}
 //     maxCount={5}
 //   />
+//
+// 변경 이력:
+//   2026-06-22  이미지 타일 클릭 시 라이트박스 확대(검수 사진 등) — 삭제 버튼은 분리
 // ============================================================================
 
 import { useRef, useState } from 'react';
 import { uploadProductImage, deleteProductImage, type ProductKind } from '@/lib/productImages';
+import { Lightbox } from '@/components/Lightbox'; // ← [2026-06-22] 클릭 확대
 
 // ============================================================================
 // 썸네일 (단일)
@@ -50,6 +54,7 @@ export function ThumbnailUploader({
 }: ThumbnailUploaderProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false); // ← [2026-06-22] 클릭 확대
 
   const handleSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -91,6 +96,8 @@ export function ThumbnailUploader({
       {value ? (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <div
+            onClick={() => setLightboxOpen(true)}  // ← [2026-06-22] 클릭 확대
+            title="클릭하면 크게 보기"
             style={{
               width: 96,
               height: 96,
@@ -98,6 +105,7 @@ export function ThumbnailUploader({
               background: `url(${value}) center / cover`,
               border: '1px solid #ddd',
               flexShrink: 0,
+              cursor: 'zoom-in',  // ← [2026-06-22]
             }}
           />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -150,6 +158,11 @@ export function ThumbnailUploader({
           )}
         </button>
       )}
+
+      {/* ← [2026-06-22] 썸네일 클릭 확대 */}
+      {lightboxOpen && value && (
+        <Lightbox images={[value]} index={0} onClose={() => setLightboxOpen(false)} />
+      )}
     </div>
   );
 }
@@ -185,6 +198,7 @@ export function DetailImagesUploader({
 }: DetailImagesUploaderProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [lightboxIdx, setLightboxIdx] = useState<number | null>(null); // ← [2026-06-22] 클릭 확대
 
   const remaining = maxCount - values.length;
 
@@ -242,20 +256,23 @@ export function DetailImagesUploader({
           gap: 8,
         }}
       >
-        {values.map((url) => (
+        {values.map((url, i) => (
           <div
             key={url}
+            onClick={() => setLightboxIdx(i)}  // ← [2026-06-22] 타일 클릭 확대
+            title="클릭하면 크게 보기"
             style={{
               position: 'relative',
               aspectRatio: '1 / 1',
               borderRadius: 8,
               background: `url(${url}) center / cover`,
               border: '1px solid #ddd',
+              cursor: 'zoom-in',  // ← [2026-06-22]
             }}
           >
             <button
               type="button"
-              onClick={() => handleRemove(url)}
+              onClick={(e) => { e.stopPropagation(); handleRemove(url); }}  // ← [2026-06-22] 삭제는 확대와 분리
               disabled={disabled}
               style={{
                 position: 'absolute',
@@ -314,6 +331,11 @@ export function DetailImagesUploader({
       <p style={{ marginTop: 6, fontSize: 11, color: '#888' }}>
         최대 {maxCount}장, 각 10MB 이하 · jpg/png/webp
       </p>
+
+      {/* ← [2026-06-22] 타일 클릭 확대(여러 장 좌우 네비) */}
+      {lightboxIdx !== null && (
+        <Lightbox images={values} index={lightboxIdx} onClose={() => setLightboxIdx(null)} />
+      )}
     </div>
   );
 }
