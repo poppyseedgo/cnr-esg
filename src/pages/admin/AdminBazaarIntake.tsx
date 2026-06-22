@@ -21,6 +21,10 @@
 // 변경 이력:
 //   2026-06-08  인라인→모달, 토스트, 상단 스크롤
 //   2026-06-08  [요청] 5단계 상태(검수완료/검수탈락 추가) + 필터별 카운트 배지 + 검수 액션
+//   2026-06-22  [요청] 접수 리스트 썸네일 클릭 → 라이트박스 확대(게시 사진 + 검수 사진)
+//               ※ 근본원인: 이전 확대 구현이 사용되지 않는 중복 파일(src/pages/AdminBazaarIntake.tsx)에
+//                 적용되어 화면에 반영되지 않았음 → 라우터가 쓰는 이 파일(src/pages/admin/…)에 반영하고
+//                 중복 파일은 삭제함.
 // ============================================================================
 
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -43,6 +47,7 @@ import { BazaarIntakeForm } from '@/components/admin/BazaarIntakeForm';
 import { SearchBar } from '@/components/SearchBar'; // ← [2026-06-17] 물품/기증자 검색
 import { matchesQuery } from '@/utils/search';
 import { ModalShell } from '@/components/modal/ModalShell';
+import { Lightbox } from '@/components/Lightbox'; // ← [2026-06-22] 접수 썸네일 클릭 확대
 import '@/components/home/EventModal.css'; // ← .esg-modal__* 클래스 보장
 import type { EsgBazaarIntakeRow, EsgBazaarIntakePublishStatus } from '@/types/esg';
 
@@ -288,8 +293,11 @@ function IntakeCard({
 }) {
   const [busy, setBusy] = useState(false);
   const [auctionModalOpen, setAuctionModalOpen] = useState(false); // ← [2026-06-22] 경매 게시 모달
+  const [lightboxIdx, setLightboxIdx] = useState<number | null>(null); // ← [2026-06-22] 썸네일 클릭 확대
   const meta = STATUS_META[row.publish_status];
   const thumb = row.publish_photo_url || row.intake_photos[0];
+  // ← [2026-06-22] 확대용 사진 모음: 게시 사진(맨 앞) + 검수 사진들, 중복 제거 후 빈 값 제외
+  const photos = Array.from(new Set([row.publish_photo_url, ...row.intake_photos].filter(Boolean))) as string[];
   const faded = row.publish_status === 'rejected' || row.publish_status === 'unpublished';
   const isAuction = row.destination === 'auction'; // ← [2026-06-22] 경매행 여부
 
@@ -327,17 +335,40 @@ function IntakeCard({
   return (
     <div style={{ ...cardBox, opacity: faded ? 0.7 : 1 }}>
       <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-        {/* 썸네일 */}
+        {/* 썸네일 — 클릭 시 게시/검수 사진 확대(라이트박스) // ← [2026-06-22] */}
         <div
+          onClick={() => { if (photos.length) setLightboxIdx(0); }}                 // ← [2026-06-22] 클릭하면 첫 사진부터 확대
+          title={photos.length ? '클릭하면 사진 크게 보기' : undefined}              // ← [2026-06-22] 안내 툴팁
           style={{
+            position: 'relative',                                                  // ← [2026-06-22] 사진 장수 배지 기준
             width: 64,
             height: 64,
             flexShrink: 0,
             borderRadius: 8,
             background: thumb ? `url(${thumb}) center / cover` : '#f5f5f5',
             border: '1px solid #eee',
+            cursor: photos.length ? 'zoom-in' : 'default',                         // ← [2026-06-22] 사진 있을 때만 확대 커서
           }}
-        />
+        >
+          {/* ← [2026-06-22] 사진이 2장 이상이면 장수 배지(여러 장 확인 가능 암시) */}
+          {photos.length > 1 && (
+            <span
+              style={{
+                position: 'absolute',
+                bottom: 2,
+                right: 2,
+                background: 'rgba(0,0,0,0.65)',
+                color: '#fff',
+                fontSize: 10,
+                fontWeight: 700,
+                borderRadius: 4,
+                padding: '1px 5px',
+              }}
+            >
+              📷 {photos.length}
+            </span>
+          )}
+        </div>
         {/* 본문 */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', gap: 6, marginBottom: 4, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -456,6 +487,11 @@ function IntakeCard({
           />,
           document.body
         )}
+
+      {/* ← [2026-06-22] 썸네일 클릭 → 게시/검수 사진 확대(여러 장이면 좌우 이동) */}
+      {lightboxIdx !== null && (
+        <Lightbox images={photos} index={lightboxIdx} onClose={() => setLightboxIdx(null)} />
+      )}
     </div>
   );
 }
