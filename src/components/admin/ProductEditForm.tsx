@@ -9,13 +9,15 @@
 // 부모는 onSuccess / onCancel만 제공.
 // ============================================================================
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { updateProduct, deleteProduct } from '@/lib/adminProducts';
 import { pushNoteToLinkedIntake } from '@/lib/bazaarIntake'; // ← [2026-06-17] 상품 상세 → 검수 메모 밀어넣기
 import { getAvailableStock } from '@/lib/products';
+import { getProductTags, setProductTags } from '@/lib/tags'; // ← [2026-06-22] 상품 태그
+import { TagInput } from '@/components/admin/TagInput'; // ← [2026-06-22] 태그 입력 UI
 import { ThumbnailUploader, DetailImagesUploader } from '@/components/ImageUploader';
 import { RichEditor } from '@/components/RichEditor';
-import type { EsgProductRow, EsgProductStatus } from '@/types/esg';
+import type { EsgProductRow, EsgProductStatus, EsgTagRow } from '@/types/esg'; // ← [2026-06-22] EsgTagRow
 
 interface ProductEditFormProps {
   product: EsgProductRow;
@@ -71,6 +73,21 @@ export function ProductEditForm({
   const [isPinned, setIsPinned] = useState(product.is_pinned);                         // ← [2026-06-17] 상품 고정
   const [salePrice, setSalePrice] = useState<number | ''>(product.sale_price ?? '');   // ← [2026-06-09]
 
+  // ── [2026-06-22] 상품 태그 ─────────────────────────────────────────────
+  const [tags, setTags] = useState<EsgTagRow[]>([]);
+  const [initialTagIds, setInitialTagIds] = useState<string[]>([]);
+  useEffect(() => {
+    let alive = true;
+    getProductTags(product.id)
+      .then((rows) => {
+        if (!alive) return;
+        setTags(rows);
+        setInitialTagIds(rows.map((t) => t.id));
+      })
+      .catch(() => {/* 태그 로드 실패는 조용히(빈 상태로 시작) */});
+    return () => { alive = false; };
+  }, [product.id]);
+
   // ← [2026-06-09] 세일 유효성/할인율 미리보기
   const saleActive = salePrice !== '' && salePrice >= 0 && salePrice < price;
   const discountPct = saleActive ? Math.round(((price - (salePrice as number)) / price) * 100) : null;
@@ -115,12 +132,21 @@ export function ProductEditForm({
       if (isPinned !== product.is_pinned) patch.is_pinned = isPinned;   // ← [2026-06-17] 고정 diff
       if (nextSale !== product.sale_price) patch.sale_price = nextSale;
 
-      if (Object.keys(patch).length === 0) {
+      // ← [2026-06-22] 태그 변경 감지(정렬 후 비교). RPC는 patch와 별개로 호출.
+      const curTagIds = tags.map((t) => t.id).sort();
+      const tagsChanged = JSON.stringify(curTagIds) !== JSON.stringify([...initialTagIds].sort());
+
+      if (Object.keys(patch).length === 0 && !tagsChanged) {
         onCancel();
         return;
       }
 
-      await updateProduct(product.id, patch as never);
+      if (Object.keys(patch).length > 0) {
+        await updateProduct(product.id, patch as never);
+      }
+      if (tagsChanged) {
+        await setProductTags(product.id, tags.map((t) => t.id)); // 원자적 교체(빈 배열=전체 해제)
+      }
       onSuccess();
     } catch (e) {
       alert(e instanceof Error ? e.message : '저장 실패');
@@ -208,6 +234,11 @@ export function ProductEditForm({
           maxCount={5}
           disabled={busy}
         />
+      </Field>
+
+      {/* ← [2026-06-22] 태그(워드프레스식 자동완성+즉시생성). 사용자 페이지에서 메뉴 필터로 사용 */}
+      <Field label="태그 (사용자 페이지 필터 메뉴로 노출)">
+        <TagInput value={tags} onChange={setTags} disabled={busy} />
       </Field>
 
       <div

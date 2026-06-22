@@ -29,6 +29,7 @@ import { Link } from 'react-router-dom';
 import {
   loadIntakeList,
   publishIntake,
+  publishIntakeAuction,   // ← [2026-06-22] 경매로 게시
   unpublishIntake,
   deleteIntake,
   setIntakeStatus,
@@ -37,6 +38,7 @@ import {
   type IntakeFilter,
   type InspectionStatus,
 } from '@/lib/bazaarIntake';
+import { kstInputToUtcIso } from '@/lib/settings'; // ← [2026-06-22] 경매 시작/종료 KST→UTC
 import { BazaarIntakeForm } from '@/components/admin/BazaarIntakeForm';
 import { SearchBar } from '@/components/SearchBar'; // ← [2026-06-17] 물품/기증자 검색
 import { matchesQuery } from '@/utils/search';
@@ -285,9 +287,11 @@ function IntakeCard({
   onAction: (msg: string) => void;
 }) {
   const [busy, setBusy] = useState(false);
+  const [auctionModalOpen, setAuctionModalOpen] = useState(false); // ← [2026-06-22] 경매 게시 모달
   const meta = STATUS_META[row.publish_status];
   const thumb = row.publish_photo_url || row.intake_photos[0];
   const faded = row.publish_status === 'rejected' || row.publish_status === 'unpublished';
+  const isAuction = row.destination === 'auction'; // ← [2026-06-22] 경매행 여부
 
   // 공통 실행 래퍼 (busy 토글 + 에러 alert)
   const run = async (fn: () => Promise<void>, successMsg: string) => {
@@ -343,9 +347,18 @@ function IntakeCard({
             <span style={{ padding: '2px 8px', background: '#eef2ff', color: '#3730a3', borderRadius: 4, fontSize: 11, fontWeight: 600 }}>
               {categoryLabel(row.category)}
             </span>
+            {/* ← [2026-06-22] 행선지 뱃지 */}
+            <span style={{ padding: '2px 8px', background: isAuction ? '#fef9c3' : '#e0f2fe', color: isAuction ? '#854d0e' : '#075985', borderRadius: 4, fontSize: 11, fontWeight: 700 }}>
+              {isAuction ? '🔨 경매' : '🛍 바자회'}
+            </span>
             {row.product_id && (
               <Link to={`/bazaar/${row.product_id}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: '#111' }}>
                 상품 보기 ↗
+              </Link>
+            )}
+            {row.auction_id && ( /* ← [2026-06-22] 경매 보기 링크 */
+              <Link to={`/auction/${row.auction_id}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: '#111' }}>
+                경매 보기 ↗
               </Link>
             )}
           </div>
@@ -393,7 +406,12 @@ function IntakeCard({
 
           {row.publish_status === 'passed' && (
             <>
-              <button type="button" onClick={doPublish} disabled={busy} style={miniBtn('#111')}>🚀 게시</button>
+              {/* ← [2026-06-22] 바자회행=즉시 게시 / 경매행=경매 정보 입력 모달 */}
+              {isAuction ? (
+                <button type="button" onClick={() => setAuctionModalOpen(true)} disabled={busy} style={miniBtn('#0ea5e9')}>🔨 경매로 게시</button>
+              ) : (
+                <button type="button" onClick={doPublish} disabled={busy} style={miniBtn('#111')}>🚀 게시</button>
+              )}
               <button type="button" onClick={() => toStatus('rejected', '검수 탈락 처리했습니다.')} disabled={busy} style={miniBtn('#dc2626')}>❌ 검수 탈락</button>
               <button type="button" onClick={() => toStatus('pending', '검수 대기로 되돌렸습니다.')} disabled={busy} style={miniBtn('#6b7280')}>↩︎ 검수 대기</button>
             </>
@@ -408,18 +426,147 @@ function IntakeCard({
           )}
 
           {row.publish_status === 'unpublished' && (
-            <button type="button" onClick={doPublish} disabled={busy} style={miniBtn('#111')}>▶ 다시 게시</button>
+            // ← [2026-06-22] 경매행이면 경매 정보 재입력 모달로 다시 게시
+            isAuction ? (
+              <button type="button" onClick={() => setAuctionModalOpen(true)} disabled={busy} style={miniBtn('#0ea5e9')}>▶ 경매 다시 게시</button>
+            ) : (
+              <button type="button" onClick={doPublish} disabled={busy} style={miniBtn('#111')}>▶ 다시 게시</button>
+            )
           )}
 
           <button type="button" onClick={onEdit} disabled={busy} style={miniBtn('#6b7280')}>✏️ 수정</button>
 
-          {/* 상품이 없는 검수 단계(pending/passed/rejected)만 삭제 가능 */}
-          {!row.product_id && (
+          {/* 상품·경매가 없는 검수 단계(pending/passed/rejected)만 삭제 가능 // ← [2026-06-22] auction_id 포함 */}
+          {!row.product_id && !row.auction_id && (
             <button type="button" onClick={doDelete} disabled={busy} style={miniBtn('#dc2626')}>🗑 삭제</button>
           )}
         </div>
       </div>
+
+      {/* ← [2026-06-22] 경매 게시 정보 입력 모달 */}
+      {auctionModalOpen &&
+        createPortal(
+          <AuctionPublishModal
+            row={row}
+            onClose={() => setAuctionModalOpen(false)}
+            onDone={(msg) => {
+              setAuctionModalOpen(false);
+              onAction(msg);
+            }}
+          />,
+          document.body
+        )}
     </div>
+  );
+}
+
+// ============================================================================
+// AuctionPublishModal — 경매로 게시 시 경매 정보(시작가/호가/기간) 입력   // ← [2026-06-22]
+//   - 접수의 destination='auction' 항목을 esg_auctions로 게시/재반영.
+//   - 입찰이 있거나 종료된 경매는 RPC가 차단(친절한 에러 메시지).
+// ============================================================================
+function AuctionPublishModal({
+  row,
+  onClose,
+  onDone,
+}: {
+  row: EsgBazaarIntakeRow;
+  onClose: () => void;
+  onDone: (msg: string) => void;
+}) {
+  const [startPrice, setStartPrice] = useState(row.listed_price > 0 ? row.listed_price : 10000); // 책정가를 시작가 기본값으로
+  const [bidUnit, setBidUnit] = useState(1000);
+  const [startsAtKst, setStartsAtKst] = useState(() => {
+    const kst = new Date(Date.now() + 60 * 60 * 1000 + 9 * 60 * 60 * 1000); // 1시간 뒤
+    return kst.toISOString().slice(0, 16);
+  });
+  const [endsAtKst, setEndsAtKst] = useState(() => {
+    const kst = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000 + 9 * 60 * 60 * 1000); // 7일 뒤
+    return kst.toISOString().slice(0, 16);
+  });
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    // 클라이언트 1차 검증(RPC가 최종 방어선)
+    if (startPrice < 0) { alert('시작가는 0원 이상이어야 합니다.'); return; }
+    if (bidUnit <= 0) { alert('호가 단위는 1원 이상이어야 합니다.'); return; }
+    const startsIso = kstInputToUtcIso(startsAtKst);
+    const endsIso = kstInputToUtcIso(endsAtKst);
+    if (new Date(endsIso) <= new Date(startsIso)) { alert('종료 시각은 시작 시각보다 뒤여야 합니다.'); return; }
+
+    setBusy(true);
+    try {
+      await publishIntakeAuction(row.id, {
+        start_price: startPrice,
+        bid_unit: bidUnit,
+        starts_at: startsIso,
+        ends_at: endsIso,
+      });
+      onDone('경매로 게시되었습니다.');
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '경매 게시 실패');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <ModalShell
+      size="medium"
+      ariaLabel="경매로 게시"
+      onClose={onClose}
+      header={
+        <div className="esg-modal__title-group">
+          <h2 className="esg-modal__title">🔨 경매로 게시 — {row.name}</h2>
+        </div>
+      }
+      footer={[
+        { label: '취소', variant: 'close', onClick: onClose, disabled: busy },
+        { label: busy ? '게시 중…' : '경매 게시', variant: 'primary', onClick: submit, disabled: busy },
+      ]}
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '4px 2px' }}>
+        {!row.publish_photo_url && (
+          <div style={{ padding: '10px 12px', background: '#fef3c7', color: '#92400e', borderRadius: 8, fontSize: 12 }}>
+            ※ "게시할 물건 사진"이 없습니다. 사진 없이도 경매는 생성되지만, 먼저 "수정"에서 사진을 등록하는 것을 권장합니다.
+          </div>
+        )}
+        <FieldM label="시작가 (원) *">
+          <input type="number" inputMode="numeric" value={startPrice} onChange={(e) => setStartPrice(Number(e.target.value) || 0)} step={1000} min={0} disabled={busy} style={modalInput} />
+        </FieldM>
+        <FieldM label="호가 단위 (원) *">
+          <input type="number" inputMode="numeric" value={bidUnit} onChange={(e) => setBidUnit(Number(e.target.value) || 0)} step={100} min={100} disabled={busy} style={modalInput} />
+        </FieldM>
+        <FieldM label="시작 시각 (KST) *">
+          <input type="datetime-local" value={startsAtKst} onChange={(e) => setStartsAtKst(e.target.value)} disabled={busy} style={modalInput} />
+        </FieldM>
+        <FieldM label="종료 시각 (KST) *">
+          <input type="datetime-local" value={endsAtKst} onChange={(e) => setEndsAtKst(e.target.value)} disabled={busy} style={modalInput} />
+        </FieldM>
+        <p style={{ fontSize: 11.5, color: '#888', margin: 0, lineHeight: 1.6 }}>
+          경매명·설명·썸네일은 접수 정보(이름·검수 메모·게시 사진)에서 자동으로 채워집니다.
+          이미 입찰이 있는 경매는 가격·기간을 변경할 수 없습니다.
+        </p>
+      </div>
+    </ModalShell>
+  );
+}
+
+const modalInput: React.CSSProperties = {
+  width: '100%',
+  padding: '8px 10px',
+  border: '1px solid #ddd',
+  borderRadius: 6,
+  fontSize: 13,
+  boxSizing: 'border-box',
+};
+
+function FieldM({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <span style={{ fontSize: 12, color: '#666', fontWeight: 600 }}>{label}</span>
+      {children}
+    </label>
   );
 }
 

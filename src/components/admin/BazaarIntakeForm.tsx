@@ -9,6 +9,11 @@
 //   - 등록(initial 없음): 저장 → (선택 시) 바로 게시
 //   - 수정(initial 있음): 저장 → 이미 게시된 항목이면 "재게시"로 상품에 반영
 //
+// 행선지(destination):                                          // ← [2026-06-22]
+//   - bazaar : 일반 바자회 상품. 이 폼에서 바로 게시/재게시 가능.
+//   - auction: 경매 물품. 이 폼은 접수/수정만. 게시는 목록의 "경매로 게시"
+//              모달에서 시작가·호가·기간을 입력해 진행(경매 정보가 필요하므로).
+//
 // 사진:
 //   - 공용 ThumbnailUploader(kind='bazaar') 재사용. ownerId 는 임시(new-*) 또는 접수 id.
 //
@@ -31,7 +36,7 @@ import {
   publishIntake,
   BAZAAR_CATEGORIES,
 } from '@/lib/bazaarIntake';
-import type { EsgBazaarIntakeRow, BazaarCategory } from '@/types/esg';
+import type { EsgBazaarIntakeRow, BazaarCategory, EsgIntakeDestination } from '@/types/esg'; // ← [2026-06-22] 행선지 타입
 
 interface BazaarIntakeFormProps {
   initial?: EsgBazaarIntakeRow;
@@ -54,6 +59,7 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess, onDirtyChange }
     originalPrice: number | ''; listedPrice: number | ''; quantity: number | '';
     intakePhotos: string[]; publishPhoto: string | null; note: string;
     isNew: boolean;
+    destination: EsgIntakeDestination;   // ← [2026-06-22] 행선지
   };
   const draftKey = `esg:draft:bazaar:${initial?.id ?? 'new'}`;
   const draft = useDraft<BazaarDraft>(draftKey);
@@ -61,6 +67,7 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess, onDirtyChange }
 
   const [name, setName] = useState(d0?.name ?? initial?.name ?? '');
   const [category, setCategory] = useState<BazaarCategory>(d0?.category ?? initial?.category ?? 'clothing');
+  const [destination, setDestination] = useState<EsgIntakeDestination>(d0?.destination ?? initial?.destination ?? 'bazaar'); // ← [2026-06-22] 기본 바자회행
   const [donor, setDonor] = useState<DonorValue | null>(
     d0?.donor ??
       (initial
@@ -119,7 +126,8 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess, onDirtyChange }
       note.trim() !== (initial?.note ?? '') ||
       intakePhotos.length !== (initial?.intake_photos?.length ?? 0) ||
       (publishPhoto ?? '') !== (initial?.publish_photo_url ?? '') ||
-      isNew !== (initial?.is_new ?? false));
+      isNew !== (initial?.is_new ?? false) ||
+      destination !== (initial?.destination ?? 'bazaar'));   // ← [2026-06-22] 행선지 변경 감지
 
   useEffect(() => {
     onDirtyChange?.(isDirty);
@@ -130,11 +138,11 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess, onDirtyChange }
     const id = setTimeout(() => {
       if (saving) return;
       if (isDirty)
-        draft.save({ name, category, donor, originalPrice, listedPrice, quantity, intakePhotos, publishPhoto, note, isNew });
+        draft.save({ name, category, donor, originalPrice, listedPrice, quantity, intakePhotos, publishPhoto, note, isNew, destination }); // ← [2026-06-22] destination
       else draft.clear();
     }, 600);
     return () => clearTimeout(id);
-  }, [isDirty, name, category, donor, originalPrice, listedPrice, quantity, intakePhotos, publishPhoto, note, isNew, saving, draft]);
+  }, [isDirty, name, category, donor, originalPrice, listedPrice, quantity, intakePhotos, publishPhoto, note, isNew, destination, saving, draft]); // ← [2026-06-22] destination
 
   const validate = (forPublish: boolean): string | null => {
     if (!name.trim()) return '물건 이름을 입력해주세요.';
@@ -147,7 +155,9 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess, onDirtyChange }
   };
 
   const save = async () => {
-    const willPublish = isEdit ? reflectOnSave : publishNow;
+    // ← [2026-06-22] 경매행은 이 폼에서 게시하지 않음(게시는 목록의 "경매로 게시" 모달에서)
+    const isAuction = destination === 'auction';
+    const willPublish = isAuction ? false : (isEdit ? reflectOnSave : publishNow);
     const err = validate(willPublish);
     if (err) {
       alert(err);
@@ -176,6 +186,7 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess, onDirtyChange }
           publish_photo_url: publishPhoto,
           note: note.trim() || null,
           is_new: isNew,
+          destination,   // ← [2026-06-22] 행선지 저장
         });
       } else {
         const row = await createIntake({
@@ -191,12 +202,14 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess, onDirtyChange }
           publish_photo_url: publishPhoto,
           note: note.trim() || null,
           is_new: isNew,
+          destination,   // ← [2026-06-22] 행선지 저장
           created_by: currentUser?.id ?? null,
         });
         intakeId = row.id;
       }
 
-      // 게시(또는 재게시) — 상품 생성/반영은 DB RPC가 처리
+      // 게시(또는 재게시) — 바자회행만. 상품 생성/반영은 DB RPC가 처리.
+      // 경매행은 willPublish=false 이므로 여기서 게시되지 않음. // ← [2026-06-22]
       if (willPublish && intakeId) {
         await publishIntake(intakeId);
       }
@@ -236,6 +249,48 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess, onDirtyChange }
             </option>
           ))}
         </select>
+      </Field>
+
+      {/* ← [2026-06-22] 행선지: 바자회 상품 / 경매 물품 */}
+      <Field label="게시 행선지 *">
+        <div style={{ display: 'flex', gap: 8 }}>
+          {([
+            { value: 'bazaar' as const, label: '🛍 바자회 상품', desc: '정가 판매' },
+            { value: 'auction' as const, label: '🔨 경매 물품', desc: '입찰 경매' },
+          ]).map((opt) => {
+            const active = destination === opt.value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setDestination(opt.value)}
+                disabled={saving}
+                style={{
+                  flex: 1,
+                  padding: '10px 12px',
+                  borderRadius: 8,
+                  border: '2px solid',
+                  borderColor: active ? '#111' : '#ddd',
+                  background: active ? '#111' : '#fff',
+                  color: active ? '#fff' : '#444',
+                  cursor: saving ? 'not-allowed' : 'pointer',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  textAlign: 'left',
+                  lineHeight: 1.4,
+                }}
+              >
+                <div>{opt.label}</div>
+                <div style={{ fontSize: 11, fontWeight: 500, opacity: 0.8 }}>{opt.desc}</div>
+              </button>
+            );
+          })}
+        </div>
+        {destination === 'auction' && (
+          <span style={{ fontSize: 11, color: '#0369a1', marginTop: 4 }}>
+            ※ 경매 물품은 접수 후 목록의 "경매로 게시"에서 시작가·호가·기간을 입력해 게시합니다.
+          </span>
+        )}
       </Field>
 
       <Field label="기증자 (임직원 검색) *">
@@ -352,8 +407,24 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess, onDirtyChange }
         )}
       </Field>
 
-      {/* 검수 후 최종 게시 여부 */}
-      {!isEdit ? (
+      {/* 검수 후 최종 게시 여부 — 경매행은 폼에서 게시하지 않음 → 안내로 대체 // ← [2026-06-22] */}
+      {destination === 'auction' ? (
+        <div
+          style={{
+            margin: '10px 0',
+            padding: '12px 14px',
+            background: '#eff6ff',
+            border: '1px solid #bfdbfe',
+            borderRadius: 8,
+            fontSize: 12.5,
+            color: '#1e40af',
+            lineHeight: 1.6,
+          }}
+        >
+          🔨 <strong>경매 물품</strong>입니다. 저장 후 <strong>물품 접수 목록</strong>에서{' '}
+          <strong>"경매로 게시"</strong>를 눌러 시작가·호가 단위·시작/종료 시각을 입력하면 경매가 시작됩니다.
+        </div>
+      ) : !isEdit ? (
         <Field label="검수 후 최종 게시 여부">
           <select
             value={publishNow ? 'publish' : 'pending'}
