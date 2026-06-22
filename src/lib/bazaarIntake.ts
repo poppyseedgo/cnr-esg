@@ -13,6 +13,8 @@
 //
 // 변경 이력:
 //   2026-06-08  최초 작성 — 접수/검수/게시 워크플로 + 기증자(임직원) 검색
+//   2026-06-22  경매행/바자회행 구분 — destination 필드 + publishIntakeAuction() 추가,
+//               deleteIntake 가드에 auction_id 포함
 // ============================================================================
 
 import { supabase as _supabase } from './supabase';
@@ -20,6 +22,7 @@ import type {
   EsgBazaarIntakeRow,
   EsgBazaarIntakeInsert,
   EsgBazaarIntakePublishStatus,
+  EsgIntakeDestination,   // ← [추가 2026-06-22] 행선지 타입
   BazaarCategory,
 } from '@/types/esg';
 
@@ -114,6 +117,7 @@ export interface CreateIntakeInput {
   publish_photo_url: string | null; // 게시할 물건 사진(상품 썸네일)
   note: string | null;
   is_new?: boolean;                 // ← [2026-06-17] 완전 새 상품
+  destination?: EsgIntakeDestination; // ← [추가 2026-06-22] 행선지(기본 'bazaar')
   created_by: string | null;        // 접수 등록 관리자 id
 }
 
@@ -140,6 +144,7 @@ export async function createIntake(input: CreateIntakeInput): Promise<EsgBazaarI
     publish_photo_url: input.publish_photo_url,
     note: input.note,
     is_new: input.is_new ?? false,
+    destination: input.destination ?? 'bazaar',   // ← [추가 2026-06-22] 기본 바자회행
     created_by: input.created_by,
   };
 
@@ -172,6 +177,7 @@ export type UpdateIntakePatch = Partial<
     | 'publish_photo_url'
     | 'note'
     | 'is_new'
+    | 'destination'   // ← [추가 2026-06-22] 접수 수정 시 행선지 변경 허용
   >
 >;
 
@@ -214,6 +220,9 @@ export async function pushNoteToLinkedIntake(productId: string, note: string): P
 export async function deleteIntake(row: EsgBazaarIntakeRow): Promise<void> {
   if (row.product_id) {
     throw new Error('게시된 항목입니다. 먼저 "게시 중단"을 한 뒤 삭제하세요. (주문 이력 보존을 위해 상품은 자동 삭제하지 않습니다)');
+  }
+  if (row.auction_id) {   // ← [추가 2026-06-22] 경매로 게시된 항목도 삭제 차단(입찰/이력 보존)
+    throw new Error('경매로 게시된 항목입니다. 먼저 "게시 중단"을 한 뒤 삭제하세요. (입찰 이력 보존을 위해 경매는 자동 삭제하지 않습니다)');
   }
   const { error } = await supabase.from('esg_bazaar_intake').delete().eq('id', row.id);
   if (error) throw error;
@@ -259,6 +268,49 @@ export async function publishIntake(intakeId: string): Promise<string> {
   return res.product_id as string;
 }
 
+/**
+ * 경매로 게시(경매 생성/재반영). 성공 시 auction_id 반환.   // ← [추가 2026-06-22]
+ *   - 접수의 destination='auction' 인 항목만 허용(RPC가 검증).
+ *   - 시작가/호가/기간은 게시 시점에 입력(권장안).
+ *   - 입찰이 있거나 종료된 경매는 가격/기간 변경 차단(RPC 가드).
+ */
+export interface PublishAuctionInput {
+  start_price: number;
+  bid_unit: number;
+  starts_at: string;  // UTC ISO (kstInputToUtcIso 변환 후 전달)
+  ends_at: string;    // UTC ISO
+}
+
+export async function publishIntakeAuction(
+  intakeId: string,
+  input: PublishAuctionInput
+): Promise<string> {
+  const { data, error } = await supabase.rpc('esg_publish_intake_auction', {
+    p_intake_id: intakeId,
+    p_start_price: input.start_price,
+    p_bid_unit: input.bid_unit,
+    p_starts_at: input.starts_at,
+    p_ends_at: input.ends_at,
+  });
+  if (error) throw new Error(error.message ?? '경매 게시 실패');
+
+  const res = data as { success: boolean; auction_id?: string; error?: string };
+  if (!res?.success) {
+    switch (res?.error) {
+      case 'NOT_ADMIN': throw new Error('관리자만 게시할 수 있습니다.');
+      case 'INTAKE_NOT_FOUND': throw new Error('접수 항목을 찾을 수 없습니다.');
+      case 'NOT_AUCTION_DESTINATION': throw new Error('경매행으로 지정된 접수 항목만 경매로 게시할 수 있습니다.');
+      case 'INVALID_START_PRICE': throw new Error('시작가는 0원 이상이어야 합니다.');
+      case 'INVALID_BID_UNIT': throw new Error('호가 단위는 1원 이상이어야 합니다.');
+      case 'INVALID_PERIOD': throw new Error('종료 시각은 시작 시각보다 뒤여야 합니다.');
+      case 'AUCTION_HAS_BIDS': throw new Error('이미 입찰이 있는 경매는 가격·기간을 변경할 수 없습니다.');
+      case 'AUCTION_CLOSED': throw new Error('이미 종료·취소된 경매는 다시 게시할 수 없습니다.');
+      default: throw new Error(res?.error ?? '경매 게시 실패');
+    }
+  }
+  return res.auction_id as string;
+}
+
 /** 게시 중단(상품 hidden, 접수기록 보존). */
 export async function unpublishIntake(intakeId: string): Promise<void> {
   const { data, error } = await supabase.rpc('esg_unpublish_intake', { p_intake_id: intakeId });
@@ -267,6 +319,8 @@ export async function unpublishIntake(intakeId: string): Promise<void> {
   const res = data as { success: boolean; error?: string };
   if (!res?.success) {
     if (res?.error === 'NOT_ADMIN') throw new Error('관리자만 변경할 수 있습니다.');
+    if (res?.error === 'AUCTION_HAS_BIDS') throw new Error('이미 입찰이 있는 경매는 게시 중단할 수 없습니다.'); // ← [추가 2026-06-22]
+    if (res?.error === 'AUCTION_ACTIVE') throw new Error('진행 중인 경매는 게시 중단할 수 없습니다. (경매 종료 후 처리)'); // ← [추가 2026-06-22]
     throw new Error(res?.error ?? '게시 중단 실패');
   }
 }

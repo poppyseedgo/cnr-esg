@@ -26,20 +26,28 @@ export interface LoadProductsOptions {
   limit?: number;  // ← [2026-06-04] 무한 스크롤 페이징
   offset?: number; // ← [2026-06-04]
   search?: string; // ← [2026-06-17] 상품 이름 검색(서버사이드 ilike, %·_ 는 리터럴)
+  tagId?: string;  // ← [2026-06-22] 태그 필터(esg_product_tags inner join). 있으면 해당 태그 상품만
 }
 
 /** 상품 목록 (정렬: 고정(is_pinned) 먼저 → sort_order ASC → created_at) */
 export async function loadProducts(opts: LoadProductsOptions = {}): Promise<EsgProductRow[]> {
-  const { scope = 'all', limit, offset = 0, search } = opts;
+  const { scope = 'all', limit, offset = 0, search, tagId } = opts;   // ← [2026-06-22] tagId
   const statuses: EsgProductStatus[] = scope === 'on_sale_only' ? ['on_sale'] : ['on_sale', 'sold_out'];
+
+  // ← [2026-06-22] 태그 필터 시 매핑 테이블 inner join (정렬·상태 조건은 그대로 유지)
+  const selectCols = tagId ? '*, esg_product_tags!inner(tag_id)' : '*';
 
   let query = supabase
     .from('esg_products')
-    .select('*')
+    .select(selectCols)
     .in('status', statuses)
     .order('is_pinned', { ascending: false })  // ← [2026-06-17] 고정 상품 맨 앞
     .order('sort_order', { ascending: true })
     .order('created_at', { ascending: false });
+
+  if (tagId) {
+    query = query.eq('esg_product_tags.tag_id', tagId);   // ← [2026-06-22] 해당 태그만
+  }
 
   const q = (search ?? '').trim();
   if (q) {

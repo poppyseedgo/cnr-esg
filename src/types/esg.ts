@@ -323,6 +323,35 @@ export interface EsgProductRow {
 }
 
 // ============================================================================
+// esg_tags / esg_product_tags — 상품 태그(워드프레스식 taxonomy)   // ← [추가 2026-06-22]
+// ============================================================================
+
+/** 태그 마스터 */   // ← [추가 2026-06-22]
+export interface EsgTagRow {
+  id: string;
+  name: string;       // 표시 이름(한글 OK)
+  slug: string;       // URL/필터 키 (UNIQUE)
+  sort_order: number; // 메뉴 정렬
+  created_at: string;
+}
+
+/** 상품 ↔ 태그 매핑(다대다) */   // ← [추가 2026-06-22]
+export interface EsgProductTagRow {
+  product_id: string;
+  tag_id: string;
+  created_at: string;
+}
+
+/** esg_list_tags_with_count() 반환행 — 사용자 태그 메뉴용(공개 상품 카운트 포함) */   // ← [추가 2026-06-22]
+export interface EsgTagWithCount {
+  id: string;
+  name: string;
+  slug: string;
+  sort_order: number;
+  product_count: number;
+}
+
+// ============================================================================
 // esg_bazaar_intake — 바자회 물품 접수대장 (관리자 전용)   // ← [추가 2026-06-08]
 // ============================================================================
 
@@ -338,6 +367,9 @@ export type BazaarCategory =
   | 'stationery'
   | 'plant'
   | 'kitchen';
+
+/** 접수 물품 게시 행선지 (바자회 상품 / 경매 물품) */   // ← [추가 2026-06-22] 경매행/바자회행 구분
+export type EsgIntakeDestination = 'bazaar' | 'auction';
 
 /** 접수 게시 상태 */   // ← [추가]
 export type EsgBazaarIntakePublishStatus =
@@ -360,7 +392,9 @@ export interface EsgBazaarIntakeRow {   // ← [추가]
   intake_photos: string[];            // 물건 사진(접수/검수 기록) — 최대 5장 // ← [수정 2026-06-08] 단일→배열
   publish_photo_url: string | null;   // 게시할 물건 사진(상품 썸네일)
   publish_status: EsgBazaarIntakePublishStatus;
-  product_id: string | null;          // 게시 시 연결되는 esg_products.id
+  destination: EsgIntakeDestination;  // ← [추가 2026-06-22] 게시 행선지(bazaar=상품, auction=경매)
+  product_id: string | null;          // 게시 시 연결되는 esg_products.id (바자회행)
+  auction_id: string | null;          // ← [추가 2026-06-22] 게시 시 연결되는 esg_auctions.id (경매행)
   note: string | null;
   is_new: boolean;                    // ← [2026-06-17] 완전 새 상품(게시 시 상품 is_new로 전달)
   created_by: string | null;
@@ -382,6 +416,7 @@ export interface EsgBazaarIntakeInsert {   // ← [추가]
   note: string | null;
   created_by: string | null;
   is_new?: boolean;                               // ← [2026-06-17] 기본 false
+  destination?: EsgIntakeDestination;             // ← [추가 2026-06-22] 기본 'bazaar'
   publish_status?: EsgBazaarIntakePublishStatus;  // 기본 'pending'
 }
 
@@ -400,7 +435,9 @@ export type EsgBazaarIntakeUpdate = Partial<   // ← [추가]
     | 'publish_photo_url'
     | 'note'
     | 'publish_status'
+    | 'destination'   // ← [추가 2026-06-22] 행선지 수정 허용
     | 'product_id'
+    | 'auction_id'    // ← [추가 2026-06-22] 경매 연결 수정 허용
   >
 >;
 
@@ -774,6 +811,18 @@ export interface Database {
         Update: EsgBazaarIntakeUpdate;
         Relationships: [];
       };
+      esg_tags: {                                            // ← [추가 2026-06-22] 태그 마스터
+        Row: EsgTagRow;
+        Insert: Omit<EsgTagRow, 'id' | 'created_at'> & { id?: string; sort_order?: number };
+        Update: Partial<Pick<EsgTagRow, 'name' | 'slug' | 'sort_order'>>;
+        Relationships: [];
+      };
+      esg_product_tags: {                                    // ← [추가 2026-06-22] 상품-태그 매핑
+        Row: EsgProductTagRow;
+        Insert: Omit<EsgProductTagRow, 'created_at'> & { created_at?: string };
+        Update: never;  // 매핑은 RPC(esg_set_product_tags)로만 교체
+        Relationships: [];
+      };
       esg_cart_items: {
         Row: EsgCartItemRow;
         Insert: EsgCartItemInsert;
@@ -937,6 +986,28 @@ export interface Database {
       esg_unpublish_intake: {                                // ← [추가 2026-06-08]
         Args: { p_intake_id: string };
         Returns: { success: boolean; error?: string };
+      };
+      esg_publish_intake_auction: {                          // ← [추가 2026-06-22] 경매행 게시(경매 생성/재반영)
+        Args: {
+          p_intake_id: string;
+          p_start_price: number;
+          p_bid_unit: number;
+          p_starts_at: string;
+          p_ends_at: string;
+        };
+        Returns: { success: boolean; auction_id?: string; error?: string };
+      };
+      esg_upsert_tag: {                                      // ← [추가 2026-06-22] 태그 즉시 등록(있으면 반환)
+        Args: { p_name: string };
+        Returns: EsgTagRow;
+      };
+      esg_set_product_tags: {                                // ← [추가 2026-06-22] 상품 태그 일괄 교체
+        Args: { p_product_id: string; p_tag_ids: string[] };
+        Returns: undefined;
+      };
+      esg_list_tags_with_count: {                            // ← [추가 2026-06-22] 사용자 태그 메뉴용
+        Args: Record<string, never>;
+        Returns: EsgTagWithCount[];
       };
     };
     Enums: {
