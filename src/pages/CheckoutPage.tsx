@@ -22,7 +22,7 @@ import { getAvailableStock, isSoldOut } from '@/lib/products';
 import { createBazaarOrder } from '@/lib/orders';
 
 export function CheckoutPage() {
-  const { currentUser } = useCurrentUser();
+  const { currentUser, isAdmin } = useCurrentUser(); // ← [2026-06-23] 어드민 기간 우회용
   const navigate = useNavigate();
   const { getActivity, settings } = useEventPhase();
   const { status: bazaarStatus } = getActivity('bazaar');
@@ -88,7 +88,7 @@ export function CheckoutPage() {
     const available = getAvailableStock(item.product);
     return item.quantity > available || isSoldOut(item.product);
   });
-  const shopActive = bazaarStatus === 'active';
+  const shopActive = bazaarStatus === 'active' || isAdmin; // ← [2026-06-23] 어드민은 기간 무관 결제 가능
   const purchaseEnabled = settings.purchase_enabled !== false;
   const canCheckout =
     items.length > 0 &&

@@ -27,7 +27,7 @@ import {
 import { getAvailableStock, isSoldOut } from '@/lib/products';
 
 export function CartPage() {
-  const { currentUser } = useCurrentUser();
+  const { currentUser, isAdmin } = useCurrentUser(); // ← [2026-06-23] 어드민 기간 우회용
   const navigate = useNavigate();
   const { getActivity, settings } = useEventPhase();
   const { status: bazaarStatus } = getActivity('bazaar');
@@ -72,7 +72,7 @@ export function CartPage() {
   }
 
   const totals = calcCartTotal(items);
-  const shopActive = bazaarStatus === 'active';
+  const shopActive = bazaarStatus === 'active' || isAdmin; // ← [2026-06-23] 어드민은 기간 무관 결제 가능
   const purchaseEnabled = settings.purchase_enabled !== false;
 
   // 가용 재고를 초과한 항목 (어드민이 재고 줄였거나 다른 사람 주문)

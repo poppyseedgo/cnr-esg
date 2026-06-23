@@ -124,7 +124,7 @@ export function BazaarProductPage() {
 
   const available = getAvailableStock(product);
   const soldOut = isSoldOut(product);
-  const shopActive = bazaarStatus === 'active';
+  const shopActive = bazaarStatus === 'active' || isAdmin; // ← [2026-06-23] 어드민은 기간 무관 구매 가능
   const purchaseEnabled = settings.purchase_enabled !== false; // 기본 true
   const canPurchase = !soldOut && shopActive && purchaseEnabled;
 

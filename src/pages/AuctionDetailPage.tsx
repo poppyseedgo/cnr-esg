@@ -133,7 +133,7 @@ export function AuctionDetailPage() {
   const canBid = useMemo(() => {
     if (!currentUser || !auction) return false;
     if (auction.status !== 'active') return false;
-    if (auctionPhaseStatus !== 'active') return false;
+    if (auctionPhaseStatus !== 'active' && !isAdmin) return false; // ← [2026-06-23] 어드민은 경매 기간 무관 입찰 가능
     if (settings.bids_enabled === false) return false;
     if (auction.current_bidder_id === currentUser.id) return false;
     if (getAuctionTimeLeft(auction.ends_at) <= 0) return false;
@@ -142,6 +142,7 @@ export function AuctionDetailPage() {
     currentUser,
     auction,
     auctionPhaseStatus,
+    isAdmin, // ← [2026-06-23] deps
     settings.bids_enabled,
   ]);
 
