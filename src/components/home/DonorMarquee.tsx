@@ -217,10 +217,10 @@ export function DonorMarquee() {
       ref={bandRef}
       aria-label="기부자 명단 전광판"
       style={{
-        // 풀블리드(100vw): 부모 max-width/padding 상쇄 + 헤더 밀착, Hero 밀착 유지
+        // 풀블리드: 좌측 사이드바 대응 — 콘텐츠 영역 기준(--sidebar-w=0(모바일)이면 기존과 동일)
         width: 'auto',
-        marginLeft: 'calc(50% - 50vw)',
-        marginRight: 'calc(50% - 50vw)',
+        marginLeft: 'calc(50% - 50vw + var(--sidebar-w, 0px) / 2)', // ← [2026-06-23] 사이드바 보정
+        marginRight: 'calc(50% - 50vw + var(--sidebar-w, 0px) / 2)', // ← [2026-06-23] 사이드바 보정
         marginTop: -24,
         marginBottom: 24,
         background: '#fff',

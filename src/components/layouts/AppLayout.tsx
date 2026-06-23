@@ -4,12 +4,17 @@
 //
 // 변경 이력:
 //   2026-06-02  GA4 SPA 페이지뷰 추적 추가 — usePageTracking() 호출
-//               (AppLayout 은 Router 컨텍스트 내부 → useLocation 사용 가능)
+//   2026-06-23  [구조 변경] 상단 Header → 좌측 세로 EsgSideNav 로 교체.
+//               · 데스크톱(≥1024): .app-shell 가로 배치 [사이드바 346 sticky | main]
+//               · 모바일(<1024):   .app-shell 세로 배치 [상단바 | main] (EsgSideNav가 분기)
+//               · Footer 는 .app-shell 밖 → 전폭 유지(Figma: footer 1920 풀폭)
+//               · 풀블리드는 --sidebar-w(0/346) 보정으로 콘텐츠 영역 기준 (container-type
+//                 미사용 → in-place fixed 모달 영향 0). index.css .app-shell 규칙 동반.
 // ============================================================================
 
 import { Suspense } from 'react'; // ← [코드 스플리팅] lazy 페이지 로딩 경계
 import { Outlet, ScrollRestoration, useLocation } from 'react-router-dom';
-import { Header } from './Header';
+import { EsgSideNav } from './EsgSideNav'; // ← [2026-06-23] 상단 Header 대체(좌측 사이드바)
 import { Footer } from './Footer';
 import { LoadingScreen } from '@/components/routing/LoadingScreen'; // ← [코드 스플리팅] Suspense fallback
 import { GlobalEventModal } from '@/components/home/GlobalEventModal';
@@ -29,21 +34,28 @@ export function AppLayout() {
         display: 'flex',
         flexDirection: 'column',
         background: '#fafafa',
-        overflowX: 'clip', // ← [풀블리드] 100vw 그리드의 가로 스크롤 방지. clip은 스크롤 컨테이너를 안 만들어 sticky 헤더 영향 없음 (hidden 금지)
+        overflowX: 'clip', // ← [풀블리드] 가로 스크롤 방지. clip은 스크롤 컨테이너를 안 만들어 sticky 영향 없음
       }}
     >
-      <Header />
-      <main style={{ flex: 1, padding: '0 20px' }}>
-        <div style={{ maxWidth: 1360, margin: '0 auto', padding: '24px 0 320px' }}>
-          {/* ← [코드 스플리팅] lazy 페이지 로딩 중 헤더/푸터 유지, 본문만 fallback 표시 */}
-          <Suspense fallback={<LoadingScreen />}>
-            {/* 섹션 전환 시 가벼운 진입 모션 (route-fade) */}
-            <div key={sectionKey} className="route-fade">
-              <Outlet />
-            </div>
-          </Suspense>
-        </div>
-      </main>
+      {/* ← [2026-06-23] 사이드바 + 본문. .app-shell: 모바일 세로 / 데스크톱(≥1024) 가로 (index.css) */}
+      <div className="app-shell">
+        {/* 데스크톱=좌측 고정 사이드바 / 모바일=상단바+드로어 (EsgSideNav 내부 분기) */}
+        <EsgSideNav />
+
+        <main className="app-main" style={{ flex: 1, minWidth: 0, padding: '0 20px' }}>
+          <div style={{ maxWidth: 1360, margin: '0 auto', padding: '24px 0 320px' }}>
+            {/* ← [코드 스플리팅] lazy 페이지 로딩 중 사이드바/푸터 유지, 본문만 fallback */}
+            <Suspense fallback={<LoadingScreen />}>
+              {/* 섹션 전환 시 가벼운 진입 모션 (route-fade) */}
+              <div key={sectionKey} className="route-fade">
+                <Outlet />
+              </div>
+            </Suspense>
+          </div>
+        </main>
+      </div>
+
+      {/* ← [2026-06-23] Footer는 .app-shell 밖 → 사이드바 폭과 무관하게 전폭(Figma 1920) */}
       <Footer />
       <ScrollRestoration />
       {/* ?modal=brand|bazaar|wise|zero 감지해 어디서든 모달 표시 */}

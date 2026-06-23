@@ -24,9 +24,10 @@
    근본 해결: margin-inline: calc(50% - 50vw) → 부모 padding·max-width·중앙정렬 상쇄, 뷰포트 양끝 밀착 */
 .esg-hero {
   width: auto;
-  margin-left: calc(50% - 50vw);
-  margin-right: calc(50% - 50vw);
-  margin-top: -24px;                 /* 래퍼 상단 padding(24) 상쇄 → 헤더 밀착 */
+  /* ← [2026-06-23] 좌측 사이드바 대응: 콘텐츠 영역 기준 풀블리드. --sidebar-w=0(모바일)이면 기존과 동일 */
+  margin-left: calc(50% - 50vw + var(--sidebar-w, 0px) / 2);
+  margin-right: calc(50% - 50vw + var(--sidebar-w, 0px) / 2);
+  margin-top: -24px;                 /* 래퍼 상단 padding(24) 상쇄 → 상단 밀착 */
   margin-bottom: 24px;
 }
 .esg-hero__inner {
