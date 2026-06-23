@@ -2,7 +2,7 @@
 // HomePage — 메인 홈 화면
 //
 // 구성 (Figma 933:102):
-//   - HomeHero       : 풀블리드 포스터 그리드 (자체 반응형, cqw 단위)
+//   - HeroBazaar     : 바자회 히어로 (좌: 타이틀/카운트다운, 우: 나무 그리드/진행바)
 //   - HomeFaqSection : FAQ 섹션 (max-width 1200, 모바일 px-12)
 //   - HomeQnaSection : Q&A 섹션 (max-width 1200, 모바일 px-12)
 //
@@ -12,7 +12,7 @@
 //   2026-06-01  CSS 마이그레이션 — faq-qna.css 의 .faqqna-container 활용
 // ============================================================================
 
-import { HomeHero } from '@/components/home/HomeHero';
+import { HeroBazaar } from '@/components/home/HeroBazaar'; // ← [2026-06-23] 포스터그리드→바자회 히어로(나무 그리드+카운트다운)
 import { DonorMarquee } from '@/components/home/DonorMarquee'; // ← [2026-06-16] 기부자 전광판
 import { HomeFaqSection } from '@/components/faq-qna/HomeFaqSection';
 import { HomeQnaSection } from '@/components/faq-qna/HomeQnaSection';
@@ -22,7 +22,7 @@ export function HomePage() {
   return (
     <div>
       <DonorMarquee />
-      <HomeHero />
+      <HeroBazaar />
 
       <div className="faqqna-container">
         <div className="faqqna-container__inner">

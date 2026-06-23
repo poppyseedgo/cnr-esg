@@ -1,0 +1,158 @@
+/* ============================================================================
+   HeroBazaar.css — 신규 메인 히어로 (Figma node 1698:1390 실측 1:1)
+
+   설계:
+     · 풀블리드(.hero-bz): Phase2 사이드바 보정과 동일 (--sidebar-w, 모바일 0)
+     · 스케일: container-type:inline-size + cqw (환산 = Figma_px / 1574 × 100)
+       - 1574 = Figma 콘텐츠영역(사이드바 제외) 폭. 1574에서 정확히 Figma px.
+       - 히어로 내부엔 fixed 모달 없음 → container-type 안전(모달 영향 0).
+     · 배경: 부모 linear-gradient(#bdff8e→white 62.565%) / 우측 절반 #dcffc9→#d8ffc2
+     · 좌(텍스트·카운트다운, 투명) | 우(나무 그리드·진행바)
+     · 협폭(≤900cqw): 세로 스택 + 가독 폰트 클램프
+
+   변경 이력:
+     2026-06-23  최초 작성
+   ============================================================================ */
+
+/* ── 풀블리드 래퍼 (사이드바 보정: Phase2 .esg-hero 와 동일 기법) ── */
+.hero-bz {
+  width: auto;
+  margin-left: calc(50% - 50vw + var(--sidebar-w, 0px) / 2);
+  margin-right: calc(50% - 50vw + var(--sidebar-w, 0px) / 2);
+  margin-top: -24px;     /* 래퍼 상단 padding(24) 상쇄 → 마퀴 바로 아래 밀착 */
+  margin-bottom: 24px;
+}
+.hero-bz__inner {
+  max-width: 2600px;
+  margin: 0 auto;
+  container-type: inline-size;  /* cqw 기준 컨테이너 (자손만 cqw 사용) */
+}
+
+/* ── 히어로 박스 ── */
+.hero-bz__box {
+  display: flex;
+  align-items: stretch;
+  background: linear-gradient(to bottom, #bdff8e 0%, #ffffff 62.565%); /* 부모(좌측에 노출) */
+  color: #000;
+  text-align: center;
+}
+
+/* ── 좌측: 텍스트 / 카운트다운 (투명 → 부모 그라데이션) ── */
+.hero-bz__left {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2.54cqw;            /* 40/1574 */
+  overflow: clip;
+}
+.hero-bz__toprow {
+  display: flex;
+  gap: 6.16cqw;               /* 97/1574 */
+  align-items: flex-start;
+  justify-content: center;
+}
+.hero-bz__note {
+  margin: 0;
+  font-family: 'Pretendard', sans-serif;
+  font-size: 1.02cqw;        /* 16/1574 */
+  line-height: 1.25;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.hero-bz__title {
+  margin: 0;
+  font-family: 'Instrument Sans', 'Pretendard', sans-serif; /* 한글은 Pretendard 폴백 */
+  font-weight: 400;
+  font-size: 4.45cqw;        /* 70/1574 */
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+/* 카운트다운 */
+.hero-bz__cd {
+  display: flex;
+  gap: 2.03cqw;              /* 32/1574 */
+  align-items: flex-start;
+  justify-content: center;
+  font-family: 'Instrument Sans', sans-serif;
+}
+.hero-bz__cd-unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25cqw;             /* 4/1574 */
+}
+.hero-bz__cd-num {
+  font-size: 4.38cqw;       /* 69/1574 */
+  line-height: 1.25;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums; /* 숫자 폭 고정 → 매초 흔들림 방지 */
+}
+.hero-bz__cd-lbl {
+  font-size: 1.40cqw;       /* 22/1574 */
+  line-height: 1.25;
+  letter-spacing: 0.02em;
+}
+
+/* 하단 2026 Bazzar & Auction */
+.hero-bz__bottom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.64cqw;             /* 10/1574 */
+  font-family: 'Instrument Sans', sans-serif;
+}
+.hero-bz__bottom-ttl {
+  margin: 0;
+  font-size: 2.03cqw;       /* 32/1574 */
+  line-height: 1.25;
+  letter-spacing: 0.02em;
+}
+.hero-bz__bottom-date {
+  margin: 0;
+  font-size: 2.03cqw;
+  line-height: 1.25;
+  letter-spacing: 0.06em;   /* 1.92/32 */
+}
+
+/* ── 우측: 나무 그리드 + 진행바 ── */
+.hero-bz__right {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2.03cqw 1.27cqw; /* 32 / 20 of 1574 */
+  background: linear-gradient(to bottom, #dcffc9, #d8ffc2);
+  gap: 1.02cqw;
+}
+.hero-bz__grid {
+  width: 45.74cqw;          /* 720/1574 */
+  max-width: 720px;
+  aspect-ratio: 720 / 503;  /* DonationTreeGrid SVG가 채움 */
+}
+.hero-bz__bar {
+  width: 44.28cqw;          /* 697/1574 */
+  max-width: 697px;
+}
+
+/* ── 협폭(≤900cqw): 세로 스택 ── */
+@container (max-width: 900px) {
+  .hero-bz__box { flex-direction: column; }
+  .hero-bz__left,
+  .hero-bz__right { padding: 24px 16px; gap: 20px; }
+  .hero-bz__toprow { flex-direction: column; gap: 12px; align-items: center; }
+  .hero-bz__note { font-size: 13px; }
+  .hero-bz__title { font-size: clamp(28px, 9cqw, 56px); }
+  .hero-bz__cd { gap: 14px; }
+  .hero-bz__cd-num { font-size: clamp(28px, 9cqw, 56px); }
+  .hero-bz__cd-lbl { font-size: clamp(12px, 2.6cqw, 18px); }
+  .hero-bz__bottom-ttl,
+  .hero-bz__bottom-date { font-size: clamp(18px, 4.5cqw, 28px); }
+  .hero-bz__grid { width: min(560px, 92cqw); }
+  .hero-bz__bar { width: min(560px, 92cqw); }
+}
