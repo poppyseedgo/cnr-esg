@@ -282,9 +282,13 @@ interface NavBodyProps {
 
 /** 사이드바 접기 아이콘 (Material 'dehaze' = 3선) */
 function DehazeIcon({ color }: { color: string }) {
+  // 업로드된 dehaze.svg (32×32, 가는 3선). fill을 변형색(t.text)으로 → 다크/라이트 모두 대응
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M3 7h18M3 12h18M3 17h18" stroke={color} strokeWidth="2" strokeLinecap="round" />
+    <svg width="24" height="24" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+      <path
+        d="M5.73047 9.33275V8.39941H26.2638V9.33275H5.73047ZM5.73047 23.5994V22.6661H26.2638V23.5994H5.73047ZM5.73047 16.4661V15.5327H26.2638V16.4661H5.73047Z"
+        fill={color}
+      />
     </svg>
   );
 }
