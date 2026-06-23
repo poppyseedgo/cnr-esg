@@ -205,8 +205,9 @@ function PrimaryItem({
         transition: 'font-weight 0.12s, color 0.12s',               // ← [2026-06-23] 활성 초록 배경 알약 삭제
       })}
     >
-      {label}
+      {/* ← [2026-06-23] 캡쳐대로 뱃지를 라벨 '왼쪽'으로 (Figma: D-30 → 라벨) */}
       <Badge badge={badge} t={t} />
+      {label}
     </NavLink>
   );
 }
@@ -288,8 +289,8 @@ function NavBody({
         <img src={t.logoSrc} alt="C&R ESG" style={{ width: 160, height: 40, display: 'block' }} />
       </Link>
 
-      {/* 1차 네비 (좌측 정렬 — [2026-06-23] items-end→start) */}
-      <nav style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
+      {/* 1차 네비 (우측 정렬 — [2026-06-23] 캡쳐대로 복원: items-end + 뱃지 좌측) */}
+      <nav style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
         <PrimaryItem to="/bazaar" label="나무 심는 바자회" badge={badges.bazaar} t={t} activityKey="bazaar" onNavigate={onNavigate} />
         <PrimaryItem to="/auction" label="ESG 경매" badge={badges.auction} t={t} activityKey="auction" onNavigate={onNavigate} />
         <PrimaryItem to="/donate" label="기부하기" t={t} onNavigate={onNavigate} />
