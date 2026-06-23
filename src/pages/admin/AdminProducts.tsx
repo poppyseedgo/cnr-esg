@@ -7,6 +7,9 @@
 //   2026-06-17  [정책㉠] 카드에 숨김/숨김해제 1-click CTA 추가 (수정 폼 진입 불필요).
 //               완료 주문/Q&A 상품은 하드삭제 대신 숨김으로 유도.
 //   2026-06-17  [고정/정렬] 전체 리스트 드래그 재정렬(sort_order 일괄) + 📌 고정 배지.
+//   2026-06-23  [UX] 수정→저장 시 해당 카드를 화면 중앙으로 스크롤.
+//               기존엔 폼 접힘으로 문서 높이가 줄며 스크롤이 상단으로 클램프됐음.
+//               카드 ref + 저장 후 scrollIntoView(block:'center')로 최종 위치 보정.
 // ============================================================================
 
 import { useEffect, useRef, useState } from 'react';
@@ -242,8 +245,22 @@ function ProductAdminCard({
 }) {
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);                    // ← [정책㉠] 숨김/해제 처리 중 잠금
+  const cardRef = useRef<HTMLDivElement>(null);               // ← [2026-06-23] 저장 후 중앙 스크롤 타깃
   const statusColor = STATUS_COLORS[product.status];
   const available = getAvailableStock(product);
+
+  // ← [2026-06-23] 수정 저장 완료 → 폼 접기 + 리스트 리로드 + 해당 카드를 화면 중앙으로.
+  //   폼 접힘(setEditing(false))은 동기라 카드의 보기-모드 높이가 즉시 확정됨.
+  //   이중 rAF로 React 커밋/리플로우가 끝난 다음 프레임에 스크롤 → 상단 클램프를 덮어씀.
+  const handleSaved = () => {
+    setEditing(false);
+    onChange();
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() =>
+        cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      )
+    );
+  };
 
   // ← [정책㉠] 숨김 처리 (소프트삭제) — 1-click
   const handleHide = async () => {
@@ -274,6 +291,7 @@ function ProductAdminCard({
 
   return (
     <div
+      ref={cardRef}
       style={{
         background: '#fff',
         borderRadius: 12,
@@ -394,13 +412,10 @@ function ProductAdminCard({
         <ProductEditForm
           product={product}
           pinnedCount={pinnedCount}
-          onSuccess={() => {
-            setEditing(false);
-            onChange();
-          }}
+          onSuccess={handleSaved}        // ← [2026-06-23] 저장 성공 → 폼 접기 + 중앙 스크롤
           onCancel={() => setEditing(false)}
           onDeleted={() => {
-            setEditing(false);
+            setEditing(false);           // 삭제는 카드가 사라지므로 스크롤 대상 없음
             onChange();
           }}
         />
