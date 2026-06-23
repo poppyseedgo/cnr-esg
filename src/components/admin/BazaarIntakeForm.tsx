@@ -20,6 +20,13 @@
 // 사용:
 //   <BazaarIntakeForm onCancel={...} onSuccess={...} />               // 등록
 //   <BazaarIntakeForm initial={row} onCancel={...} onSuccess={...} /> // 수정
+//
+// 변경 이력:
+//   2026-06-23  [요청] 푸터 버튼 영역을 4-CTA로 재구성: 취소 / 저장 / 검수완료 / 바로게시.
+//               기존 publishNow 드롭다운·reflectOnSave 체크박스를 버튼으로 일원화(중복 제거).
+//               - 저장   : 입력만 영속화(상태변경/게시 없음)
+//               - 검수완료: 저장 + setIntakeStatus('passed')  (신규/검수대기에서만 노출)
+//               - 바로게시: 저장 + publishIntake (바자회행만, 탈락 제외; 게시중이면 "재게시")
 // ============================================================================
 
 import { useState, useEffect, useMemo } from 'react';
@@ -34,6 +41,7 @@ import {
   createIntake,
   updateIntake,
   publishIntake,
+  setIntakeStatus,   // ← [2026-06-23] 검수완료(passed 전환) CTA용
   BAZAAR_CATEGORIES,
 } from '@/lib/bazaarIntake';
 import type { EsgBazaarIntakeRow, BazaarCategory, EsgIntakeDestination } from '@/types/esg'; // ← [2026-06-22] 행선지 타입
@@ -84,11 +92,7 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess, onDirtyChange }
   const [note, setNote] = useState(d0?.note ?? initial?.note ?? '');
   const [isNew, setIsNew] = useState(d0?.isNew ?? initial?.is_new ?? false); // ← [2026-06-17] 완전 새 상품
 
-  // 게시 여부:
-  //  - 신규: 'pending'(검수 대기) | 'publish'(바로 게시)
-  //  - 수정(이미 게시됨): 저장 후 상품에 반영(재게시) 체크
-  const [publishNow, setPublishNow] = useState(false);
-  const [reflectOnSave, setReflectOnSave] = useState(initial?.publish_status === 'published');
+  // 게시/검수 동작은 푸터 4-CTA(저장/검수완료/바로게시)로 결정. // ← [2026-06-23] 드롭다운/체크박스 제거
 
   const [saving, setSaving] = useState(false);
   const [pushing, setPushing] = useState(false); // ← [2026-06-17] 상품 상세로 밀어넣기 진행중
@@ -154,10 +158,12 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess, onDirtyChange }
     return null;
   };
 
-  const save = async () => {
-    // ← [2026-06-22] 경매행은 이 폼에서 게시하지 않음(게시는 목록의 "경매로 게시" 모달에서)
+  // 푸터 CTA → 동작 분기. action: 'save'(저장만) | 'pass'(검수완료) | 'publish'(바로게시)
+  const save = async (action: 'save' | 'pass' | 'publish') => {
     const isAuction = destination === 'auction';
-    const willPublish = isAuction ? false : (isEdit ? reflectOnSave : publishNow);
+    // 경매행은 이 폼에서 게시하지 않음 → publish 액션이 와도 게시는 막고 저장만 수행.
+    const willPublish = action === 'publish' && !isAuction; // ← [2026-06-23] 바로게시(바자회행만)
+    const willPass = action === 'pass';                     // ← [2026-06-23] 검수완료(passed 전환)
     const err = validate(willPublish);
     if (err) {
       alert(err);
@@ -208,10 +214,11 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess, onDirtyChange }
         intakeId = row.id;
       }
 
-      // 게시(또는 재게시) — 바자회행만. 상품 생성/반영은 DB RPC가 처리.
-      // 경매행은 willPublish=false 이므로 여기서 게시되지 않음. // ← [2026-06-22]
+      // 후속 동작(상호배타): 바로게시 > 검수완료. 그냥 저장이면 아무것도 안 함.
       if (willPublish && intakeId) {
-        await publishIntake(intakeId);
+        await publishIntake(intakeId);             // ← 게시(상품 생성/반영) — DB RPC가 처리
+      } else if (willPass && intakeId) {
+        await setIntakeStatus(intakeId, 'passed'); // ← [2026-06-23] 검수완료(passed)
       }
 
       draft.clear(); // ← [2026-06-16] 저장 성공 → 임시저장 삭제
@@ -222,6 +229,16 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess, onDirtyChange }
       setSaving(false);
     }
   };
+
+  // ── [2026-06-23] 푸터 4-CTA 노출 규칙 ──────────────────────────────────
+  const pubStatus = initial?.publish_status;               // 신규면 undefined
+  const isAuctionRow = destination === 'auction';
+  // 검수완료: 신규이거나 검수대기(pending)일 때만 (이미 통과/게시/탈락엔 비노출 → 회귀 방지)
+  const showPass = !isEdit || pubStatus === 'pending';
+  // 바로게시: 바자회행만(경매는 별도 모달) + 탈락 제외. 신규는 노출.
+  const showPublish = !isAuctionRow && (!isEdit || pubStatus !== 'rejected');
+  // 라벨: 이미 게시중이면 "재게시"(변경 반영)
+  const publishLabel = pubStatus === 'published' ? '재게시' : '바로게시';
 
   return (
     <div>
@@ -407,8 +424,8 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess, onDirtyChange }
         )}
       </Field>
 
-      {/* 검수 후 최종 게시 여부 — 경매행은 폼에서 게시하지 않음 → 안내로 대체 // ← [2026-06-22] */}
-      {destination === 'auction' ? (
+      {/* 경매행 안내 (게시는 목록의 "경매로 게시" 모달에서) // ← [2026-06-22] */}
+      {destination === 'auction' && (
         <div
           style={{
             margin: '10px 0',
@@ -424,41 +441,20 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess, onDirtyChange }
           🔨 <strong>경매 물품</strong>입니다. 저장 후 <strong>물품 접수 목록</strong>에서{' '}
           <strong>"경매로 게시"</strong>를 눌러 시작가·호가 단위·시작/종료 시각을 입력하면 경매가 시작됩니다.
         </div>
-      ) : !isEdit ? (
-        <Field label="검수 후 최종 게시 여부">
-          <select
-            value={publishNow ? 'publish' : 'pending'}
-            onChange={(e) => setPublishNow(e.target.value === 'publish')}
-            disabled={saving}
-            style={inputStyle}
-          >
-            <option value="pending">검수 대기 (접수만, 게시 안 함)</option>
-            <option value="publish">바로 게시 (상품 페이지에 즉시 공개)</option>
-          </select>
-          {publishNow && !publishPhoto && (
-            <span style={{ fontSize: 11, color: '#dc2626' }}>※ 게시하려면 "게시할 물건 사진"을 먼저 등록하세요.</span>
-          )}
-        </Field>
-      ) : initial?.publish_status === 'published' ? (
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '10px 0', fontSize: 13, color: '#0369a1' }}>
-          <input
-            type="checkbox"
-            checked={reflectOnSave}
-            onChange={(e) => setReflectOnSave(e.target.checked)}
-            disabled={saving}
-          />
-          저장 후 상품 페이지에 즉시 반영(재게시) — 이름·가격·수량·썸네일이 덮어쓰기 됩니다
-        </label>
-      ) : (
-        <p style={{ fontSize: 12, color: '#888', margin: '10px 0' }}>
-          현재 미게시 상태입니다. 저장 후 목록에서 "게시"를 눌러 상품 페이지에 공개할 수 있습니다.
+      )}
+
+      {/* 바로게시 사진 안내 (바자회행 & 게시 사진 없음) // ← [2026-06-23] */}
+      {destination !== 'auction' && !publishPhoto && (
+        <p style={{ fontSize: 12, color: '#dc2626', margin: '10px 0 0' }}>
+          ※ <strong>바로게시</strong>하려면 위 "게시할 물건 사진"을 먼저 등록하세요.
         </p>
       )}
 
       <div
         style={{
           display: 'flex',
-          gap: 6,
+          flexWrap: 'wrap',       // ← [2026-06-23] 모바일에서 줄바꿈
+          gap: 8,
           marginTop: 16,
           position: 'sticky',     // ← [2026-06-16] 모달 바텀에 고정(스크롤해도 항상 보임)
           bottom: 0,
@@ -469,34 +465,59 @@ export function BazaarIntakeForm({ initial, onCancel, onSuccess, onDirtyChange }
           zIndex: 1,
         }}
       >
-        <button
-          type="button"
-          onClick={save}
-          disabled={saving}
-          style={{
-            flex: 1,
-            padding: '10px 12px',
-            background: saving ? '#ccc' : '#111',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 6,
-            cursor: saving ? 'not-allowed' : 'pointer',
-            fontSize: 13,
-            fontWeight: 600,
-          }}
-        >
-          {saving ? '저장 중…' : isEdit ? '저장' : '접수 등록'}
-        </button>
+        {/* 취소 */}
         <button
           type="button"
           onClick={() => {
             if (!isDirty || window.confirm(UNSAVED_CONFIRM_MSG)) onCancel();
           }}
           disabled={saving}
-          style={{ padding: '10px 16px', background: '#fff', border: '1px solid #ddd', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}
+          style={{
+            flex: '0 0 auto',
+            padding: '10px 16px',
+            background: '#fff',
+            border: '1px solid #ddd',
+            borderRadius: 6,
+            cursor: saving ? 'not-allowed' : 'pointer',
+            fontSize: 13,
+          }}
         >
           취소
         </button>
+
+        {/* 저장 — 입력만 영속화(상태변경/게시 없음) */}
+        <button
+          type="button"
+          onClick={() => save('save')}
+          disabled={saving}
+          style={ctaStyle(saving ? '#ccc' : '#111', saving)}
+        >
+          {saving ? '저장 중…' : isEdit ? '저장' : '접수 등록'}
+        </button>
+
+        {/* 검수완료 — 저장 + passed 전환 */}
+        {showPass && (
+          <button
+            type="button"
+            onClick={() => save('pass')}
+            disabled={saving}
+            style={ctaStyle(saving ? '#ccc' : '#1e40af', saving)}
+          >
+            ✅ 검수완료
+          </button>
+        )}
+
+        {/* 바로게시 — 저장 + 게시(상품 생성/반영) */}
+        {showPublish && (
+          <button
+            type="button"
+            onClick={() => save('publish')}
+            disabled={saving}
+            style={ctaStyle(saving ? '#ccc' : '#16a34a', saving)}
+          >
+            🚀 {publishLabel}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -521,4 +542,21 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       {children}
     </label>
   );
+}
+
+// ← [2026-06-23] 푸터 CTA(저장/검수완료/바로게시) 공통 스타일
+function ctaStyle(bg: string, disabled: boolean): React.CSSProperties {
+  return {
+    flex: '1 1 auto',
+    minWidth: 96,
+    padding: '10px 12px',
+    background: bg,
+    color: '#fff',
+    border: 'none',
+    borderRadius: 6,
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    fontSize: 13,
+    fontWeight: 600,
+    whiteSpace: 'nowrap',
+  };
 }
