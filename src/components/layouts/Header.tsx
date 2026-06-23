@@ -397,7 +397,7 @@ export function Header() {
             <button
               type="button"
               onClick={() => setMobileOpen((v) => !v)}
-              aria-label="메뉴 열기"
+              aria-label={mobileOpen ? '메뉴 닫기' : '메뉴 열기'}
               style={{
                 width: 32,
                 height: 32,
@@ -405,14 +405,25 @@ export function Header() {
                 border: 'none',
                 color: T.text,
                 cursor: 'pointer',
-                fontSize: 22,
                 padding: 0,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
             >
-              {mobileOpen ? '✕' : '☰'}
+              {/* ← [2026-06-23] 텍스트 ☰/✕ → menu.svg 기반 SVG (currentColor, non-scaling-stroke) */}
+              {mobileOpen ? (
+                <svg width="26" height="26" viewBox="0 0 32 32" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M7 7L25 25" stroke="currentColor" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+                  <path d="M25 7L7 25" stroke="currentColor" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+                </svg>
+              ) : (
+                <svg width="26" height="26" viewBox="0 0 32 32" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M0 7H32" stroke="currentColor" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+                  <path d="M0 16H32" stroke="currentColor" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+                  <path d="M0 25H32" stroke="currentColor" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+                </svg>
+              )}
             </button>
           )}
         </div>

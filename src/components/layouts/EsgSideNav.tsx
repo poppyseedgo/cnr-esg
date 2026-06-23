@@ -4,6 +4,11 @@
 // [변경 이력]
 //   2026-06-23  최초 작성. Figma node 1698:1343(좌측 사이드바) 1:1.
 //               기존 Header.tsx 의 전 기능을 세로 사이드바 + 모바일 드로어로 이식.
+//   2026-06-23  [아이콘 통일] 햄버거 메뉴 아이콘을 업로드된 menu.svg로 교체.
+//               · 데스크톱 접기(DehazeIcon) + 모바일 상단바(텍스트 ☰) → 공통 <MenuIcon>
+//               · menu.svg의 stroke="white" 하드코딩 → currentColor (3-variant 모두 대응)
+//               · vectorEffect="non-scaling-stroke"로 크기와 무관하게 1px 크리스프 렌더
+//               · 열림 상태 ✕(텍스트) → 동일 스트로크 스타일 <CloseIcon>
 //
 // [설계 — 기존 Header 기능 100% 보존]
 //   - 3-variant(dark/light/green) URL 자동 분기: getVariantForPath (Header와 동일 규칙)
@@ -280,15 +285,28 @@ interface NavBodyProps {
   onCollapse?: () => void; // ← [2026-06-23] 데스크톱: 로고 우측 ☰로 사이드바 접기
 }
 
-/** 사이드바 접기 아이콘 (Material 'dehaze' = 3선) */
-function DehazeIcon({ color }: { color: string }) {
-  // 업로드된 dehaze.svg (32×32, 가는 3선). fill을 변형색(t.text)으로 → 다크/라이트 모두 대응
+/** 햄버거 메뉴 아이콘 — 업로드된 menu.svg(32×32, 3선) 1:1 이식.
+ *  · stroke=currentColor → 헤더 3-variant(dark/light/green) 색 자동 상속
+ *  · vectorEffect="non-scaling-stroke" → size를 줄여도 라인이 1px로 크리스프 유지 */
+function MenuIcon({ color, size = 24 }: { color: string; size?: number }) {
   return (
-    <svg width="24" height="24" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-      <path
-        d="M5.73047 9.33275V8.39941H26.2638V9.33275H5.73047ZM5.73047 23.5994V22.6661H26.2638V23.5994H5.73047ZM5.73047 16.4661V15.5327H26.2638V16.4661H5.73047Z"
-        fill={color}
-      />
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" aria-hidden="true"
+      xmlns="http://www.w3.org/2000/svg">
+      <path d="M0 7H32" stroke={color} strokeWidth={1} vectorEffect="non-scaling-stroke" />
+      <path d="M0 16H32" stroke={color} strokeWidth={1} vectorEffect="non-scaling-stroke" />
+      <path d="M0 25H32" stroke={color} strokeWidth={1} vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+}
+
+/** 닫기(X) 아이콘 — MenuIcon과 동일 스트로크 스타일.
+ *  menu.svg가 쓰는 7/25 좌표를 그대로 대각선에 사용해 시각적 일관성 유지. */
+function CloseIcon({ color, size = 24 }: { color: string; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" aria-hidden="true"
+      xmlns="http://www.w3.org/2000/svg">
+      <path d="M7 7L25 25" stroke={color} strokeWidth={1} vectorEffect="non-scaling-stroke" />
+      <path d="M25 7L7 25" stroke={color} strokeWidth={1} vectorEffect="non-scaling-stroke" />
     </svg>
   );
 }
@@ -306,7 +324,7 @@ function NavBody({
         {onCollapse && (
           <button type="button" onClick={onCollapse} aria-label="사이드바 접기"
             style={{ width: 32, height: 32, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <DehazeIcon color={t.text} />
+            <MenuIcon color={t.text} size={24} /> {/* ← [2026-06-23] DehazeIcon → menu.svg 통일 */}
           </button>
         )}
       </div>
@@ -493,9 +511,11 @@ export function EsgSideNav({ collapsed = false, onToggleCollapse }: {
           <Link to="/" aria-label="C&R ESG 홈" style={{ display: 'flex', alignItems: 'center' }}>
             <img src={t.logoSrc} alt="C&R ESG" style={{ width: 132, height: 33, display: 'block' }} />
           </Link>
-          <button type="button" onClick={() => setMobileOpen((v) => !v)} aria-label="메뉴 열기"
-            style={{ width: 36, height: 36, background: 'transparent', border: 'none', color: t.text, cursor: 'pointer', fontSize: 22, padding: 0 }}>
-            {mobileOpen ? '✕' : '☰'}
+          <button type="button" onClick={() => setMobileOpen((v) => !v)} aria-label={mobileOpen ? '메뉴 닫기' : '메뉴 열기'}
+            style={{ width: 36, height: 36, background: 'transparent', border: 'none', color: t.text, cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {mobileOpen
+              ? <CloseIcon color={t.text} size={26} />  /* ← [2026-06-23] 텍스트 ✕ → SVG */
+              : <MenuIcon color={t.text} size={26} />}  {/* ← [2026-06-23] 텍스트 ☰ → menu.svg */}
           </button>
         </header>
 

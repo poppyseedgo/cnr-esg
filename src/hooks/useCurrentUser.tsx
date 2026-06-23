@@ -10,6 +10,16 @@
 //   - onAuthStateChange로 로그인/로그아웃/토큰갱신 자동 반영
 //   - 2단계 로딩: session → temp user (즉시 렌더) → profile (정확)
 //   - 도메인 불일치/비활성 사용자 → 자동 로그아웃 + 안내 메시지
+//
+// 변경 이력:
+//   2026-06-23  [근본 수정] 탭 복귀 시 모달 닫힘 / 어드민→홈 리다이렉트 버그 해결.
+//               원인: 탭 복귀 시 supabase가 TOKEN_REFRESHED(또는 SIGNED_IN) 발생 →
+//                     applySession이 currentUser를 임시 user(role:'USER')로 다운그레이드 →
+//                     수백 ms 동안 isAdmin=false → RequireAdmin/ActivityGate가
+//                     어드민 화면 언마운트/리다이렉트.
+//               수정: (1) onAuthStateChange에서 "동일 사용자 토큰 갱신/재포커스"는 무시.
+//                     (2) applySession은 이미 해석된 동일 사용자를 임시 USER로 덮어쓰지 않음.
+//                     → 토큰 갱신은 재인증이 아니므로 사용자 상태를 절대 리셋하지 않는다.
 // ============================================================================
 
 import {
@@ -62,6 +72,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // unmount 후 setState 방지 (메모리 누수 경고 방지)
   const mountedRef = useRef(true);
 
+  // 이미 "정식 프로필(fetchProfile 성공)"이 적용된 사용자 id.
+  // ← 토큰 갱신/탭 복귀 시 동일 사용자를 임시 USER로 덮어쓰지 않기 위한 기준값.
+  const resolvedUserIdRef = useRef<string | null>(null); // ← [추가] 근본 수정 기준값
+
   /**
    * session.user를 받아서 CurrentUser로 변환 + 상태 갱신.
    * - sessionUser=null 이면 비로그인 상태로 처리
@@ -73,6 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       | null
   ): Promise<void> => {
     if (!sessionUser?.id) {
+      resolvedUserIdRef.current = null; // ← [추가] 비로그인 → 기준값 초기화
       if (mountedRef.current) {
         setCurrentUser(null);
         setLoading(false);
@@ -80,10 +95,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // 이미 동일 사용자의 정식 프로필이 적용된 상태인지 판단.
+    // ← true면 임시 USER 다운그레이드를 건너뛴다 (isAdmin 깜빡임 원천 차단).
+    const alreadyResolvedSameUser =
+      resolvedUserIdRef.current === sessionUser.id; // ← [추가] 근본 수정 핵심
+
     // 1단계: 즉시 임시 user (빠른 렌더 — UI 깜빡임 방지)
-    const tempUser = sessionToTemporaryUser(sessionUser);
-    if (mountedRef.current) {
-      setCurrentUser(tempUser);
+    //   단, 이미 정식 프로필이 있는 동일 사용자면 다운그레이드하지 않음.
+    if (!alreadyResolvedSameUser) {
+      const tempUser = sessionToTemporaryUser(sessionUser); // ← [수정] 조건부로만 생성
+      if (mountedRef.current) {
+        setCurrentUser(tempUser);
+      }
     }
 
     // 2단계: DB profile 조회 (정확한 role, dept, is_active 검증)
@@ -109,7 +132,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!mountedRef.current) return;
 
     if (fetchFailed) {
-      // 네트워크/쿼리 오류 — 로그아웃하지 않고 임시 user 유지, 로딩만 해제.
+      // 네트워크/쿼리 오류 — 로그아웃하지 않음.
+      if (alreadyResolvedSameUser) {
+        // ← [추가] 이미 정식 프로필 보유(탭 복귀/토큰 갱신 중 실패) → 기존 상태 그대로 유지, 에러 미표시.
+        if (mountedRef.current) setLoading(false);
+        return;
+      }
+      // 최초 진입 등에서 실패 — 임시 user 유지, 로딩만 해제 + 안내.
       setAuthError('네트워크 문제로 사용자 정보를 확인하지 못했습니다. 잠시 후 새로고침 해주세요.');
       setLoading(false);
       return;
@@ -117,6 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (!profile) {
       // 도메인 불일치 또는 비활성 사용자 → 강제 로그아웃 (진짜 미허용일 때만)
+      resolvedUserIdRef.current = null; // ← [추가] 미허용 확정 → 기준값 초기화
       setAuthError(
         '로그인이 허용되지 않은 계정입니다. 회사 이메일(@cnrres.com)로 로그인해주세요. ' +
           '계정이 비활성 상태일 수도 있습니다.'
@@ -134,6 +164,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     if (mountedRef.current) {
+      resolvedUserIdRef.current = profile.id; // ← [추가] 정식 프로필 확정 → 기준값 기록
       setCurrentUser(profile);
       setAuthError(null);
       setLoading(false);
@@ -166,6 +197,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       // SIGNED_OUT 은 동기 처리 (DB 조회 불필요)
       if (event === 'SIGNED_OUT') {
+        resolvedUserIdRef.current = null; // ← [추가] 로그아웃 → 기준값 초기화
         if (mountedRef.current) {
           setCurrentUser(null);
           setAuthError(null);
@@ -173,7 +205,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         return;
       }
-      // SIGNED_IN, TOKEN_REFRESHED, USER_UPDATED 등은 비동기 처리
+
+      const incomingId = session?.user?.id ?? null; // ← [추가] 이번 이벤트의 사용자 id
+
+      // ────────────────────────────────────────────────────────────
+      // [근본 수정] 동일 사용자의 "토큰 자동 갱신 / 탭 복귀 재포커스"는 무시.
+      //   - supabase-js는 탭 복귀 시 TOKEN_REFRESHED 또는 SIGNED_IN을 재발생시킴.
+      //   - 신원/역할은 그대로이므로 currentUser를 절대 건드리지 않는다.
+      //   - 이로써 isAdmin이 잠깐 false로 깜빡이며 모달이 닫히거나
+      //     어드민이 홈으로 튕기던 버그를 원천 차단한다.
+      // ────────────────────────────────────────────────────────────
+      if (
+        (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') && // ← [추가] 갱신/재포커스 이벤트
+        incomingId &&                                              // ← [추가] 세션 유효
+        incomingId === resolvedUserIdRef.current                  // ← [추가] 이미 해석된 동일 사용자
+      ) {
+        return; // ← [추가] no-op: 상태 변화 없음 (리렌더/리마운트 방지)
+      }
+
+      // 그 외(최초 로그인, 사용자 변경, USER_UPDATED 등)는 정상 처리
       applySession(session?.user ?? null);
     });
 
