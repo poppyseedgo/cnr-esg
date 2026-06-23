@@ -6,6 +6,9 @@
 //   2026-06-23  [수정] (1) 모서리 둥글기 제거(Figma=각진 사각). // ← border-radius 삭제
 //   2026-06-23  [수정] 달성 색 #26FF4E → #0CFF39 (shimmer 톤도 동반 조정).
 //                      (2) 달성(초록) 영역에 흐르는 듯한 shimmer 효과 추가(일렁임).
+//   2026-06-23  [수정] 상단 라벨을 바 좌측 끝에 광학적으로 flush 정렬.
+//                      폰트 글리프 좌측 베어링(약 0.1em)만큼 텍스트가 안쪽에서
+//                      시작하던 틈을 marginLeft:-0.1em 으로 보정(em → 배율 무관).
 //
 // [설계]
 //   - 상단 라벨 "현재 달성 금액 {current}" (좌, 검정 14px)
@@ -52,8 +55,11 @@ export function DonationProgressBar({ current, goal }: DonationProgressBarProps)
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, width: '100%', maxWidth: 697 }}>
       <style>{BAR_CSS}</style>
 
-      {/* 상단 라벨 */}
-      <span style={{ fontSize: 14, lineHeight: 1.1, color: '#000', fontWeight: 400, textTransform: 'uppercase' }}>
+      {/* 상단 라벨 — 바 좌측 끝에 광학적 flush (글리프 좌측 베어링 보정) */}
+      <span style={{
+        fontSize: 14, lineHeight: 1.1, color: '#000', fontWeight: 400, textTransform: 'uppercase',
+        marginLeft: '-0.1em', // ← [2026-06-23] 글자 좌측 베어링만큼 당겨 바 좌측에 딱 붙임
+      }}>
         현재 달성 금액 {current.toLocaleString('ko-KR')}
       </span>
 
