@@ -277,17 +277,35 @@ interface NavBodyProps {
   onLogin: () => void;
   onSignOut: () => void;
   onNavigate?: () => void; // 모바일: 항목 클릭 시 드로어 닫기
+  onCollapse?: () => void; // ← [2026-06-23] 데스크톱: 로고 우측 ☰로 사이드바 접기
+}
+
+/** 사이드바 접기 아이콘 (Material 'dehaze' = 3선) */
+function DehazeIcon({ color }: { color: string }) {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M3 7h18M3 12h18M3 17h18" stroke={color} strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
 }
 
 function NavBody({
-  t, isAdmin, currentUser, cartCount, unread, badges, onLogin, onSignOut, onNavigate,
+  t, isAdmin, currentUser, cartCount, unread, badges, onLogin, onSignOut, onNavigate, onCollapse,
 }: NavBodyProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 44, fontFamily: FONT }}>
-      {/* 로고 */}
-      <Link to="/" onClick={onNavigate} aria-label="C&R ESG 홈" style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-        <img src={t.logoSrc} alt="C&R ESG" style={{ width: 160, height: 40, display: 'block' }} />
-      </Link>
+      {/* 로고 (+ 데스크톱 접기 버튼) */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <Link to="/" onClick={onNavigate} aria-label="C&R ESG 홈" style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+          <img src={t.logoSrc} alt="C&R ESG" style={{ width: 160, height: 40, display: 'block' }} />
+        </Link>
+        {onCollapse && (
+          <button type="button" onClick={onCollapse} aria-label="사이드바 접기"
+            style={{ width: 32, height: 32, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <DehazeIcon color={t.text} />
+          </button>
+        )}
+      </div>
 
       {/* 1차 네비 (우측 정렬 — [2026-06-23] 캡쳐대로 복원: items-end + 뱃지 좌측) */}
       <nav style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
@@ -399,7 +417,10 @@ const dropdownItem: React.CSSProperties = {
 // 메인 — 데스크톱 사이드바 / 모바일 상단바 + 드로어
 // ============================================================================
 
-export function EsgSideNav() {
+export function EsgSideNav({ collapsed = false, onToggleCollapse }: {
+  collapsed?: boolean;            // ← [2026-06-23] 데스크톱 접힘 상태(AppLayout 보유)
+  onToggleCollapse?: () => void;  // ← 접기/펼치기 토글
+} = {}) {
   const { currentUser, signOut, isAdmin } = useCurrentUser();
   const { getActivity } = useEventPhase();
   const location = useLocation();
@@ -493,16 +514,34 @@ export function EsgSideNav() {
   }
 
   // ---- 데스크톱: 좌측 고정(sticky) 사이드바 ----
+  // 접힘(89px): 클로버 로고만 — 클릭 시 펼침
+  if (collapsed) {
+    return (
+      <aside style={{
+        width: 89, flexShrink: 0, alignSelf: 'flex-start',
+        position: 'sticky', top: 0, height: '100vh', overflowY: 'auto',
+        background: t.bg, color: t.text, fontFamily: FONT, padding: '32px 24px', boxSizing: 'border-box',
+        transition: 'width 0.2s, background 0.2s',
+      }}>
+        <button type="button" onClick={onToggleCollapse} aria-label="사이드바 펼치기"
+          style={{ width: 41, height: 40, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, display: 'block' }}>
+          <img src="/favicon.svg" alt="C&R ESG 펼치기" style={{ width: 41, height: 40, display: 'block', objectFit: 'contain' }} />
+        </button>
+      </aside>
+    );
+  }
+
+  // 펼침(346px): 전체 + 로고 우측 ☰(접기)
   return (
     <aside style={{
       width: SIDEBAR_W, flexShrink: 0, alignSelf: 'flex-start',
       position: 'sticky', top: 0, height: '100vh', overflowY: 'auto',
       background: t.bg, color: t.text, fontFamily: FONT, padding: 32, boxSizing: 'border-box',
-      transition: 'background 0.2s, color 0.2s',
+      transition: 'width 0.2s, background 0.2s, color 0.2s',
     }}>
       <NavBody t={t} isAdmin={isAdmin} currentUser={currentUser}
         cartCount={cartCount} unread={unread} badges={badges}
-        onLogin={handleLogin} onSignOut={handleSignOut} />
+        onLogin={handleLogin} onSignOut={handleSignOut} onCollapse={onToggleCollapse} />
     </aside>
   );
 }

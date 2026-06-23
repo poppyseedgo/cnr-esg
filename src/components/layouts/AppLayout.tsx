@@ -12,7 +12,7 @@
 //                 미사용 → in-place fixed 모달 영향 0). index.css .app-shell 규칙 동반.
 // ============================================================================
 
-import { Suspense } from 'react'; // ← [코드 스플리팅] lazy 페이지 로딩 경계
+import { Suspense, useState } from 'react'; // ← [코드 스플리팅] lazy 페이지 로딩 경계 / [2026-06-23] 사이드바 접힘 상태
 import { Outlet, ScrollRestoration, useLocation } from 'react-router-dom';
 import { EsgSideNav } from './EsgSideNav'; // ← [2026-06-23] 상단 Header 대체(좌측 사이드바)
 import { Footer } from './Footer';
@@ -27,6 +27,18 @@ export function AppLayout() {
   // 리마운트하지 않아 캐시·상태 유지(예: /posts/zero_waste ↔ /posts/wise_life).
   const sectionKey = location.pathname.split('/')[1] || 'home';
 
+  // [2026-06-23] 데스크톱 사이드바 접힘 (localStorage 지속). 모바일은 EsgSideNav 내부 드로어라 무관.
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    try { return localStorage.getItem('esg_sidebar_collapsed') === '1'; } catch { return false; }
+  });
+  const toggleCollapse = () => {
+    setCollapsed((v) => {
+      const next = !v;
+      try { localStorage.setItem('esg_sidebar_collapsed', next ? '1' : '0'); } catch { /* 무시 */ }
+      return next;
+    });
+  };
+
   return (
     <div
       style={{
@@ -38,9 +50,9 @@ export function AppLayout() {
       }}
     >
       {/* ← [2026-06-23] 사이드바 + 본문. .app-shell: 모바일 세로 / 데스크톱(≥1024) 가로 (index.css) */}
-      <div className="app-shell">
+      <div className={`app-shell${collapsed ? ' is-collapsed' : ''}`}>
         {/* 데스크톱=좌측 고정 사이드바 / 모바일=상단바+드로어 (EsgSideNav 내부 분기) */}
-        <EsgSideNav />
+        <EsgSideNav collapsed={collapsed} onToggleCollapse={toggleCollapse} />
 
         <main className="app-main" style={{ flex: 1, minWidth: 0, padding: '0 20px' }}>
           <div style={{ maxWidth: 1360, margin: '0 auto', padding: '24px 0 320px' }}>

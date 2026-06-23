@@ -4,10 +4,11 @@
 // [변경 이력]
 //   2026-06-23  최초 작성. Figma node 1698:1767 / 1698:1768 1:1 구현.
 //   2026-06-23  [수정] 비활성 원: 흰색 → flat 회색 #F4F4F4. (구체/그라데이션 미사용)
+//   2026-06-23  [수정] 캐노피 색 #24EB49 → #0CFF39.
 //
 // [설계]
 //   - 10열 × 7행 = 70셀 고정 그리드 (셀 피치 70px).
-//   - 활성 셀 = 나무(초록 캐노피 #24EB49 + 검정 줄기), 비활성 셀 = flat 회색 #F4F4F4.
+//   - 활성 셀 = 나무(초록 캐노피 #0CFF39 + 검정 줄기), 비활성 셀 = flat 회색 #F4F4F4.
 //   - 채움 순서: 행 우선(좌→우, 위→아래). 셀 인덱스 = row * 10 + col.
 //   - 환산(비율형): activeCount = round(current / goal × 70), [0,70] clamp.
 //   - 순수 SVG. Tailwind/디자인토큰/외부 에셋 의존 없음 → 어떤 스타일 시스템에도 드롭인.
@@ -17,7 +18,7 @@
 //   props.goal    : 목표 금액(원). esg_settings 단일 소스와 연결 예정.
 //
 // [Figma 토큰]
-//   캐노피  circle r=35  fill #24EB49
+//   캐노피  circle r=35  fill #0CFF39
 //   줄기    rect x=32 y=52 w=7 h=31  fill #000
 //   비활성  circle r=35  fill #F4F4F4 (flat)
 //   viewBox 0 0 720 503 (셀 70px, 좌우 inset 10)
@@ -30,7 +31,7 @@ const PITCH = 70;           // ← 셀 피치
 const R = 35;               // ← 캐노피 반지름
 const INSET_X = 10;         // ← 좌측 inset (720 컨테이너 - 10*70 = 20, 좌우 10씩)
 
-const CANOPY = '#24EB49';   // ← 활성 나무 색 (Figma 추출)
+const CANOPY = '#0CFF39';   // ← 활성 나무 색 (Figma 추출)
 const INACTIVE = '#F4F4F4'; // ← [2026-06-23] 비활성 원: flat 회색(그라데이션 제거)
 const TRUNK = '#000000';    // ← 줄기 색
 

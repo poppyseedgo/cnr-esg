@@ -212,11 +212,12 @@ button {
 
 /* ============================================================================
    [2026-06-23] 좌측 사이드바 셸 — 모바일 세로 / 데스크톱(≥1024) 가로 배치
-   --sidebar-w : 풀블리드(.esg-hero / DonorMarquee) 콘텐츠영역 보정용 (모바일 0px)
+   --sidebar-w : 풀블리드(.esg-hero / DonorMarquee / 미션) 콘텐츠영역 보정용 (모바일 0px)
+   [2026-06-23] 접기: .app-shell.is-collapsed → 89px (CSS가 반응형/접힘 모두 담당)
    ============================================================================ */
 :root { --sidebar-w: 0px; }                       /* ← 모바일 기본: 풀블리드 = 뷰포트 */
 .app-shell { display: flex; flex-direction: column; }
 @media (min-width: 1024px) {
-  :root { --sidebar-w: 346px; }                   /* ← 데스크톱: 사이드바 폭 만큼 풀블리드 보정 */
-  .app-shell { flex-direction: row; align-items: flex-start; }
+  .app-shell { --sidebar-w: 346px; flex-direction: row; align-items: flex-start; }  /* ← 펼침 */
+  .app-shell.is-collapsed { --sidebar-w: 89px; }  /* ← 접힘: 콘텐츠가 넓어짐 */
 }

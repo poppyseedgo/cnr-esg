@@ -4,6 +4,7 @@
 // [변경 이력]
 //   2026-06-23  최초 작성. Figma node 1698:1859 / 1698:1860 1:1 구현.
 //   2026-06-23  [수정] (1) 모서리 둥글기 제거(Figma=각진 사각). // ← border-radius 삭제
+//   2026-06-23  [수정] 달성 색 #26FF4E → #0CFF39 (shimmer 톤도 동반 조정).
 //                      (2) 달성(초록) 영역에 흐르는 듯한 shimmer 효과 추가(일렁임).
 //
 // [설계]
@@ -13,17 +14,17 @@
 //   - prefers-reduced-motion: 애니메이션 정지(접근성)
 //
 // [데이터 계약]  props.current / props.goal (원)
-// [Figma 토큰]  트랙 #000 h=32 / 달성 #26FF4E / 라벨 14px / max-w 697 / radius 0
+// [Figma 토큰]  트랙 #000 h=32 / 달성 #0CFF39 / 라벨 14px / max-w 697 / radius 0
 // ============================================================================
 
 const TRACK = '#000000';     // ← 트랙(목표) 색
-const ACHIEVED = '#26FF4E';  // ← 달성 색 (Figma 진행바 추출)
+const ACHIEVED = '#0CFF39';  // ← 달성 색 (Figma 진행바 추출)
 
 // 달성 영역 shimmer(일렁임) — 흐르는 sheen + 접근성(reduced-motion) 정지
 const BAR_CSS = `
 .donbar__fill {
   background: linear-gradient(100deg,
-    ${ACHIEVED} 0%, #7DFFA0 42%, #B6FFC9 50%, #7DFFA0 58%, ${ACHIEVED} 100%);
+    ${ACHIEVED} 0%, #63FF85 42%, #B0FFC2 50%, #63FF85 58%, ${ACHIEVED} 100%);
   background-size: 220% 100%;
   animation: esgBarShimmer 2.4s linear infinite;
 }
