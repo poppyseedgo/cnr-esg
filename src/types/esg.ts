@@ -914,6 +914,15 @@ export interface Database {
         Args: CancelOrderInput;
         Returns: RpcResult;
       };
+      // [2026-06-23] 잘못된 입금확인 복구 — paid 주문 전용 (매출 원복)
+      admin_revert_order_payment: {
+        Args: { p_order_id: string; p_reason?: string };
+        Returns: RpcResult & { new_status?: string };
+      };
+      admin_cancel_paid_order: {
+        Args: { p_order_id: string; p_reason: string };
+        Returns: RpcResult & { new_status?: string };
+      };
       finalize_auction: {
         Args: { p_auction_id: string };
         Returns: RpcResult;

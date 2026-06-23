@@ -146,6 +146,47 @@ export async function cancelOrderAdmin(orderId: string, reason: string): Promise
 }
 
 // ============================================================================
+// [2026-06-23] 잘못된 입금확인 복구 (paid 주문 전용 — 매출 원복)
+// ============================================================================
+
+/**
+ * 입금 확인 취소 — paid → pending (admin_revert_order_payment RPC).
+ * 바자회 재고를 mark_paid 역연산으로 복원하고, 주문을 '결제 대기'로 되돌림.
+ * 매출(paid 합계)에서 자동 제외됨. 사유는 선택(어드민 메모에 기록).
+ */
+export async function revertOrderPayment(orderId: string, reason?: string): Promise<void> {
+  const result = await callRpc('admin_revert_order_payment', {
+    p_order_id: orderId,
+    p_reason: reason?.trim() || undefined,
+  });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const r = result as any;
+  if (!r.success) {
+    throw new Error(humanizeOrderError(r));
+  }
+}
+
+/**
+ * 주문 취소(입금 후) — paid → cancelled (admin_cancel_paid_order RPC).
+ * 바자회 판매분 재고를 복원하고, 주문을 '취소'로 전환. 매출에서 자동 제외됨.
+ * 취소 사유 필수.
+ */
+export async function cancelPaidOrder(orderId: string, reason: string): Promise<void> {
+  if (!reason.trim()) {
+    throw new Error('취소 사유는 필수입니다.');
+  }
+  const result = await callRpc('admin_cancel_paid_order', {
+    p_order_id: orderId,
+    p_reason: reason,
+  });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const r = result as any;
+  if (!r.success) {
+    throw new Error(humanizeOrderError(r));
+  }
+}
+
+// ============================================================================
 // 어드민 메모 수정 (RPC 없이 직접 UPDATE — 어드민 RLS 통과)
 // ============================================================================
 
@@ -189,6 +230,10 @@ function humanizeOrderError(r: any): string {
       return '주문을 찾을 수 없습니다.';
     case 'ORDER_NOT_PENDING':
       return `결제 대기 상태가 아닙니다 (현재: ${r.status}).`;
+    case 'ORDER_NOT_PAID':
+      return `결제 완료 상태가 아닙니다 (현재: ${r.status}). 이미 취소/대기 상태일 수 있어요.`;
+    case 'REASON_REQUIRED':
+      return '취소 사유는 필수입니다.';
     case 'NOT_AUTHORIZED':
       return '취소 권한이 없습니다.';
     case 'ORDER_ALREADY_FINAL':

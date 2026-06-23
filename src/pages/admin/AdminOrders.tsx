@@ -20,6 +20,8 @@ import {
   loadAllOrders,
   markOrderPaid,
   cancelOrderAdmin,
+  revertOrderPayment,
+  cancelPaidOrder,
   updateAdminMemo,
   subscribeAllOrders,
   type LoadAllOrdersFilters,
@@ -271,6 +273,48 @@ function OrderAdminCard({
       onChange();
     } catch (e) {
       alert(e instanceof Error ? e.message : '취소 실패');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const isPaid = order.payment_status === 'paid'; // ← [2026-06-23] paid 복구 액션 노출용
+
+  // [2026-06-23] 입금 확인 취소 (paid → pending). 매출에서 자동 제외.
+  const handleRevertPaid = async () => {
+    if (!isPaid) return;
+    if (!confirm(
+      `⚠️ 입금 확인을 취소합니다.\n\n주문 "${order.order_number}" (${order.total_amount.toLocaleString()}원)\n→ '결제 대기'로 되돌아가고 매출 합계에서 제외됩니다.\n바자회 주문이면 재고가 다시 선점(reserved) 처리됩니다.\n\n계속할까요?`
+    )) return;
+    const reason = prompt('사유(선택) — 어드민 메모에 기록됩니다:', '입금 확인 오클릭 정정') ?? undefined;
+    setBusy(true);
+    try {
+      await revertOrderPayment(order.id, reason);
+      onChange();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '입금 확인 취소 실패');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // [2026-06-23] 주문 취소 (paid → cancelled). 판매분 재고 복원 + 매출 제외.
+  const handleCancelPaid = async () => {
+    if (!isPaid) return;
+    const reason = prompt(
+      `⚠️ 결제 완료된 주문 "${order.order_number}" (${order.total_amount.toLocaleString()}원)을(를) 취소합니다.\n매출에서 제외되고 바자회 재고가 복원됩니다.\n\n취소 사유를 입력하세요(필수):`,
+      ''
+    );
+    if (!reason || !reason.trim()) {
+      if (reason !== null) alert('취소 사유는 필수입니다.');
+      return;
+    }
+    setBusy(true);
+    try {
+      await cancelPaidOrder(order.id, reason);
+      onChange();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '주문 취소 실패');
     } finally {
       setBusy(false);
     }
@@ -543,6 +587,48 @@ function OrderAdminCard({
             }}
           >
             🚫 강제 취소
+          </button>
+        </div>
+      )}
+
+      {/* [2026-06-23] 결제 완료(paid) 주문 복구 액션 — 잘못 확인 정정/매출 원복 */}
+      {isPaid && (
+        <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
+          <button
+            type="button"
+            onClick={handleRevertPaid}
+            disabled={busy}
+            title="입금 확인을 취소하고 '결제 대기'로 되돌립니다 (매출 원복)"
+            style={{
+              flex: 1,
+              padding: '10px 12px',
+              background: '#fff',
+              border: '1px solid #fcd34d',
+              color: '#92400e',
+              borderRadius: 6,
+              cursor: busy ? 'not-allowed' : 'pointer',
+              fontSize: 13,
+              fontWeight: 700,
+            }}
+          >
+            ↩️ 입금 확인 취소
+          </button>
+          <button
+            type="button"
+            onClick={handleCancelPaid}
+            disabled={busy}
+            title="주문을 취소 처리합니다 (재고 복원 + 매출 원복)"
+            style={{
+              padding: '10px 14px',
+              background: '#fff',
+              border: '1px solid #fecaca',
+              color: '#dc2626',
+              borderRadius: 6,
+              cursor: busy ? 'not-allowed' : 'pointer',
+              fontSize: 13,
+            }}
+          >
+            🚫 주문 취소
           </button>
         </div>
       )}
