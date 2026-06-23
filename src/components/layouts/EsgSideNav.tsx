@@ -233,12 +233,12 @@ function AdminItem({ t, onNavigate }: { t: SideTokens; onNavigate?: () => void }
   );
 }
 
-/** 2차 네비 / 지난 이벤트 항목 (muted, 우측 카운트/배지 옵션) */
+/** 2차 네비 / 지난 이벤트 항목 (muted, 우측 카운트/배지/시상예정 텍스트 옵션) */
 function MutedItem({
-  to, label, t, size = 24, badge, count, onNavigate,
+  to, label, t, size = 24, badge, count, award, onNavigate,
 }: {
   to: string; label: string; t: SideTokens; size?: number;
-  badge?: BadgeInfo; count?: number; onNavigate?: () => void;
+  badge?: BadgeInfo; count?: number; award?: string; onNavigate?: () => void; // ← [2026-06-23] award: 시상예정 텍스트
 }) {
   return (
     <NavLink
@@ -254,6 +254,12 @@ function MutedItem({
       {label}
       {typeof count === 'number' && <CountBadge n={count} t={t} />}
       <Badge badge={badge} t={t} />
+      {/* ← [2026-06-23] 지난 이벤트 시상예정: 알약 대신 흰 텍스트(Figma 1698:1378) */}
+      {award && (
+        <span style={{ fontSize: 10, fontWeight: 500, color: '#FFFFFF', lineHeight: 1.25 }}>
+          {award}
+        </span>
+      )}
     </NavLink>
   );
 }
@@ -328,8 +334,8 @@ function NavBody({
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
         <span style={{ color: t.label, fontSize: 16, lineHeight: 1.25 }}>지난 이벤트</span>
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <MutedItem to="/posts/zero-waste" label="제로 웨이스트" badge={badges.zeroWaste} t={t} size={20} onNavigate={onNavigate} />
-          <MutedItem to="/posts/wise-life" label="슬기로운 사회생활" badge={badges.wiseLife} t={t} size={20} onNavigate={onNavigate} />
+          <MutedItem to="/posts/zero-waste" label="제로 웨이스트" award="6/30 시상예정" t={t} size={20} onNavigate={onNavigate} />
+          <MutedItem to="/posts/wise-life" label="슬기로운 사회생활" award="6/30 시상예정" t={t} size={20} onNavigate={onNavigate} />
         </div>
       </div>
     </div>

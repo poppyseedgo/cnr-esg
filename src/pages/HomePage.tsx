@@ -14,6 +14,7 @@
 
 import { HeroBazaar } from '@/components/home/HeroBazaar'; // ← [2026-06-23] 포스터그리드→바자회 히어로(나무 그리드+카운트다운)
 import { DonorMarquee } from '@/components/home/DonorMarquee'; // ← [2026-06-16] 기부자 전광판
+import { MissionBand } from '@/components/home/MissionBand'; // ← [2026-06-23] 미션 밴드(2번째 섹션)
 import { HomeFaqSection } from '@/components/faq-qna/HomeFaqSection';
 import { HomeQnaSection } from '@/components/faq-qna/HomeQnaSection';
 import '@/components/faq-qna/faq-qna.css';
@@ -23,6 +24,7 @@ export function HomePage() {
     <div>
       <DonorMarquee />
       <HeroBazaar />
+      <MissionBand />
 
       <div className="faqqna-container">
         <div className="faqqna-container__inner">
