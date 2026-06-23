@@ -225,7 +225,7 @@ export function DonorMarquee() {
         marginBottom: 24,
         background: '#fff',
         overflow: 'hidden',
-        padding: '24px 0', // ← 세로 패딩 16px→24px (고지님 요청 2026-06-17)
+        padding: '20px 0', // ← [2026-06-23] 세로 패딩 24px→20px (고지님 요청)
       }}
     >
       <style>{MARQUEE_CSS}</style>
