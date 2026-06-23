@@ -22,8 +22,9 @@ import '@/components/faq-qna/faq-qna.css';
 export function HomePage() {
   return (
     <div>
-      <DonorMarquee />
+      {/* [2026-06-23] Figma 변경: 전광판을 히어로 '아래'로 이동 (히어로 → 전광판 → 미션) */}
       <HeroBazaar />
+      <DonorMarquee />
       <MissionBand />
 
       <div className="faqqna-container">

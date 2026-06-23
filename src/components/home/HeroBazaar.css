@@ -34,12 +34,13 @@
 .hero-bz__box {
   display: flex;
   align-items: stretch;
-  background: linear-gradient(to bottom, #bdff8e 0%, #ffffff 62.565%); /* 부모(좌측에 노출) */
+  background: #ffffff;        /* ← [2026-06-23] 베이스 흰색(우측 rgba 흰색 70%가 이 위에 깔림) */
   color: #000;
   text-align: center;
+  min-height: min(48.28cqw, 760px);  /* ← [2026-06-23] Figma 760/1574, 상한 760 (히어로 높이) */
 }
 
-/* ── 좌측: 텍스트 / 카운트다운 (투명 → 부모 그라데이션) ── */
+/* ── 좌측: 텍스트 / 카운트다운 (솔리드 라임 #9cff6a) ── */
 .hero-bz__left {
   flex: 1 1 0;
   min-width: 0;
@@ -49,6 +50,8 @@
   justify-content: space-between;
   padding: min(2.54cqw, 40px);            /* 40/1574 */
   overflow: clip;
+  background: #9cff6a;          /* ← [2026-06-23] 그라데이션→솔리드 라임 */
+  text-transform: capitalize;  /* ← [2026-06-23] Figma capitalize: min→Min, sec→Sec */
 }
 .hero-bz__toprow {
   display: flex;
@@ -129,7 +132,7 @@
   align-items: center;
   justify-content: space-between;
   padding: min(2.03cqw, 32px) min(1.27cqw, 20px); /* 32 / 20 of 1574 */
-  background: linear-gradient(to bottom, #dcffc9, #d8ffc2);
+  background: rgba(255, 255, 255, 0.7);  /* ← [2026-06-23] 연녹 그라데이션→흰색 70% */
   gap: min(1.02cqw, 16px);
 }
 .hero-bz__grid {

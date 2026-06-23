@@ -199,11 +199,10 @@ function PrimaryItem({
       onClick={handleClick}
       style={({ isActive }) => ({
         display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0',
-        textDecoration: 'none', color: isActive ? t.hoverText : t.text,
-        fontSize: 24, fontWeight: isActive ? 500 : 400, lineHeight: 1.25,
+        textDecoration: 'none', color: t.text,                       // ← [2026-06-23] 활성 초록텍스트 제거(기본색 유지)
+        fontSize: 24, fontWeight: isActive ? 700 : 400, lineHeight: 1.25, // ← [2026-06-23] 활성=볼드
         whiteSpace: 'nowrap',
-        ...(isActive ? { background: t.hoverBg, padding: '8px 16px', borderRadius: 100 } : null),
-        transition: 'color 0.15s, background 0.15s',
+        transition: 'font-weight 0.12s, color 0.12s',               // ← [2026-06-23] 활성 초록 배경 알약 삭제
       })}
     >
       {label}
@@ -220,12 +219,11 @@ function AdminItem({ t, onNavigate }: { t: SideTokens; onNavigate?: () => void }
       onClick={onNavigate}
       style={({ isActive }) => ({
         display: 'flex', alignItems: 'center', padding: filled ? '8px 16px' : '8px 0',
-        borderRadius: filled ? 99 : 100, textDecoration: 'none',
-        color: filled ? '#000000' : isActive ? t.hoverText : t.adminText,
-        fontSize: 24, fontWeight: 500, lineHeight: 1.25, whiteSpace: 'nowrap',
-        background: filled ? t.adminBg : isActive ? t.hoverBg : 'transparent',
-        transition: 'color 0.15s, background 0.15s',
-        ...(isActive && !filled ? { padding: '8px 16px' } : null),
+        borderRadius: filled ? 99 : 0, textDecoration: 'none',
+        color: filled ? '#000000' : t.adminText,                     // ← [2026-06-23] 활성 hover색 제거(초록 유지)
+        fontSize: 24, fontWeight: isActive ? 700 : 500, lineHeight: 1.25, whiteSpace: 'nowrap', // ← 활성=볼드
+        background: filled ? t.adminBg : 'transparent',              // ← [2026-06-23] 활성 초록 배경 삭제
+        transition: 'font-weight 0.12s, color 0.12s',
       })}
     >
       어드민 관리자
@@ -290,8 +288,8 @@ function NavBody({
         <img src={t.logoSrc} alt="C&R ESG" style={{ width: 160, height: 40, display: 'block' }} />
       </Link>
 
-      {/* 1차 네비 (우측 정렬 — Figma items-end) */}
-      <nav style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
+      {/* 1차 네비 (좌측 정렬 — [2026-06-23] items-end→start) */}
+      <nav style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
         <PrimaryItem to="/bazaar" label="나무 심는 바자회" badge={badges.bazaar} t={t} activityKey="bazaar" onNavigate={onNavigate} />
         <PrimaryItem to="/auction" label="ESG 경매" badge={badges.auction} t={t} activityKey="auction" onNavigate={onNavigate} />
         <PrimaryItem to="/donate" label="기부하기" t={t} onNavigate={onNavigate} />
