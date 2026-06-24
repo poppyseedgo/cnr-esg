@@ -16,7 +16,7 @@
 // ============================================================================
 
 import { supabase as _supabase } from './supabase';
-import type { EsgWishlistTargetType } from '@/types/esg';
+import type { EsgWishlistTargetType, EsgProductRow } from '@/types/esg'; // ← [2026-06-24] 찜 목록 상품 로드용 EsgProductRow
 
 // supabase-js 2.49 타입 추론 한계 우회 — cart.ts와 동일 컨벤션(테이블 쿼리 시 row=never 붕괴 방지)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -65,6 +65,40 @@ export async function loadMyWishlistProductIds(userId: string | null): Promise<S
 /** 현재 캐시 스냅샷(동기). 미로딩 시 안정된 빈 Set 반환. */
 export function getWishlistSnapshot(): Set<string> {
   return cache ?? EMPTY;
+}
+
+/**
+ * 본인이 찜한 '상품' 전체를 찜한 순서(최신순)로 로드. ("나의 찜한 내역" 리스트용)
+ *
+ * [설계 — 근본 구조]
+ *   esg_wishlists.target_id 는 폴리모픽(product|auction)이라 esg_products 로의
+ *   FK가 없음 → PostgREST 임베드 불가. 그래서 2단계로 조회한다:
+ *     1) esg_wishlists 에서 본인 찜 product target_id + created_at (RLS=본인 row)
+ *     2) esg_products 를 .in('id', ids) 로 일괄 조회(공개 읽기 RLS: on_sale/sold_out)
+ *   찜한 순서를 보존하기 위해 1)의 id 순서대로 2) 결과를 재정렬한다.
+ *   (읽을 수 없는 상품 — 예: hidden — 은 2)에서 빠지므로 자동 제외)
+ */
+export async function loadMyWishlistProducts(): Promise<EsgProductRow[]> {
+  // 1) 본인 찜 product id(최신 찜 순)
+  const { data: w, error: wErr } = await supabase
+    .from('esg_wishlists')
+    .select('target_id, created_at')
+    .eq('target_type', 'product')
+    .order('created_at', { ascending: false });
+  if (wErr) throw wErr;
+  const ids: string[] = (w ?? []).map((r: { target_id: string }) => r.target_id);
+  if (ids.length === 0) return [];
+
+  // 2) 상품 상세 일괄 조회
+  const { data: products, error: pErr } = await supabase
+    .from('esg_products')
+    .select('*')
+    .in('id', ids);
+  if (pErr) throw pErr;
+
+  // 찜한 순서 보존(id 순서대로 매핑)
+  const byId = new Map<string, EsgProductRow>((products ?? []).map((p: EsgProductRow) => [p.id, p]));
+  return ids.map((id) => byId.get(id)).filter((p): p is EsgProductRow => !!p);
 }
 
 /** 특정 상품 찜 여부(동기). useSyncExternalStore의 getSnapshot으로 사용(boolean=값 비교). */

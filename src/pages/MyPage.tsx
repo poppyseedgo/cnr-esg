@@ -33,10 +33,12 @@ import { formatKSTFull } from '@/utils/time';
 import { Avatar } from '@/components/Avatar'; // ← [추가] 마이페이지 프로필 아바타
 import { loadMyDonations, getDonationTimeLeft, subscribeMyDonations } from '@/lib/donations';
 import { loadMyQuestions, updateQuestion, deleteQuestion } from '@/lib/qna'; // ← [내 Q&A 탭]
+import { loadMyWishlistProducts, loadMyWishlistProductIds, subscribeWishlist, isWishlistedSync } from '@/lib/wishlist'; // ← [2026-06-24] 찜한 상품 목록
+import { ProductCard } from '@/components/ProductCard'; // ← [2026-06-24] 찜 목록 카드 재사용
 import { QnaCategoryChip } from '@/components/faq-qna/QnaCategoryChip';
 import { QnaStatusBadge } from '@/components/faq-qna/QnaStatusBadge';
 import { ESG_QNA_CATEGORY_LABELS } from '@/types/esg';
-import type { EsgDonationRow, EsgQnaCategory, EsgQnaQuestionWithAnswer } from '@/types/esg';
+import type { EsgDonationRow, EsgQnaCategory, EsgQnaQuestionWithAnswer, EsgProductRow } from '@/types/esg';
 
 const tabs = [
   { to: '/mypage/pending', label: '결제대기' },
@@ -396,7 +398,65 @@ export function MyPageAuctionWon() {
 }
 
 export function MyPageWishlist() {
-  return <PlaceholderTab icon="💖" label="찜한 상품" phase="Phase 4-B 또는 Phase 6" />;
+  const { currentUser } = useCurrentUser();
+  const [items, setItems] = useState<EsgProductRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [, forceTick] = useState(0); // ← 찜 해제 즉시 반영(재렌더)
+
+  const reload = async () => {
+    if (!currentUser) return;
+    try {
+      setError(null);
+      await loadMyWishlistProductIds(currentUser.id); // 캐시 적재(isWishlistedSync 정확성 + 카드 찜상태)
+      const list = await loadMyWishlistProducts();
+      setItems(list);
+    } catch (e) {
+      console.error('[MyPageWishlist]', e);
+      setError(e instanceof Error ? e.message : '찜한 상품을 불러오지 못했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!currentUser) { setLoading(false); return; }
+    setLoading(true);
+    void reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.id]);
+
+  // 찜 해제(이 페이지에서 직접/다른 탭) 시 즉시 반영 — 캐시에서 빠지면 필터로 사라짐.
+  // (DB 재조회 대신 캐시 기준 필터 → 낙관적 해제와 타이밍 충돌 없음)
+  useEffect(() => {
+    const off = subscribeWishlist(() => forceTick((n) => n + 1));
+    return off;
+  }, []);
+
+  if (loading) return <LoadingBox />;
+  if (error) return <ErrorBox message={error} onRetry={reload} />;
+
+  // 현재도 찜 상태인 상품만 노출(해제 즉시 제거)
+  const visible = items.filter((p) => isWishlistedSync(p.id));
+  if (visible.length === 0) {
+    return (
+      <EmptyState
+        icon="💖"
+        title="찜한 상품이 없습니다"
+        description="바자회에서 마음에 드는 상품을 찜해보세요."
+        ctaLabel="바자회로 가기"
+        ctaTo="/bazaar"
+      />
+    );
+  }
+
+  return (
+    <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
+      {visible.map((p) => (
+        <ProductCard key={p.id} product={p} />
+      ))}
+    </div>
+  );
 }
 
 // ============================================================================
@@ -596,16 +656,6 @@ function EmptyState({
       >
         {ctaLabel}
       </Link>
-    </div>
-  );
-}
-
-function PlaceholderTab({ icon, label, phase }: { icon: string; label: string; phase: string }) {
-  return (
-    <div style={{ padding: 48, textAlign: 'center', color: '#999' }}>
-      <div style={{ fontSize: 36, marginBottom: 8, opacity: 0.5 }}>{icon}</div>
-      <h3 style={{ margin: '0 0 4px' }}>{label}</h3>
-      <p style={{ fontSize: 12, margin: 0 }}>{phase}에서 구현 예정</p>
     </div>
   );
 }
