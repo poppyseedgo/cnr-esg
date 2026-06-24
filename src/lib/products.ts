@@ -27,29 +27,42 @@ export interface LoadProductsOptions {
   offset?: number; // ← [2026-06-04]
   search?: string; // ← [2026-06-17] 상품 이름 검색(서버사이드 ilike, %·_ 는 리터럴)
   tagId?: string;  // ← [2026-06-22] 단일 태그 필터(inner join)
-  tagIds?: string[]; // ← [2026-06-23] 다중 태그 AND 필터(카테고리+브랜드 동시). 2개↑면 교집합 RPC 사용
+  tagIds?: string[]; // ← [2026-06-23] 다중 태그 AND 필터(레거시: 모두 가진 교집합)
+  /**
+   * [2026-06-24] 패싯(다중선택) 필터. 그룹 = 축(카테고리/브랜드).
+   *  · 그룹 '내' 여러 태그 = OR (식품 OR 여성의류)
+   *  · 그룹 '간' = AND ((식품 OR 여성의류) AND (브랜드A OR 브랜드B))
+   *  예: tagGroups=[[catId1,catId2],[brandId1]]  → RPC esg_product_ids_with_tag_groups
+   */
+  tagGroups?: string[][];
   sort?: 'reg' | 'price_desc' | 'price_asc'; // ← [2026-06-24] 정렬: 등록순(기본) / 높은가격 / 낮은가격
 }
 
 /** 상품 목록 (정렬: 고정(is_pinned) 먼저 → sort_order ASC → created_at) */
 export async function loadProducts(opts: LoadProductsOptions = {}): Promise<EsgProductRow[]> {
-  const { scope = 'all', limit, offset = 0, search, tagId, tagIds, sort = 'reg' } = opts;   // ← [2026-06-23] tagIds / [2026-06-24] sort
+  const { scope = 'all', limit, offset = 0, search, tagId, tagIds, tagGroups, sort = 'reg' } = opts;   // ← [2026-06-24] tagGroups(패싯)
   const statuses: EsgProductStatus[] = scope === 'on_sale_only' ? ['on_sale'] : ['on_sale', 'sold_out'];
 
-  // 필터 태그 정규화(tagIds 우선, 없으면 단일 tagId)
-  const ids = (tagIds && tagIds.length > 0) ? tagIds : (tagId ? [tagId] : []); // ← [2026-06-23]
+  // ── [2026-06-24] 태그 필터 정규화 → '그룹' 배열로 통일 ──────────────────────
+  //  · tagGroups(패싯) 우선: [[cat…],[brand…]] 형태. 그룹 내 OR, 그룹 간 AND.
+  //  · 레거시 tagIds(모두 가진 AND)/단일 tagId 는 단일 그룹으로 흡수해 호환 유지.
+  const groups: string[][] = (tagGroups && tagGroups.some((g) => g.length > 0))
+    ? tagGroups.filter((g) => g.length > 0)
+    : (tagIds && tagIds.length > 0) ? [tagIds] : (tagId ? [[tagId]] : []);
+  const flat = groups.flat();
 
-  // 태그 2개 이상이면 "모두 가진" 상품 id를 RPC로 구해 .in('id', …) (AND 교집합)
+  // 태그 2개 이상(다중선택/다축) → 그룹 RPC로 매칭 상품 id 집합 산출(.in('id', …))
+  //  RPC 계약: p_groups jsonb = 태그 그룹 배열, '그룹 내 OR + 그룹 간 AND' 교집합 반환.
   let matchIds: string[] | null = null;
-  if (ids.length >= 2) {
-    const { data: m, error: mErr } = await supabase.rpc('esg_product_ids_with_all_tags', { p_tag_ids: ids });
+  if (flat.length >= 2) {
+    const { data: m, error: mErr } = await supabase.rpc('esg_product_ids_with_tag_groups', { p_groups: groups });
     if (mErr) throw mErr;
     matchIds = ((m ?? []) as Array<{ product_id: string }>).map((r) => r.product_id);
-    if (matchIds.length === 0) return []; // 교집합 없음 → 빈 결과
+    if (matchIds.length === 0) return []; // 매칭 없음 → 빈 결과
   }
 
-  // 단일 태그면 기존 inner join(효율적), 그 외엔 일반 select
-  const singleTagId = ids.length === 1 ? ids[0] : null;
+  // 태그 정확히 1개면 기존 inner join(효율적), 그 외엔 일반 select + .in('id', …)
+  const singleTagId = flat.length === 1 ? flat[0] : null;
   const selectCols = singleTagId ? '*, esg_product_tags!inner(tag_id)' : '*';
 
   let query = supabase

@@ -9,6 +9,9 @@
    변경 이력:
      2026-06-23 최초 작성(3컬럼)
      2026-06-23 [수정] 3컬럼→2컬럼(물 사진 제거), 텍스트 40→60px, 높이 716→766
+     2026-06-24 [버그수정·근본] 모바일 세로 스택에서 잎 사진(.mission__photo) 높이 붕괴 →
+                섹션 전체가 먹혀 안 보이던 문제 수정. .mission__col flex-basis:0 을
+                세로 전환 시 auto 로 해제(아래 @container 블록 주석 참조).
    ============================================================================ */
 
 .mission {
@@ -71,8 +74,13 @@
 /* 협폭: 세로 스택 */
 @container (max-width: 900px) {
   .mission__row { flex-direction: column; min-height: 0; }
-  .mission__photo { height: 220px; }
-  .mission__center { padding: 40px 20px; gap: 32px; }
+  /* ← [2026-06-24 근본] 세로 스택에서 컬럼의 flex-basis:0(데스크톱 50/50용) 해제.
+     세로 전환 시 flex-basis:0 이 '주축=세로'에 적용돼 height/콘텐츠높이를 무력화 →
+     잎 사진(.mission__photo, 빈 div)이 height:220px 무시하고 0으로 붕괴, 섹션 전체가
+     먹혀서 안 보이던 직접 원인. flex:0 0 auto 로 basis 를 auto 로 돌려 height/내용높이 정상화. */
+  .mission__col { flex: 0 0 auto; }
+  .mission__photo { flex: 0 0 220px; height: 220px; } /* 잎 사진 고정 220 (이제 적용됨) */
+  .mission__center { flex: 0 0 auto; padding: 40px 20px; gap: 32px; } /* 문구+로고 = 내용 높이 */
   .mission__text { font-size: clamp(26px, 7cqw, 44px); white-space: normal; }
   .mission__logo { width: 180px; }
 }

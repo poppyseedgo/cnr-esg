@@ -7,6 +7,11 @@
 //               데스크톱 2차 사이드바와 모바일 최상단에서 '동일 컴포넌트'로 재사용.
 //   2026-06-24  [모바일 최적화] 모바일 필터(showTitle=false)의 칩 행을 가로 스크롤로 전환
 //               (.chip-scroll-row). 데스크톱 사이드바(showTitle=true)는 기존 wrap 유지.
+//   2026-06-24  [타이틀 복구] "나무 심는 바자회" 타이틀을 항상 렌더(모바일 누락 복구).
+//               변형은 showTitle 로 분기 — 데스크톱 40px 좌측 / 모바일 57px 중앙(Figma 1806:63).
+//   2026-06-24  [다중선택] 필터 정책 반영 — cat/brand 를 단일 슬러그 → 콤마구분 '집합'으로.
+//               칩 토글=추가/제거, 선택 요약은 여러 pill 로 표시(Figma 1806:76).
+//               그룹 내 OR + 그룹 간 AND 질의는 BazaarPage→loadProducts(tagGroups)가 담당.
 //
 // [설계 — 근본 구조]
 //   · 필터 상태의 단일 소스 = URL 검색 파라미터 (cat / brand / q / soldout).
@@ -33,8 +38,9 @@ interface BazaarFiltersProps {
 
 export function BazaarFilters({ showTitle = false }: BazaarFiltersProps) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeCat = searchParams.get('cat') ?? '';
-  const activeBrand = searchParams.get('brand') ?? '';
+  // ← [2026-06-24 다중선택] cat/brand 를 콤마구분 슬러그 '집합'으로 파싱(정책: 다중선택 허용)
+  const activeCats = (searchParams.get('cat') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  const activeBrands = (searchParams.get('brand') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
   const hideSoldOut = searchParams.get('soldout') === '1';
   const urlQ = searchParams.get('q') ?? '';
 
@@ -64,8 +70,17 @@ export function BazaarFilters({ showTitle = false }: BazaarFiltersProps) {
     debounceRef.current = window.setTimeout(() => setParam('q', v.trim() || null), 300);
   };
 
-  const toggleCat = (slug: string) => setParam('cat', slug === activeCat ? null : slug);
-  const toggleBrand = (slug: string) => setParam('brand', slug === activeBrand ? null : slug);
+  // ── [2026-06-24 다중선택] 칩 토글: 집합에 추가/제거 후 콤마조인(없으면 파라미터 제거) ──
+  const toggleInList = (list: string[], slug: string) =>
+    list.includes(slug) ? list.filter((s) => s !== slug) : [...list, slug];
+  const toggleCat = (slug: string) => {
+    const next = toggleInList(activeCats, slug);
+    setParam('cat', next.length ? next.join(',') : null);
+  };
+  const toggleBrand = (slug: string) => {
+    const next = toggleInList(activeBrands, slug);
+    setParam('brand', next.length ? next.join(',') : null);
+  };
   // 전체보기 ↔ 품절제외: 동일한 soldout 파라미터의 상호배타 쌍.
   //  · 전체보기 = 품절 포함(soldout 없음) → 기본값이므로 '항상 디폴트 선택'
   //  · 품절제외 = soldout=1
@@ -79,19 +94,21 @@ export function BazaarFilters({ showTitle = false }: BazaarFiltersProps) {
   const [catOpen, setCatOpen] = useState(true);
   const [brandOpen, setBrandOpen] = useState(false);
 
-  const activeCatName = catTags.find((t) => t.slug === activeCat)?.name;
-  const activeBrandName = brandTags.find((t) => t.slug === activeBrand)?.name;
+  // ← [2026-06-24 다중선택] 선택된 이름 '배열'(요약 pill 다중 표시용)
+  const activeCatNames = catTags.filter((t) => activeCats.includes(t.slug)).map((t) => t.name);
+  const activeBrandNames = brandTags.filter((t) => activeBrands.includes(t.slug)).map((t) => t.name);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, alignItems: 'stretch' }}>
-      {/* 타이틀(데스크톱 사이드바만) — 클릭 시 바자회 목록으로 */}
-      {showTitle && (
-        <Link to="/bazaar" style={{ textDecoration: 'none' }}>
-          <h2 style={{ margin: 0, fontWeight: 400, fontSize: 40, lineHeight: 1.2, color: '#111', letterSpacing: '-0.5px' }}>
-            나무 심는<br />바자회
-          </h2>
-        </Link>
-      )}
+      {/* ← [2026-06-24] 타이틀 항상 렌더(모바일 누락 복구). 변형은 showTitle 로 분기:
+            · 데스크톱 사이드바(showTitle=true): 40px 좌측 정렬(기존)
+            · 모바일 필터(showTitle=false):     57px 중앙(Figma node 1806:63 SSOT)
+          클릭 시 바자회 목록(/bazaar) — 모든 필터 해제 진입점 */}
+      <Link to="/bazaar" style={{ textDecoration: 'none' }}>
+        <h2 className={`bazaar-title ${showTitle ? 'bazaar-title--desk' : 'bazaar-title--mobile'}`}>
+          나무 심는<br />바자회
+        </h2>
+      </Link>
 
       {/* 전체보기 / 품절제외 체크박스 행 (우측 정렬) — soldout 상호배타 쌍 */}
       <div style={{ display: 'flex', gap: 20, alignItems: 'center', justifyContent: 'flex-end', padding: '8px 0' }}>
@@ -105,11 +122,11 @@ export function BazaarFilters({ showTitle = false }: BazaarFiltersProps) {
           title="filter"
           open={catOpen}
           onToggle={() => setCatOpen((v) => !v)}
-          summary={activeCatName}
+          summary={activeCatNames}
           chipScroll={!showTitle}
         >
           {catTags.map((t) => (
-            <Chip key={t.id} label={t.name} selected={t.slug === activeCat} onClick={() => toggleCat(t.slug)} />
+            <Chip key={t.id} label={t.name} selected={activeCats.includes(t.slug)} onClick={() => toggleCat(t.slug)} />
           ))}
         </AccordionSection>
       )}
@@ -120,11 +137,11 @@ export function BazaarFilters({ showTitle = false }: BazaarFiltersProps) {
           title="브랜드"
           open={brandOpen}
           onToggle={() => setBrandOpen((v) => !v)}
-          summary={activeBrandName}
+          summary={activeBrandNames}
           chipScroll={!showTitle}
         >
           {brandTags.map((t) => (
-            <Chip key={t.id} label={t.name} selected={t.slug === activeBrand} onClick={() => toggleBrand(t.slug)} />
+            <Chip key={t.id} label={t.name} selected={activeBrands.includes(t.slug)} onClick={() => toggleBrand(t.slug)} />
           ))}
         </AccordionSection>
       )}
@@ -178,7 +195,7 @@ function CheckItem({ label, checked, onClick }: { label: string; checked: boolea
 function AccordionSection({
   title, open, onToggle, summary, children, chipScroll = false,
 }: {
-  title: string; open: boolean; onToggle: () => void; summary?: string; children: ReactNode;
+  title: string; open: boolean; onToggle: () => void; summary?: string[]; children: ReactNode;
   /** true면 칩을 한 줄 가로 스크롤(모바일), false면 줄바꿈 wrap(데스크톱 사이드바) */
   chipScroll?: boolean;
 }) {
@@ -208,12 +225,17 @@ function AccordionSection({
         >
           {title}
         </span>
-        {summary && (
-          <span style={{
-            background: '#e0e0e0', color: '#000', fontSize: 12, lineHeight: 1.4,
-            padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap',
-          }}>
-            {summary}
+        {/* ← [2026-06-24 다중선택] 선택 요약을 '여러 pill'로 표시(Figma node 1806:76) */}
+        {summary && summary.length > 0 && (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+            {summary.map((name) => (
+              <span key={name} style={{
+                background: '#e0e0e0', color: '#000', fontSize: 12, lineHeight: 1.4,
+                padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap',
+              }}>
+                {name}
+              </span>
+            ))}
           </span>
         )}
       </div>

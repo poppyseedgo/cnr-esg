@@ -2,6 +2,9 @@
 // BazaarPage — 바자회 상품 그리드 (두 단계 사이드바의 '메인 콘텐츠')
 //
 // [변경 이력]
+//   2026-06-24  [다중선택] cat/brand 단일 슬러그 → 콤마구분 '집합'. 슬러그 집합을
+//               태그 id 그룹으로 해석해 loadProducts(tagGroups)로 전달(그룹 내 OR/그룹 간 AND).
+//               무한스크롤 리셋 키도 catKey/brandKey 로 변경.
 //   2026-06-24  [Task 1] 본문 인라인 필터(검색·품절제외·태그칩) 제거 → 공용
 //               BazaarFilters로 이관(데스크톱=2차 사이드바 / 모바일=최상단).
 //               필터 상태를 URL 파라미터(cat/brand/q/soldout/sort)로 단일화.
@@ -36,9 +39,10 @@ export function BazaarPage() {
   //  검색(q)·품절제외(soldout)·정렬(sort)도 cat/brand 와 함께 URL로 통일.
   //  필터 UI는 BazaarFilters(사이드바/모바일)가 이 파라미터를 쓰고, 여기선 읽기만.
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeCatSlug = searchParams.get('cat') ?? '';
-  const activeBrandSlug = searchParams.get('brand') ?? '';
-  const legacyTagSlug = searchParams.get('tag') ?? ''; // 이전 ?tag= 링크 호환
+  // ← [2026-06-24 다중선택] cat/brand 를 콤마구분 슬러그 '집합'으로 읽음(BazaarFilters와 동일 계약)
+  const activeCatSlugs = (searchParams.get('cat') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  const activeBrandSlugs = (searchParams.get('brand') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  const legacyTagSlug = (searchParams.get('tag') ?? '').trim(); // 이전 ?tag= 링크 호환(단일)
   const search = (searchParams.get('q') ?? '').trim();          // ← [2026-06-24] 검색어 URL화
   const hideSoldOut = searchParams.get('soldout') === '1';      // ← [2026-06-24] 품절제외 URL화
   const sortParam = searchParams.get('sort');                   // ← [2026-06-24] 정렬 URL화
@@ -61,23 +65,31 @@ export function BazaarPage() {
   }, []);
   useEffect(() => { reloadTags(); }, [reloadTags]);
 
-  // slug → 태그(종류 구분). legacy ?tag= 는 종류에 따라 해당 축으로 흡수.
+  // slug → 태그(종류 구분). legacy ?tag= 는 종류에 따라 해당 축으로 흡수(단일).
   const legacyTag = legacyTagSlug ? tags.find((t) => t.slug === legacyTagSlug) : undefined;
-  const activeCat = tags.find((t) => t.kind !== 'brand' && t.slug === (activeCatSlug || (legacyTag?.kind !== 'brand' ? legacyTagSlug : '')));
-  const activeBrand = tags.find((t) => t.kind === 'brand' && t.slug === (activeBrandSlug || (legacyTag?.kind === 'brand' ? legacyTagSlug : '')));
-  const activeCatId = activeCat?.id;
-  const activeBrandId = activeBrand?.id;
-  const tagIds = [activeCatId, activeBrandId].filter((x): x is string => !!x);
-  const anyActive = !!(activeCat || activeBrand);
+  const catSlugs = activeCatSlugs.length > 0 ? activeCatSlugs : (legacyTag && legacyTag.kind !== 'brand' ? [legacyTagSlug] : []);
+  const brandSlugs = activeBrandSlugs.length > 0 ? activeBrandSlugs : (legacyTag && legacyTag.kind === 'brand' ? [legacyTagSlug] : []);
+
+  // ── [2026-06-24 다중선택] 각 축의 슬러그 집합 → 태그 id 그룹 ──────────────────
+  const catTagsSel = catSlugs.map((s) => tags.find((t) => t.kind !== 'brand' && t.slug === s)).filter((t): t is EsgTagWithCount => !!t);
+  const brandTagsSel = brandSlugs.map((s) => tags.find((t) => t.kind === 'brand' && t.slug === s)).filter((t): t is EsgTagWithCount => !!t);
+  const catIds = catTagsSel.map((t) => t.id);
+  const brandIds = brandTagsSel.map((t) => t.id);
+  // 패싯 그룹: [카테고리 OR묶음, 브랜드 OR묶음] 중 비어있지 않은 것만 → 그룹 간 AND
+  const tagGroups = [catIds, brandIds].filter((g) => g.length > 0);
+  const anyActive = catIds.length > 0 || brandIds.length > 0;
+  // 무한스크롤/페치 의존성용 안정 키(슬러그 정렬-무관 그대로 사용)
+  const catKey = catSlugs.join(',');
+  const brandKey = brandSlugs.join(',');
 
   // 무한 스크롤 — 12개씩 누적 로드 (고정 먼저 → sort_order → created_at)
   const fetchPage = useCallback(
     async (offset: number, limit: number) => {
-      const rows = await loadProducts({ scope: hideSoldOut ? 'on_sale_only' : 'all', offset, limit, search, tagIds, sort }); // ← [2026-06-24] sort 반영
+      const rows = await loadProducts({ scope: hideSoldOut ? 'on_sale_only' : 'all', offset, limit, search, tagGroups, sort }); // ← [2026-06-24] 패싯 그룹
       const tagMap = await loadProductTagsBatch(rows.map((r) => r.id)); // ← [2026-06-23] 카드 표시용 태그 배치 주입
       return rows.map((r) => ({ ...r, tags: tagMap.get(r.id) ?? [] }));
     },
-    [hideSoldOut, search, activeCatId, activeBrandId, sort]
+    [hideSoldOut, search, catKey, brandKey, sort] // ← [2026-06-24] 다중선택 키(catKey/brandKey)
   );
   const {
     items: products,
@@ -87,7 +99,7 @@ export function BazaarPage() {
     sentinelRef,
     reload,
     refresh,
-  } = useInfiniteScroll<EsgProductRow>(fetchPage, { pageSize: 12, deps: [hideSoldOut, search, activeCatId, activeBrandId, sort] }); // ← [2026-06-24] sort 변경 시 리셋
+  } = useInfiniteScroll<EsgProductRow>(fetchPage, { pageSize: 12, deps: [hideSoldOut, search, catKey, brandKey, sort] }); // ← [2026-06-24] 다중선택 키로 리셋
 
   const [createOpen, setCreateOpen] = useState(false);
 
@@ -181,7 +193,7 @@ export function BazaarPage() {
             {search
               ? '검색 결과가 없습니다.'
               : anyActive
-                ? `${[activeCat, activeBrand].filter(Boolean).map((t) => `#${t!.name}`).join(' ')} 조건의 상품이 없습니다.`
+                ? `${[...catTagsSel, ...brandTagsSel].map((t) => `#${t.name}`).join(' ')} 조건의 상품이 없습니다.`
                 : '아직 등록된 상품이 없습니다.'}
           </p>
         </div>
