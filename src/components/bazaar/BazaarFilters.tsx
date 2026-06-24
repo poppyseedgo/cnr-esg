@@ -5,6 +5,8 @@
 //   2026-06-24  [Task 1] 신규. BazaarPage 본문에 인라인이던 필터(검색·품절제외·
 //               카테고리/브랜드 칩)를 Figma 디자인(node 1563:252)으로 재구현하여
 //               데스크톱 2차 사이드바와 모바일 최상단에서 '동일 컴포넌트'로 재사용.
+//   2026-06-24  [모바일 최적화] 모바일 필터(showTitle=false)의 칩 행을 가로 스크롤로 전환
+//               (.chip-scroll-row). 데스크톱 사이드바(showTitle=true)는 기존 wrap 유지.
 //
 // [설계 — 근본 구조]
 //   · 필터 상태의 단일 소스 = URL 검색 파라미터 (cat / brand / q / soldout).
@@ -104,6 +106,7 @@ export function BazaarFilters({ showTitle = false }: BazaarFiltersProps) {
           open={catOpen}
           onToggle={() => setCatOpen((v) => !v)}
           summary={activeCatName}
+          chipScroll={!showTitle}
         >
           {catTags.map((t) => (
             <Chip key={t.id} label={t.name} selected={t.slug === activeCat} onClick={() => toggleCat(t.slug)} />
@@ -118,6 +121,7 @@ export function BazaarFilters({ showTitle = false }: BazaarFiltersProps) {
           open={brandOpen}
           onToggle={() => setBrandOpen((v) => !v)}
           summary={activeBrandName}
+          chipScroll={!showTitle}
         >
           {brandTags.map((t) => (
             <Chip key={t.id} label={t.name} selected={t.slug === activeBrand} onClick={() => toggleBrand(t.slug)} />
@@ -172,9 +176,11 @@ function CheckItem({ label, checked, onClick }: { label: string; checked: boolea
 
 // ── 아코디언 섹션 (헤더 +/− · 선택 요약 pill · 펼침 시 칩 리스트) ──────────────
 function AccordionSection({
-  title, open, onToggle, summary, children,
+  title, open, onToggle, summary, children, chipScroll = false,
 }: {
   title: string; open: boolean; onToggle: () => void; summary?: string; children: ReactNode;
+  /** true면 칩을 한 줄 가로 스크롤(모바일), false면 줄바꿈 wrap(데스크톱 사이드바) */
+  chipScroll?: boolean;
 }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
@@ -212,9 +218,14 @@ function AccordionSection({
         )}
       </div>
       {open && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, width: '100%' }}>
-          {children}
-        </div>
+        // ← [2026-06-24] 모바일=가로 스크롤(.chip-scroll-row) / 데스크톱 사이드바=줄바꿈 wrap
+        chipScroll ? (
+          <div className="chip-scroll-row">{children}</div>
+        ) : (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, width: '100%' }}>
+            {children}
+          </div>
+        )
       )}
     </div>
   );

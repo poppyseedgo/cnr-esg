@@ -232,3 +232,85 @@ button {
   .secondary-sidebar { display: flex; }          /* 데스크톱: 2차 패널 노출 */
   .bazaar-mobile-filters { display: none; }      /* 데스크톱: 모바일 필터 숨김(사이드바가 대신) */
 }
+
+/* ============================================================================
+   [2026-06-24] 모바일 최적화 공통 패턴 (바자회/경매 공유 — B 패턴)
+   1) .chip-scroll-row : 필터/브랜드 칩 가로 스크롤 행(모바일 필터)
+   2) .pcard / .pcard-img / .pcard-actions / .pcard-btn : 리스트 카드 + 카드폭 비례 호버 버튼
+   · 칩이 줄바꿈(wrap) 대신 한 줄을 유지하며 좌우로 스크롤(스샷 요청 반영).
+   · 호버 버튼은 카드 폭(컨테이너) 기준 cqi+clamp 로 폰트/패딩이 비례 축소 → 2열에서도 안 넘침.
+   · 런타임 <style> 주입(ProductCard ensureStyles) 폐기 → 전역 CSS 단일화(공유·캐시·중복제거).
+   ============================================================================ */
+
+/* ── 1) 필터 칩 가로 스크롤 행 ─────────────────────────────────────────────── */
+.chip-scroll-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: nowrap;            /* 한 줄 유지 */
+  overflow-x: auto;            /* 가로 스크롤 */
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;       /* Firefox: 스크롤바 숨김 */
+  scroll-snap-type: x proximity;
+  padding-bottom: 2px;         /* 칩 그림자/포커스 링 여유 */
+}
+.chip-scroll-row::-webkit-scrollbar { display: none; } /* Chrome/Safari: 스크롤바 숨김 */
+.chip-scroll-row > * {
+  flex: 0 0 auto;              /* 칩 압축 금지(고유 폭 유지) */
+  scroll-snap-align: start;
+}
+
+/* ── 2) 리스트 카드(ProductCard) + 카드폭 비례 호버 액션바 ────────────────── */
+.pcard {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  text-decoration: none;
+  color: inherit;
+  position: relative;
+}
+/* 이미지 래퍼 = 컨테이너 쿼리 기준(카드 폭). 액션 버튼이 이 폭에 비례 축소 */
+.pcard-img {
+  container-type: inline-size;
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  background: #d7d7d7;          /* Figma image placeholder */
+  overflow: hidden;
+}
+/* 호버 시 등장하는 액션바(터치기기는 상시 노출) */
+.pcard-actions {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity .15s ease, transform .15s ease;
+  pointer-events: none;
+}
+.pcard:hover .pcard-actions {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+@media (hover: none) {
+  .pcard-actions { opacity: 1; transform: none; pointer-events: auto; }
+}
+/* 액션 버튼: 카드(컨테이너) 폭 기준으로 폰트/패딩 비례 축소.
+   cqi=컨테이너 인라인폭 1%. clamp(min, 비례, max)로 하한/상한 보장 → 2열에서도 안 넘침. */
+.pcard-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  border: none;
+  font-family: inherit;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;     /* 극단적 협소 시 말줄임(레이아웃 보호) */
+  cursor: pointer;
+  font-size: clamp(10px, 6.5cqi, 16px);
+  padding: clamp(7px, 4.5cqi, 16px) clamp(6px, 7cqi, 32px);
+}
+.pcard-btn:disabled { cursor: default; }

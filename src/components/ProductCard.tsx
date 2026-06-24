@@ -10,6 +10,10 @@
 //               · 본문 패딩 16/20/20/0(좌 0=Figma), 뱃지/제목/가격 14·20px Pretendard Regular
 //               · add-to-cart=기존 cart API(qty 1), 찜=신규 useWishlist 훅
 //               · 품절/저재고 등 필수 안전 동작 보존(품절 시 액션바 미노출)
+//   2026-06-24  [모바일 최적화] 호버 액션바 버튼을 카드 폭 비례(container query)로 재설계.
+//               · 고정 padding 16/32·font 16 → cqi+clamp 로 카드폭에 비례 축소(2열 모바일 안 넘침)
+//               · 런타임 <style> 주입(ensureStyles) 제거 → 전역 index.css 클래스로 이관(공유/캐시)
+//               · .pcard / .pcard-img / .pcard-actions / .pcard-btn 사용
 //   2026-06-23  카테고리/브랜드 태그 칩(splitTagsByKind) — Task2 카드에서 제거됨(필터는 사이드바로 이관)
 //
 // [Figma SSOT] node 1791:216 / 1791:194 / 1791:411 (file ydfT0xP6nc83VxFd7GyEx4)
@@ -25,26 +29,13 @@ import { useCurrentUser } from '@/hooks/useCurrentUser'; // ← [2026-06-24]
 import { useWishlist } from '@/hooks/useWishlist'; // ← [2026-06-24] 찜 토글
 import type { EsgProductRow } from '@/types/esg';
 
-// ── 호버 액션바 등장 스타일(1회 주입). 터치(hover:none) 기기는 상시 노출 ──────────
-const STYLE_ID = 'pcard-styles-v2';
-function ensureStyles() {
-  if (typeof document === 'undefined' || document.getElementById(STYLE_ID)) return;
-  const el = document.createElement('style');
-  el.id = STYLE_ID;
-  el.textContent = `
-    .pcard-actions { opacity: 0; transform: translateY(8px); transition: opacity .15s ease, transform .15s ease; pointer-events: none; }
-    .pcard:hover .pcard-actions { opacity: 1; transform: translateY(0); pointer-events: auto; }
-    @media (hover: none) { .pcard-actions { opacity: 1; transform: none; pointer-events: auto; } }
-  `;
-  document.head.appendChild(el);
-}
+// 호버 액션바/카드 스타일은 전역 index.css(.pcard*)로 이관됨 (런타임 주입 제거).
 
 interface ProductCardProps {
   product: EsgProductRow;
 }
 
 export function ProductCard({ product }: ProductCardProps) {
-  ensureStyles();
   const { currentUser } = useCurrentUser();
   const { wishlisted, toggle } = useWishlist(product.id); // ← [2026-06-24]
 
@@ -82,25 +73,11 @@ export function ProductCard({ product }: ProductCardProps) {
       to={`/bazaar/${product.id}`}
       className="pcard"
       style={{
-        display: 'flex',
-        flexDirection: 'column',
-        background: '#fff',
-        textDecoration: 'none',
-        color: 'inherit',
-        position: 'relative',
-        opacity: soldOut ? 0.6 : 1, // ← 품절 시각 약화(필수 동작 보존)
+        opacity: soldOut ? 0.6 : 1, // ← 품절 시각 약화(필수 동작 보존, 동적값이라 인라인 유지)
       }}
     >
-      {/* ── 이미지(정사각 full-bleed) ── */}
-      <div
-        style={{
-          width: '100%',
-          aspectRatio: '1 / 1',
-          background: '#d7d7d7', // ← Figma image 2356 placeholder
-          position: 'relative',
-          overflow: 'hidden',
-        }}
-      >
+      {/* ── 이미지(정사각 full-bleed, 컨테이너 쿼리 기준) ── */}
+      <div className="pcard-img">
         {product.thumbnail_url && (
           <div style={{ position: 'absolute', inset: 0 }}>
             <BlurImage url={product.thumbnail_url} width={680} />
@@ -120,36 +97,26 @@ export function ProductCard({ product }: ProductCardProps) {
           </div>
         )}
 
-        {/* 호버 액션바 [Add To Cart | 찜/이미 찜 함] — 8px 인셋, 하단 정렬 (품절 시 미노출) */}
+        {/* 호버 액션바 [Add To Cart | 찜/이미 찜 함] — 카드폭 비례 버튼 (품절 시 미노출) */}
         {!soldOut && (
-          <div
-            className="pcard-actions"
-            style={{
-              position: 'absolute', left: 0, right: 0, bottom: 0,
-              padding: 8, display: 'flex', alignItems: 'center',
-            }}
-          >
+          <div className="pcard-actions">
             <button
               type="button"
+              className="pcard-btn"
               onClick={handleAddToCart}
               disabled={adding}
               style={{
-                flex: 1, minWidth: 0, padding: '16px 32px', border: 'none',
-                background: '#000', color: '#fff', fontSize: 16, lineHeight: 1.4,
-                fontFamily: 'inherit', cursor: adding ? 'default' : 'pointer',
-                textTransform: 'capitalize', whiteSpace: 'nowrap',
+                background: '#000', color: '#fff', textTransform: 'capitalize',
               }}
             >
               {justAdded ? '담음!' : 'add to cart'}
             </button>
             <button
               type="button"
+              className="pcard-btn"
               onClick={handleToggleWishlist}
               style={{
-                flex: 1, minWidth: 0, padding: '16px 32px', border: 'none',
-                background: wishlisted ? '#beff9b' : '#fff',
-                color: '#111', fontSize: 16, lineHeight: 1.4,
-                fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap',
+                background: wishlisted ? '#beff9b' : '#fff', color: '#111',
               }}
             >
               {wishlisted ? '이미 찜 함' : '찜'}
