@@ -25,6 +25,10 @@
 //               ※ 근본원인: 이전 확대 구현이 사용되지 않는 중복 파일(src/pages/AdminBazaarIntake.tsx)에
 //                 적용되어 화면에 반영되지 않았음 → 라우터가 쓰는 이 파일(src/pages/admin/…)에 반영하고
 //                 중복 파일은 삭제함.
+//   2026-06-24  [요청] 현재 화면 목록(visible) CSV 내보내기 추가.
+//               - 범위: 필터 탭 + 검색어가 적용된 visible 그대로(화면과 1:1, SSOT).
+//               - 컬럼에 id 포함(리서치 결과 되돌려 반영 시 UPDATE 매칭 키), is_new는 Y/공백.
+//               - 검증된 csv.ts(downloadCsv/todayStampKst, BOM+RFC4180) 재사용 — 신규 유틸 없음.
 // ============================================================================
 
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -46,6 +50,7 @@ import { kstInputToUtcIso } from '@/lib/settings'; // ← [2026-06-22] 경매 �
 import { BazaarIntakeForm } from '@/components/admin/BazaarIntakeForm';
 import { SearchBar } from '@/components/SearchBar'; // ← [2026-06-17] 물품/기증자 검색
 import { matchesQuery } from '@/utils/search';
+import { downloadCsv, todayStampKst } from '@/utils/csv'; // ← [2026-06-24] CSV 내보내기(검증된 공용 유틸 재사용)
 import { ModalShell } from '@/components/modal/ModalShell';
 import { Lightbox } from '@/components/Lightbox'; // ← [2026-06-22] 접수 썸네일 클릭 확대
 import '@/components/home/EventModal.css'; // ← .esg-modal__* 클래스 보장
@@ -149,6 +154,33 @@ export function AdminBazaarIntake() {
     void reload();
   };
 
+  // ── [2026-06-24] 현재 화면 목록(visible) CSV 내보내기 ──────────────────────
+  //   범위: 현재 필터 탭 + 검색어가 적용된 visible 그대로(SSOT) → 화면과 1:1로 일치.
+  //   id 컬럼 = 리서치 후 가격을 되돌려 반영(UPDATE)할 때 매칭 키 → 절대 제외 금지.
+  //   is_new = 'Y'/공백 (엑셀 자동필터로 "완전 새 상품"만 즉시 추출 가능).
+  const handleExportCsv = () => {
+    const headers = [                                    // ← [2026-06-24]
+      'id', '상품명', '카테고리', '기증자', '부서',
+      '원가', '판매가', '수량', '새상품여부', '행선지', '상태', '메모', '등록일',
+    ];
+    const csvRows = visible.map((r) => [                 // ← [2026-06-24] 화면 목록 그대로
+      r.id,
+      r.name,
+      categoryLabel(r.category),
+      r.donor_name_snapshot,
+      r.donor_dept_snapshot ?? '',
+      r.original_price ?? '',                            // 원가(없으면 빈칸)
+      r.listed_price,                                    // 판매가(=책정가)
+      r.quantity,
+      r.is_new ? 'Y' : '',                               // 완전 새 상품 여부
+      r.destination === 'auction' ? '경매' : '바자회',
+      STATUS_META[r.publish_status].label,
+      r.note ?? '',
+      fmtKstDateTime(r.created_at),
+    ]);
+    downloadCsv(`바자회물품접수_${todayStampKst()}.csv`, headers, csvRows); // ← [2026-06-24]
+  };
+
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -210,12 +242,23 @@ export function AdminBazaarIntake() {
         })}
       </div>
 
-      {/* 검색 (물품 이름 / 기증자) */}
-      <div style={{ marginBottom: 16 }}>
-        <SearchBar value={query} onChange={setQuery} placeholder="물품 이름 · 기증자 검색" width={320} />
-        {query.trim() && (
-          <span style={{ marginLeft: 10, fontSize: 12, color: '#888' }}>{visible.length}건</span>
-        )}
+      {/* 검색 (물품 이름 / 기증자) + CSV 내보내기 */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}> {/* ← [2026-06-24] CSV 버튼 추가로 flex 레이아웃 */}
+        <div style={{ display: 'flex', alignItems: 'center' }}> {/* ← [2026-06-24] 기존 검색 묶음 */}
+          <SearchBar value={query} onChange={setQuery} placeholder="물품 이름 · 기증자 검색" width={320} />
+          {query.trim() && (
+            <span style={{ marginLeft: 10, fontSize: 12, color: '#888' }}>{visible.length}건</span>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={handleExportCsv}                       // ← [2026-06-24] 화면 목록(visible) CSV 내보내기
+          disabled={visible.length === 0}                 // ← [2026-06-24] 빈 목록이면 비활성
+          style={exportBtn(visible.length === 0)}         // ← [2026-06-24]
+          title="현재 필터·검색이 적용된 화면 목록을 CSV로 내려받습니다"
+        >
+          📥 CSV 내보내기 ({visible.length})
+        </button>
       </div>
 
       {loading ? (
@@ -609,6 +652,28 @@ function FieldM({ label, children }: { label: string; children: React.ReactNode 
 // ============================================================================
 // 공통 스타일
 // ============================================================================
+// ── [2026-06-24] CSV 등록일용 KST(YYYY-MM-DD HH:mm) 포맷 ───────────────────
+//   todayStampKst와 동일한 +9h 방식. 함수 선언이라 호이스팅되어 컴포넌트에서 호출 OK.
+function fmtKstDateTime(iso: string): string {
+  const k = new Date(new Date(iso).getTime() + 9 * 60 * 60 * 1000);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${k.getUTCFullYear()}-${p(k.getUTCMonth() + 1)}-${p(k.getUTCDate())} ${p(k.getUTCHours())}:${p(k.getUTCMinutes())}`;
+}
+
+// ── [2026-06-24] CSV 내보내기 버튼(보조 스타일, primaryBtn과 동일 규격의 아웃라인) ──
+const exportBtn = (disabled: boolean): React.CSSProperties => ({
+  padding: '10px 16px',
+  minHeight: 44,
+  background: '#fff',
+  color: disabled ? '#bbb' : '#111',
+  border: '1px solid',
+  borderColor: disabled ? '#eee' : '#ccc',
+  borderRadius: 6,
+  cursor: disabled ? 'not-allowed' : 'pointer',
+  fontSize: 13,
+  fontWeight: 600,
+});
+
 const primaryBtn: React.CSSProperties = {
   padding: '10px 16px',
   minHeight: 44,
