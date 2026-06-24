@@ -17,6 +17,7 @@
 
 import { Link } from 'react-router-dom';
 import { BazaarFilters } from '@/components/bazaar/BazaarFilters';
+import { useNavCounts } from '@/hooks/useNavCounts'; // ← [2026-06-24] 1차 사이드바와 동일 카운트 공유
 
 interface SecondarySidebarProps {
   /** 메인 사이드바(EsgSideNav) 접힘 여부. 펼침이면 보조내비를 숨긴다. */
@@ -31,6 +32,12 @@ const SECONDARY_NAV: Array<{ to: string; label: string }> = [
 ];
 
 export function SecondarySidebar({ mainCollapsed }: SecondarySidebarProps) {
+  const { cartCount, unread } = useNavCounts(); // ← [2026-06-24] 1차 사이드바와 동일 소스
+
+  // 라벨별 카운트 매핑(Cart=장바구니 수량 / Notification=미읽음). 나머지는 없음.
+  const countFor = (label: string): number | undefined =>
+    label === 'Cart' ? cartCount : label === 'Notification' ? unread : undefined;
+
   return (
     <aside
       className="secondary-sidebar"
@@ -49,20 +56,40 @@ export function SecondarySidebar({ mainCollapsed }: SecondarySidebarProps) {
       {/* 보조내비 — 메인 사이드바 접힘일 때만(펼치면 1차 패널이 가짐) */}
       {mainCollapsed && (
         <nav style={{ display: 'flex', flexDirection: 'column', marginTop: 8 }}>
-          {SECONDARY_NAV.map((item) => (
-            <Link
-              key={item.to}
-              to={item.to}
-              style={{
-                padding: '8px 0', fontSize: 24, lineHeight: 1.25, color: '#848484',
-                textDecoration: 'none', whiteSpace: 'nowrap',
-              }}
-            >
-              {item.label}
-            </Link>
-          ))}
+          {SECONDARY_NAV.map((item) => {
+            const count = countFor(item.label); // ← [2026-06-24] 1차와 동일 카운트
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '8px 0', fontSize: 24, lineHeight: 1.25, color: '#848484',
+                  textDecoration: 'none', whiteSpace: 'nowrap',
+                }}
+              >
+                {item.label}
+                {typeof count === 'number' && count > 0 && <CountBadge n={count} />}
+              </Link>
+            );
+          })}
         </nav>
       )}
     </aside>
+  );
+}
+
+// ── 빨간 카운트 배지 (1차 사이드바 CountBadge와 동일 스타일: #EF4444 / 흰 텍스트) ──
+function CountBadge({ n }: { n: number }) {
+  if (n <= 0) return null;
+  return (
+    <span style={{
+      minWidth: 18, height: 18, padding: '0 5px', borderRadius: 9,
+      background: '#EF4444', color: '#FFFFFF', fontSize: 10, fontWeight: 700,
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      boxSizing: 'border-box', lineHeight: 1,
+    }}>
+      {n > 99 ? '99+' : n}
+    </span>
   );
 }

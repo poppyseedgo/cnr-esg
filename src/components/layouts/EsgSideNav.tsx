@@ -36,12 +36,7 @@ import { Avatar } from '@/components/Avatar';
 import { useEventPhase } from '@/hooks/useEventPhase';
 import { useEventGate } from '@/hooks/useEventGate';
 import { signInWithMicrosoft } from '@/lib/auth';
-import { getCartCount, subscribeMyCart, onCartChanged } from '@/lib/cart';
-import {
-  getUnreadCount,
-  subscribeMyNotifications,
-  onNotificationChanged,
-} from '@/lib/notifications';
+import { useNavCounts } from '@/hooks/useNavCounts'; // ← [2026-06-24] 1·2차 사이드바 공용 카운트(중복 제거)
 import type {
   EsgActivityKey,
   EsgActivityStatus,
@@ -447,8 +442,7 @@ export function EsgSideNav({ collapsed = false, onToggleCollapse }: {
   const { getActivity } = useEventPhase();
   const location = useLocation();
 
-  const [cartCount, setCartCount] = useState(0);
-  const [unread, setUnread] = useState(0);
+  const { cartCount, unread } = useNavCounts(); // ← [2026-06-24] 공용 훅(2차 사이드바와 동일 소스)
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -465,27 +459,7 @@ export function EsgSideNav({ collapsed = false, onToggleCollapse }: {
   // 라우트 변경 시 모바일 드로어 닫기
   useEffect(() => { setMobileOpen(false); }, [location.pathname]);
 
-  // 장바구니 카운트 (로그인 시)
-  useEffect(() => {
-    if (!currentUser) { setCartCount(0); return; }
-    const userId = currentUser.id;
-    const refresh = () => { getCartCount(userId).then(setCartCount).catch((e) => console.error('[EsgSideNav] cart count error:', e)); };
-    refresh();
-    const offRT = subscribeMyCart(userId, refresh);
-    const offEv = onCartChanged(refresh);
-    return () => { offRT(); offEv(); };
-  }, [currentUser?.id]);
-
-  // 알림 미읽음 (로그인 시)
-  useEffect(() => {
-    if (!currentUser) { setUnread(0); return; }
-    const userId = currentUser.id;
-    const refresh = () => { getUnreadCount().then(setUnread).catch((e) => console.error('[EsgSideNav] unread error:', e)); };
-    refresh();
-    const offRT = subscribeMyNotifications(userId, refresh);
-    const offEv = onNotificationChanged(refresh);
-    return () => { offRT(); offEv(); };
-  }, [currentUser?.id]);
+  // ← [2026-06-24] 장바구니/알림 카운트는 useNavCounts 훅으로 이전(2차 사이드바와 공유)
 
   const badges = {
     zeroWaste: getBadge(getActivity('zero_waste').status, getActivity('zero_waste').period, 'award', t),

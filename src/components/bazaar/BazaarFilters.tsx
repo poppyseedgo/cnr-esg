@@ -64,16 +64,14 @@ export function BazaarFilters({ showTitle = false }: BazaarFiltersProps) {
 
   const toggleCat = (slug: string) => setParam('cat', slug === activeCat ? null : slug);
   const toggleBrand = (slug: string) => setParam('brand', slug === activeBrand ? null : slug);
-  const toggleSoldOut = () => setParam('soldout', hideSoldOut ? null : '1');
-  const showAll = () => setSearchParams((prev) => {
-    const next = new URLSearchParams(prev);
-    next.delete('cat'); next.delete('brand'); next.delete('tag');
-    return next;
-  }, { replace: true });
+  // 전체보기 ↔ 품절제외: 동일한 soldout 파라미터의 상호배타 쌍.
+  //  · 전체보기 = 품절 포함(soldout 없음) → 기본값이므로 '항상 디폴트 선택'
+  //  · 품절제외 = soldout=1
+  const showAllScope = () => setParam('soldout', null);   // 전체보기(품절 포함)
+  const hideSoldOutScope = () => setParam('soldout', '1'); // 품절제외
 
   const catTags = tags.filter((t) => t.kind !== 'brand' && t.product_count > 0);
   const brandTags = tags.filter((t) => t.kind === 'brand' && t.product_count > 0);
-  const noFilter = !activeCat && !activeBrand;
 
   // 아코디언 펼침(Figma 기본 펼침)
   const [catOpen, setCatOpen] = useState(true);
@@ -91,10 +89,10 @@ export function BazaarFilters({ showTitle = false }: BazaarFiltersProps) {
         </h2>
       )}
 
-      {/* 전체보기 / 품절제외 체크박스 행 (우측 정렬) */}
+      {/* 전체보기 / 품절제외 체크박스 행 (우측 정렬) — soldout 상호배타 쌍 */}
       <div style={{ display: 'flex', gap: 20, alignItems: 'center', justifyContent: 'flex-end', padding: '8px 0' }}>
-        <CheckItem label="전체보기" checked={noFilter} onClick={showAll} />
-        <CheckItem label="품절제외" checked={hideSoldOut} onClick={toggleSoldOut} />
+        <CheckItem label="전체보기" checked={!hideSoldOut} onClick={showAllScope} />
+        <CheckItem label="품절제외" checked={hideSoldOut} onClick={hideSoldOutScope} />
       </div>
 
       {/* filter(카테고리) 아코디언 */}
