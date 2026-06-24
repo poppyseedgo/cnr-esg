@@ -1,22 +1,29 @@
 // ============================================================================
-// BazaarPage — 바자회 상품 그리드
+// BazaarPage — 바자회 상품 그리드 (두 단계 사이드바의 '메인 콘텐츠')
+//
+// [변경 이력]
+//   2026-06-24  [Task 1] 본문 인라인 필터(검색·품절제외·태그칩) 제거 → 공용
+//               BazaarFilters로 이관(데스크톱=2차 사이드바 / 모바일=최상단).
+//               필터 상태를 URL 파라미터(cat/brand/q/soldout/sort)로 단일화.
+//               브레드크럼(Home›Bazaar) + 정렬 행(등록순/높은가격/낮은가격) 추가.
+//   이전:       상품 목록 / 활동 가드 / Realtime / 태그 2축 필터
 //
 // 기능:
-//   - 상품 목록 (sort_order 순)
+//   - 상품 목록 (정렬: 등록순 기본 / 가격 오름·내림차순)
 //   - 활동 상태 가드 (active일 때만 구매 가능, 시각만 안내)
 //   - Realtime 갱신 (재고 변경 즉시 반영)
-//   - 태그 메뉴 필터 (?tag=slug, 칩 클릭 → 해당 태그 상품만)   // ← [2026-06-22]
+//   - 필터는 BazaarFilters(URL 파라미터)와 동기화
 // ============================================================================
 
 import { useEffect, useState, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom'; // ← [2026-06-22] 태그 필터 URL 동기화
+import { useSearchParams, Link } from 'react-router-dom'; // ← [2026-06-22] 필터 URL / [2026-06-24] 브레드크럼
 import { useEventPhase } from '@/hooks/useEventPhase';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll'; // ← [2026-06-04] 무한 스크롤
 import { loadProducts, subscribeProducts } from '@/lib/products';
-import { listTagsWithCount } from '@/lib/tags'; // ← [2026-06-22] 태그 메뉴
+import { listTagsWithCount } from '@/lib/tags'; // ← [2026-06-22] slug→id 해석용 태그
 import { loadProductTagsBatch } from '@/lib/tags'; // ← [2026-06-23] 카드 태그 배치
-import { SearchBar } from '@/components/SearchBar'; // ← [2026-06-17] 상품 이름 검색
+import { BazaarFilters } from '@/components/bazaar/BazaarFilters'; // ← [2026-06-24] 필터는 공용 컴포넌트로 이관(모바일 최상단/데스크톱 사이드바)
 import { formatKSTDate } from '@/utils/time';
 import { ProductCard } from '@/components/ProductCard';
 import { InfiniteScrollFooter } from '@/components/InfiniteScrollFooter'; // ← [2026-06-04]
@@ -29,25 +36,32 @@ export function BazaarPage() {
   const { period, status } = getActivity('bazaar');
   const { isAdmin } = useCurrentUser();
 
-  // ← [2026-06-17] 품절 제외 필터
-  const [hideSoldOut, setHideSoldOut] = useState(false);
-
-  // ← [2026-06-17] 상품 이름 검색 (입력 → 300ms 디바운스 → 서버 재조회)
-  const [searchInput, setSearchInput] = useState('');
-  const [search, setSearch] = useState('');
-  useEffect(() => {
-    const t = setTimeout(() => setSearch(searchInput.trim()), 300);
-    return () => clearTimeout(t);
-  }, [searchInput]);
-
-  // ── [2026-06-23] 태그 필터 — 카테고리/브랜드 2축 동시 필터 ────────────────
+  // ── [2026-06-24] 필터 상태의 단일 소스 = URL 파라미터 ─────────────────────
+  //  검색(q)·품절제외(soldout)·정렬(sort)도 cat/brand 와 함께 URL로 통일.
+  //  필터 UI는 BazaarFilters(사이드바/모바일)가 이 파라미터를 쓰고, 여기선 읽기만.
   const [searchParams, setSearchParams] = useSearchParams();
   const activeCatSlug = searchParams.get('cat') ?? '';
   const activeBrandSlug = searchParams.get('brand') ?? '';
   const legacyTagSlug = searchParams.get('tag') ?? ''; // 이전 ?tag= 링크 호환
+  const search = (searchParams.get('q') ?? '').trim();          // ← [2026-06-24] 검색어 URL화
+  const hideSoldOut = searchParams.get('soldout') === '1';      // ← [2026-06-24] 품절제외 URL화
+  const sortParam = searchParams.get('sort');                   // ← [2026-06-24] 정렬 URL화
+  const sort: 'reg' | 'price_desc' | 'price_asc' =
+    sortParam === 'price_desc' ? 'price_desc' : sortParam === 'price_asc' ? 'price_asc' : 'reg';
+
+  // 정렬 변경(URL sort 갱신). 기본(reg)은 파라미터 제거.
+  const setSort = (next: 'reg' | 'price_desc' | 'price_asc') => {
+    setSearchParams((prev) => {
+      const p = new URLSearchParams(prev);
+      if (next === 'reg') p.delete('sort'); else p.set('sort', next);
+      return p;
+    }, { replace: true });
+  };
+
+  // 태그 목록 — slug→id 해석에 필요(필터 칩 렌더는 BazaarFilters가 담당)
   const [tags, setTags] = useState<EsgTagWithCount[]>([]);
   const reloadTags = useCallback(() => {
-    listTagsWithCount().then(setTags).catch(() => {/* 메뉴 로드 실패는 조용히(필터 없이 동작) */});
+    listTagsWithCount().then(setTags).catch(() => {/* 실패는 조용히(필터 없이 동작) */});
   }, []);
   useEffect(() => { reloadTags(); }, [reloadTags]);
 
@@ -57,38 +71,17 @@ export function BazaarPage() {
   const activeBrand = tags.find((t) => t.kind === 'brand' && t.slug === (activeBrandSlug || (legacyTag?.kind === 'brand' ? legacyTagSlug : '')));
   const activeCatId = activeCat?.id;
   const activeBrandId = activeBrand?.id;
-  // AND 필터용 태그 id 배열(선택된 것만)
   const tagIds = [activeCatId, activeBrandId].filter((x): x is string => !!x);
-
-  // 축별 칩 클릭: 같은 슬러그 재클릭=해제, 다른 슬러그=교체. (cat/brand 독립)
-  const selectAxis = (axis: 'cat' | 'brand', slug: string, currentSlug: string) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.delete('tag'); // legacy 파라미터 정리
-      if (slug && slug !== currentSlug) next.set(axis, slug);
-      else next.delete(axis);
-      return next;
-    });
-  };
-  const selectCat = (slug: string) => selectAxis('cat', slug, activeCat?.slug ?? '');
-  const selectBrand = (slug: string) => selectAxis('brand', slug, activeBrand?.slug ?? '');
-  const clearAll = () => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.delete('cat'); next.delete('brand'); next.delete('tag');
-      return next;
-    });
-  };
   const anyActive = !!(activeCat || activeBrand);
 
   // 무한 스크롤 — 12개씩 누적 로드 (고정 먼저 → sort_order → created_at)
   const fetchPage = useCallback(
     async (offset: number, limit: number) => {
-      const rows = await loadProducts({ scope: hideSoldOut ? 'on_sale_only' : 'all', offset, limit, search, tagIds }); // ← [2026-06-23] 다중 AND 필터
+      const rows = await loadProducts({ scope: hideSoldOut ? 'on_sale_only' : 'all', offset, limit, search, tagIds, sort }); // ← [2026-06-24] sort 반영
       const tagMap = await loadProductTagsBatch(rows.map((r) => r.id)); // ← [2026-06-23] 카드 표시용 태그 배치 주입
       return rows.map((r) => ({ ...r, tags: tagMap.get(r.id) ?? [] }));
     },
-    [hideSoldOut, search, activeCatId, activeBrandId]
+    [hideSoldOut, search, activeCatId, activeBrandId, sort]
   );
   const {
     items: products,
@@ -98,7 +91,7 @@ export function BazaarPage() {
     sentinelRef,
     reload,
     refresh,
-  } = useInfiniteScroll<EsgProductRow>(fetchPage, { pageSize: 12, deps: [hideSoldOut, search, activeCatId, activeBrandId] }); // ← [2026-06-23] 필터 변경 시 리셋
+  } = useInfiniteScroll<EsgProductRow>(fetchPage, { pageSize: 12, deps: [hideSoldOut, search, activeCatId, activeBrandId, sort] }); // ← [2026-06-24] sort 변경 시 리셋
 
   const [createOpen, setCreateOpen] = useState(false);
 
@@ -113,11 +106,18 @@ export function BazaarPage() {
 
   return (
     <div>
+      {/* ← [2026-06-24] 모바일(<1024) 전용 필터: 페이지 최상단. 데스크톱은 2차 사이드바가 대신(index.css 분기) */}
+      <div className="bazaar-mobile-filters" style={{ marginBottom: 16 }}>
+        <BazaarFilters />
+      </div>
+
+      {/* ← [2026-06-24] 브레드크럼(Home › Bazaar) + 어드민 등록 버튼 */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <h1 style={{ margin: 0 }}>🛍 ESG 온라인 바자회</h1>
-          <p style={{ color: '#666', margin: '4px 0 0' }}>굿즈 판매 수익금 전부 생명의 숲에 기부됩니다.</p>
-        </div>
+        <nav aria-label="breadcrumb" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 16, lineHeight: 1.4 }}>
+          <Link to="/" style={{ color: '#848484', textDecoration: 'none' }}>Home</Link>
+          <span style={{ color: '#b8b8b8' }}>›</span>
+          <span style={{ color: '#111' }}>Bazaar</span>
+        </nav>
         {isAdmin && (
           <button
             type="button"
@@ -185,68 +185,12 @@ export function BazaarPage() {
         </div>
       )}
 
-      {/* ← [2026-06-17] 검색 + 품절 제외 필터 */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: 12,
-          flexWrap: 'wrap',
-          marginTop: 16,
-        }}
-      >
-        <SearchBar value={searchInput} onChange={setSearchInput} placeholder="상품 이름 검색" width={320} />
-        <button
-          type="button"
-          onClick={() => setHideSoldOut((v) => !v)}
-          aria-pressed={hideSoldOut}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            padding: '6px 12px',
-            borderRadius: 999,
-            border: `1px solid ${hideSoldOut ? '#16a34a' : '#ddd'}`,
-            background: hideSoldOut ? '#16a34a' : '#fff',
-            color: hideSoldOut ? '#fff' : '#555',
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: 'pointer',
-          }}
-        >
-          {hideSoldOut ? '☑' : '☐'} 품절 제외
-        </button>
+      {/* ← [2026-06-24] 정렬 행 (Figma: 등록 순 / 높은 가격 순 / 낮은 가격 순) — 우측 정렬 */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginTop: 16 }}>
+        <SortOption label="등록 순" active={sort === 'reg'} onClick={() => setSort('reg')} />
+        <SortOption label="높은 가격 순" active={sort === 'price_desc'} onClick={() => setSort('price_desc')} />
+        <SortOption label="낮은 가격 순" active={sort === 'price_asc'} onClick={() => setSort('price_asc')} />
       </div>
-
-      {/* ← [2026-06-23] 태그 필터 — 카테고리/브랜드 동시(AND). 그룹별 단일 활성 */}
-      {tags.some((t) => t.product_count > 0) && (() => {
-        const catTags = tags.filter((t) => t.kind !== 'brand' && t.product_count > 0);
-        const brandTags = tags.filter((t) => t.kind === 'brand' && t.product_count > 0);
-        return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              <TagChip label="전체" active={!anyActive} onClick={clearAll} />
-            </div>
-            {catTags.length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-                <span style={tagGroupLabel}>카테고리</span>
-                {catTags.map((t) => (
-                  <TagChip key={t.id} label={`#${t.name} ${t.product_count}`} active={t.slug === (activeCat?.slug ?? '')} onClick={() => selectCat(t.slug)} />
-                ))}
-              </div>
-            )}
-            {brandTags.length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-                <span style={tagGroupLabel}>브랜드</span>
-                {brandTags.map((t) => (
-                  <TagChip key={t.id} label={`#${t.name} ${t.product_count}`} active={t.slug === (activeBrand?.slug ?? '')} onClick={() => selectBrand(t.slug)} />
-                ))}
-              </div>
-            )}
-          </div>
-        );
-      })()}
 
       {/* 상품 그리드 */}
       {initialLoading ? (
@@ -310,34 +254,28 @@ export function BazaarPage() {
   );
 }
 
-// ← [2026-06-22] 태그 메뉴 칩
-// ← [2026-06-23] 필터 그룹(카테고리/브랜드) 라벨 스타일
-const tagGroupLabel: React.CSSProperties = {
-  fontSize: 12,
-  fontWeight: 700,
-  color: '#888',
-  minWidth: 44,
-};
-
-function TagChip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+// ← [2026-06-24] 정렬 옵션 (Figma: 14px 라디오 + 라벨 20px). 선택=검은 점
+function SortOption({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={active}
       style={{
-        padding: '6px 12px',
-        borderRadius: 999,
-        border: `1px solid ${active ? '#111' : '#ddd'}`,
-        background: active ? '#111' : '#fff',
-        color: active ? '#fff' : '#555',
-        fontSize: 13,
-        fontWeight: 600,
-        cursor: 'pointer',
-        whiteSpace: 'nowrap',
+        display: 'inline-flex', alignItems: 'center', gap: 8,
+        background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px 0', fontFamily: 'inherit',
       }}
     >
-      {label}
+      <span style={{
+        width: 14, height: 14, flexShrink: 0, borderRadius: 999,
+        border: '1px solid #000',
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        {active && <span style={{ width: 8, height: 8, borderRadius: 999, background: '#000' }} />}
+      </span>
+      <span style={{ fontSize: 16, lineHeight: 1.4, color: active ? '#111' : '#848484', whiteSpace: 'nowrap' }}>
+        {label}
+      </span>
     </button>
   );
 }

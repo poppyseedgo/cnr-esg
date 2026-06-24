@@ -221,3 +221,14 @@ button {
   .app-shell { --sidebar-w: 346px; flex-direction: row; align-items: flex-start; }  /* ← 펼침 */
   .app-shell.is-collapsed { --sidebar-w: 89px; }  /* ← 접힘: 콘텐츠가 넓어짐 */
 }
+
+/* ============================================================================
+   [2026-06-24] 두 단계 사이드바 — 2차 패널/모바일 필터 반응형
+   · .secondary-sidebar : 데스크톱(≥1024)만 노출(2차 패널). 모바일 숨김.
+   · .bazaar-mobile-filters : 모바일(<1024)만 노출(페이지 최상단 필터). 데스크톱 숨김.
+   ============================================================================ */
+.secondary-sidebar { display: none; }            /* 모바일 기본: 2차 패널 숨김 */
+@media (min-width: 1024px) {
+  .secondary-sidebar { display: flex; }          /* 데스크톱: 2차 패널 노출 */
+  .bazaar-mobile-filters { display: none; }      /* 데스크톱: 모바일 필터 숨김(사이드바가 대신) */
+}

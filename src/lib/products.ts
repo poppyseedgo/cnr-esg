@@ -28,11 +28,12 @@ export interface LoadProductsOptions {
   search?: string; // ← [2026-06-17] 상품 이름 검색(서버사이드 ilike, %·_ 는 리터럴)
   tagId?: string;  // ← [2026-06-22] 단일 태그 필터(inner join)
   tagIds?: string[]; // ← [2026-06-23] 다중 태그 AND 필터(카테고리+브랜드 동시). 2개↑면 교집합 RPC 사용
+  sort?: 'reg' | 'price_desc' | 'price_asc'; // ← [2026-06-24] 정렬: 등록순(기본) / 높은가격 / 낮은가격
 }
 
 /** 상품 목록 (정렬: 고정(is_pinned) 먼저 → sort_order ASC → created_at) */
 export async function loadProducts(opts: LoadProductsOptions = {}): Promise<EsgProductRow[]> {
-  const { scope = 'all', limit, offset = 0, search, tagId, tagIds } = opts;   // ← [2026-06-23] tagIds
+  const { scope = 'all', limit, offset = 0, search, tagId, tagIds, sort = 'reg' } = opts;   // ← [2026-06-23] tagIds / [2026-06-24] sort
   const statuses: EsgProductStatus[] = scope === 'on_sale_only' ? ['on_sale'] : ['on_sale', 'sold_out'];
 
   // 필터 태그 정규화(tagIds 우선, 없으면 단일 tagId)
@@ -54,10 +55,21 @@ export async function loadProducts(opts: LoadProductsOptions = {}): Promise<EsgP
   let query = supabase
     .from('esg_products')
     .select(selectCols)
-    .in('status', statuses)
-    .order('is_pinned', { ascending: false })  // ← [2026-06-17] 고정 상품 맨 앞
-    .order('sort_order', { ascending: true })
-    .order('created_at', { ascending: false });
+    .in('status', statuses);
+
+  // ── [2026-06-24] 정렬 분기 ─────────────────────────────────────────────
+  //  · reg(기본): 고정 먼저 → sort_order → created_at (기존 동작 보존)
+  //  · price_desc/asc: 가격 우선 정렬(고정 무시), created_at 으로 동순위 타이브레이크
+  if (sort === 'price_desc') {
+    query = query.order('price', { ascending: false }).order('created_at', { ascending: false });
+  } else if (sort === 'price_asc') {
+    query = query.order('price', { ascending: true }).order('created_at', { ascending: false });
+  } else {
+    query = query
+      .order('is_pinned', { ascending: false })  // ← [2026-06-17] 고정 상품 맨 앞
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: false });
+  }
 
   if (singleTagId) {
     query = query.eq('esg_product_tags.tag_id', singleTagId);   // ← [2026-06-22] 해당 태그만
