@@ -76,7 +76,7 @@ export function AppLayout() {
         {/* ← [2026-06-24] 2차 패널(데스크톱 전용). 메인 접힘 여부에 따라 보조내비 표시/숨김 */}
         {isTwoTier && <SecondarySidebar mainCollapsed={collapsed} />}
 
-        <main className="app-main" style={{ flex: 1, minWidth: 0, padding: '0 20px' }}>
+        <main className="app-main" style={{ flex: 1, minWidth: 0, padding: '0 20px', background: isTwoTier ? '#fff' : undefined }}>{/* ← [2026-06-24] 상품리스트 페이지 배경 화이트 */}
           {/* ← [2026-06-24] 2-tier 에서는 중앙정렬 해제(풀폭) → 그리드가 가용폭을 모두 사용 */}
           <div style={{ maxWidth: isTwoTier ? 'none' : 1360, margin: isTwoTier ? 0 : '0 auto', padding: '24px 0 320px' }}>
             {/* ← [코드 스플리팅] lazy 페이지 로딩 중 사이드바/푸터 유지, 본문만 fallback */}

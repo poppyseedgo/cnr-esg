@@ -17,14 +17,12 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams, Link } from 'react-router-dom'; // ← [2026-06-22] 필터 URL / [2026-06-24] 브레드크럼
-import { useEventPhase } from '@/hooks/useEventPhase';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll'; // ← [2026-06-04] 무한 스크롤
 import { loadProducts, subscribeProducts } from '@/lib/products';
 import { listTagsWithCount } from '@/lib/tags'; // ← [2026-06-22] slug→id 해석용 태그
 import { loadProductTagsBatch } from '@/lib/tags'; // ← [2026-06-23] 카드 태그 배치
 import { BazaarFilters } from '@/components/bazaar/BazaarFilters'; // ← [2026-06-24] 필터는 공용 컴포넌트로 이관(모바일 최상단/데스크톱 사이드바)
-import { formatKSTDate } from '@/utils/time';
 import { ProductCard } from '@/components/ProductCard';
 import { InfiniteScrollFooter } from '@/components/InfiniteScrollFooter'; // ← [2026-06-04]
 import { FormModal } from '@/components/FormModal';
@@ -32,8 +30,6 @@ import { CreateProductForm } from '@/components/admin/CreateProductForm';
 import type { EsgProductRow, EsgTagWithCount } from '@/types/esg'; // ← [2026-06-22] EsgTagWithCount
 
 export function BazaarPage() {
-  const { getActivity } = useEventPhase();
-  const { period, status } = getActivity('bazaar');
   const { isAdmin } = useCurrentUser();
 
   // ── [2026-06-24] 필터 상태의 단일 소스 = URL 파라미터 ─────────────────────
@@ -155,35 +151,7 @@ export function BazaarPage() {
         />
       </FormModal>
 
-      {/* 상태 안내 */}
-      {period && (
-        <div
-          style={{
-            marginTop: 16,
-            padding: 16,
-            background:
-              status === 'active' ? '#dcfce7' : status === 'before' ? '#fef3c7' : '#f0f0f0',
-            color:
-              status === 'active' ? '#166534' : status === 'before' ? '#92400e' : '#666',
-            borderRadius: 8,
-            fontSize: 13,
-            lineHeight: 1.6,
-          }}
-        >
-          {status === 'active' && (
-            <>
-              ✅ <strong>판매 진행 중</strong> · {formatKSTDate(period.ends_at_utc)}까지
-            </>
-          )}
-          {status === 'before' && (
-            <>⏳ {formatKSTDate(period.starts_at_utc)}부터 구매 가능합니다 (구경은 가능)</>
-          )}
-          {status === 'closed' && '🏁 바자회가 종료되었습니다.'}
-          {period.note && (
-            <div style={{ marginTop: 6, fontSize: 12, opacity: 0.8 }}>{period.note}</div>
-          )}
-        </div>
-      )}
+      {/* ← [2026-06-24] 상단 구매가능 상태 배너 제거 (요청) */}
 
       {/* ← [2026-06-24] 정렬 행 (Figma: 등록 순 / 높은 가격 순 / 낮은 가격 순) — 우측 정렬 */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginTop: 16 }}>

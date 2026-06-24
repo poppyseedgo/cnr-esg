@@ -20,7 +20,7 @@
 // ============================================================================
 
 import { useEffect, useState, useCallback, useRef, type ReactNode } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom'; // ← [2026-06-24] 타이틀 링크
 import { listTagsWithCount } from '@/lib/tags';
 import type { EsgTagWithCount } from '@/types/esg';
 
@@ -82,11 +82,13 @@ export function BazaarFilters({ showTitle = false }: BazaarFiltersProps) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, alignItems: 'stretch' }}>
-      {/* 타이틀(데스크톱 사이드바만) */}
+      {/* 타이틀(데스크톱 사이드바만) — 클릭 시 바자회 목록으로 */}
       {showTitle && (
-        <h2 style={{ margin: 0, fontWeight: 400, fontSize: 40, lineHeight: 1.2, color: '#111', letterSpacing: '-0.5px' }}>
-          나무 심는<br />바자회
-        </h2>
+        <Link to="/bazaar" style={{ textDecoration: 'none' }}>
+          <h2 style={{ margin: 0, fontWeight: 400, fontSize: 40, lineHeight: 1.2, color: '#111', letterSpacing: '-0.5px' }}>
+            나무 심는<br />바자회
+          </h2>
+        </Link>
       )}
 
       {/* 전체보기 / 품절제외 체크박스 행 (우측 정렬) — soldout 상호배타 쌍 */}
