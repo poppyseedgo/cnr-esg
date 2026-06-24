@@ -535,6 +535,9 @@ export interface EsgAuctionRow {
   is_new: boolean;            // ← [2026-06-09] "새 상품" 라벨(수동)
   created_at: string;
   updated_at: string;
+  /** 클라이언트 보강(서버 컬럼 아님) — 공개 뷰 esg_auction_donor_public 에서 주입.
+   *  물품 기부자 표시용(이름+아바타). 외부 기부자는 avatar_url=null. // ← [2026-06-23] */
+  donor?: { name: string; avatar_url: string | null } | null;
 }
 
 // ============================================================================

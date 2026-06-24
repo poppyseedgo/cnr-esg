@@ -27,6 +27,7 @@ import { formatKSTDate, formatKSTFull } from '@/utils/time';
 import { FormModal } from '@/components/FormModal';
 import { InfiniteScrollFooter } from '@/components/InfiniteScrollFooter'; // ← [2026-06-04]
 import { BlurImage } from '@/components/BlurImage'; // ← [2026-06-19] 썸네일 lazy+블러업
+import { Avatar } from '@/components/Avatar'; // ← [2026-06-23] 기부자 아바타
 import { CreateAuctionForm } from '@/components/admin/CreateAuctionForm';
 import type { EsgAuctionRow } from '@/types/esg';
 
@@ -266,6 +267,16 @@ function AuctionCard({ auction }: { auction: EsgAuctionRow }) {
         >
           {auction.product_name}
         </h3>
+
+        {/* ← [2026-06-23] 물품 기부자 (이름 + 아바타) */}
+        {auction.donor && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+            <Avatar name={auction.donor.name} avatarUrl={auction.donor.avatar_url} size={20} />
+            <span style={{ fontSize: 12, color: '#666', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {auction.donor.name} 기부
+            </span>
+          </div>
+        )}
 
         <div style={{ marginTop: 'auto' }}>
           <div style={{ fontSize: 11, color: '#888' }}>

@@ -379,6 +379,15 @@ export function AuctionDetailPage() {
               )}
             </div>
             <h1 style={{ margin: 0, fontSize: 22, lineHeight: 1.4 }}>{auction.product_name}</h1>
+            {/* ← [2026-06-23] 물품 기부자 (이름 + 아바타) */}
+            {auction.donor && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
+                <Avatar name={auction.donor.name} avatarUrl={auction.donor.avatar_url} size={28} />
+                <span style={{ fontSize: 14, color: '#555' }}>
+                  <strong style={{ color: '#222' }}>{auction.donor.name}</strong> 님 기부
+                </span>
+              </div>
+            )}
           </div>
 
           {/* 카운트다운 */}
