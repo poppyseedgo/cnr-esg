@@ -9,6 +9,9 @@
 //               · menu.svg의 stroke="white" 하드코딩 → currentColor (3-variant 모두 대응)
 //               · vectorEffect="non-scaling-stroke"로 크기와 무관하게 1px 크리스프 렌더
 //               · 열림 상태 ✕(텍스트) → 동일 스트로크 스타일 <CloseIcon>
+//   2026-06-24  [근본] isMobile 초기값을 useState(false) → 마운트 시 window.innerWidth 산출.
+//               첫 페인트에 데스크톱 사이드바(346px)가 잠깐 떴다 모바일로 바뀌는
+//               깜빡임(FOUC) 제거. (모바일 첫 진입 레이아웃 안정화)
 //
 // [설계 — 기존 Header 기능 100% 보존]
 //   - 3-variant(dark/light/green) URL 자동 분기: getVariantForPath (Header와 동일 규칙)
@@ -445,7 +448,14 @@ export function EsgSideNav({ collapsed = false, onToggleCollapse }: {
 
   const { cartCount, unread, wishlistCount } = useNavCounts(); // ← [2026-06-24] 공용 훅(찜 카운트 포함)
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  // ← [2026-06-24 근본] 초기값을 '실제 뷰포트'로 산출(기존 useState(false)).
+  //   기존: 첫 렌더가 무조건 false=데스크톱 → mount 후 useEffect 가 모바일로 정정 →
+  //         모바일에서 데스크톱 사이드바(346px)가 한 프레임 떴다 사라지는 깜빡임(FOUC) 발생.
+  //   변경: 마운트 시점의 window.innerWidth 로 즉시 올바른 분기 → 깜빡임 제거.
+  //         (SPA·클라이언트 전용이라 window 항상 존재하지만 안전하게 typeof 가드)
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth < 1024
+  );
 
   const variant = getVariantForPath(location.pathname);
   const t = VARIANTS[variant];

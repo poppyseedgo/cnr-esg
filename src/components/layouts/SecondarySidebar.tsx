@@ -4,6 +4,13 @@
 // [변경 이력]
 //   2026-06-24  [Task 1] 신규. 89px 레일(EsgSideNav 접힘) 옆에 열리는 컨텍스트
 //               패널. 바자회/경매 라우트에서 AppLayout이 렌더.
+//   2026-06-24  [버그수정·근본] 인라인 style 의 display:'flex' 제거.
+//               · 증상: 모바일 바자회/경매에서 2차 패널(400px)이 본문 위에 렌더되어
+//                 필터/브랜드/보조내비가 페이지 본문과 중복·겹쳐 보임(스샷 image2).
+//               · 원인: 인라인 display:'flex' 가 .secondary-sidebar 클래스의 모바일
+//                 규칙 `display:none`(index.css)을 항상 덮어씀(인라인 > 클래스 우선순위).
+//               · 해결: display 인라인 제거 → 표시 여부를 클래스에 단일 위임
+//                 (모바일 none / ≥1024 flex). 헤드리스 390px 측정으로 재현·수정 검증 완료.
 //
 // [설계]
 //   · 타이틀 + <BazaarFilters/> + (조건부)보조내비 로 구성.
@@ -46,7 +53,12 @@ export function SecondarySidebar({ mainCollapsed }: SecondarySidebarProps) {
         position: 'sticky', top: 0, height: '100vh', overflowY: 'auto',
         boxSizing: 'border-box', padding: '24px 40px 20px 24px',
         background: '#fff', borderRight: '1px solid #eee',
-        display: 'flex', flexDirection: 'column', gap: 24,
+        // ← [2026-06-24 버그수정·근본] 인라인 display 제거. 기존 display:'flex'(인라인)가
+        //    .secondary-sidebar 클래스의 모바일 규칙 display:none 을 '항상' 덮어써서(인라인>클래스 우선순위)
+        //    모바일에서도 2차 패널(400px)이 렌더 → 본문 위 필터·내비 중복/겹침의 직접 원인이었음.
+        //    표시 제어는 전적으로 클래스에 위임: 모바일 none / ≥1024 flex (index.css .secondary-sidebar).
+        //    flexDirection/gap 은 클래스가 flex 를 켤 때만 의미 → 그대로 유지(부작용 없음).
+        flexDirection: 'column', gap: 24,
         fontFamily: "'Pretendard', system-ui, sans-serif",
       }}
     >
