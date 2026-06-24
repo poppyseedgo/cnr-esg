@@ -273,6 +273,7 @@ interface NavBodyProps {
   currentUser: { id: string; name: string; avatar_url: string | null } | null;
   cartCount: number;
   unread: number;
+  wishlistCount: number; // ← [2026-06-24] 찜 개수
   badges: { zeroWaste: BadgeInfo; wiseLife: BadgeInfo; bazaar: BadgeInfo; auction: BadgeInfo };
   onLogin: () => void;
   onSignOut: () => void;
@@ -307,7 +308,7 @@ function CloseIcon({ color, size = 24 }: { color: string; size?: number }) {
 }
 
 function NavBody({
-  t, isAdmin, currentUser, cartCount, unread, badges, onLogin, onSignOut, onNavigate, onCollapse,
+  t, isAdmin, currentUser, cartCount, unread, wishlistCount, badges, onLogin, onSignOut, onNavigate, onCollapse,
 }: NavBodyProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 44, fontFamily: FONT }}>
@@ -345,7 +346,7 @@ function NavBody({
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <MutedItem to="/cart" label="Cart" t={t} count={currentUser ? cartCount : undefined} onNavigate={onNavigate} />
-          <MutedItem to="/mypage/wishlist" label="찜" t={t} onNavigate={onNavigate} />
+          <MutedItem to="/mypage/wishlist" label="찜" t={t} count={currentUser ? wishlistCount : undefined} onNavigate={onNavigate} />{/* ← [2026-06-24] 찜 카운트 */}
           <MutedItem to="/mypage" label="My Account" t={t} onNavigate={onNavigate} />
           <MutedItem to="/notifications" label="Notification" t={t} count={currentUser ? unread : undefined} onNavigate={onNavigate} />
         </div>
@@ -442,7 +443,7 @@ export function EsgSideNav({ collapsed = false, onToggleCollapse }: {
   const { getActivity } = useEventPhase();
   const location = useLocation();
 
-  const { cartCount, unread } = useNavCounts(); // ← [2026-06-24] 공용 훅(2차 사이드바와 동일 소스)
+  const { cartCount, unread, wishlistCount } = useNavCounts(); // ← [2026-06-24] 공용 훅(찜 카운트 포함)
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -502,7 +503,7 @@ export function EsgSideNav({ collapsed = false, onToggleCollapse }: {
               overflowY: 'auto', WebkitOverflowScrolling: 'touch',
             }}>
               <NavBody t={t} isAdmin={isAdmin} currentUser={currentUser}
-                cartCount={cartCount} unread={unread} badges={badges}
+                cartCount={cartCount} unread={unread} wishlistCount={wishlistCount} badges={badges}
                 onLogin={handleLogin} onSignOut={handleSignOut} onNavigate={() => setMobileOpen(false)} />
             </aside>
           </>
@@ -538,7 +539,7 @@ export function EsgSideNav({ collapsed = false, onToggleCollapse }: {
       transition: 'width 0.2s, background 0.2s, color 0.2s',
     }}>
       <NavBody t={t} isAdmin={isAdmin} currentUser={currentUser}
-        cartCount={cartCount} unread={unread} badges={badges}
+        cartCount={cartCount} unread={unread} wishlistCount={wishlistCount} badges={badges}
         onLogin={handleLogin} onSignOut={handleSignOut} onCollapse={onToggleCollapse} />
     </aside>
   );

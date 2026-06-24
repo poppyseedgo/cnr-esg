@@ -32,11 +32,11 @@ const SECONDARY_NAV: Array<{ to: string; label: string }> = [
 ];
 
 export function SecondarySidebar({ mainCollapsed }: SecondarySidebarProps) {
-  const { cartCount, unread } = useNavCounts(); // ← [2026-06-24] 1차 사이드바와 동일 소스
+  const { cartCount, unread, wishlistCount } = useNavCounts(); // ← [2026-06-24] 1차 사이드바와 동일 소스
 
-  // 라벨별 카운트 매핑(Cart=장바구니 수량 / Notification=미읽음). 나머지는 없음.
+  // 라벨별 카운트 매핑(Cart=장바구니 / 찜=위시리스트 / Notification=미읽음). 나머지는 없음.
   const countFor = (label: string): number | undefined =>
-    label === 'Cart' ? cartCount : label === 'Notification' ? unread : undefined;
+    label === 'Cart' ? cartCount : label === '찜' ? wishlistCount : label === 'Notification' ? unread : undefined;
 
   return (
     <aside
