@@ -73,9 +73,9 @@ export function BazaarFilters({ showTitle = false }: BazaarFiltersProps) {
   const catTags = tags.filter((t) => t.kind !== 'brand' && t.product_count > 0);
   const brandTags = tags.filter((t) => t.kind === 'brand' && t.product_count > 0);
 
-  // 아코디언 펼침(Figma 기본 펼침)
+  // 아코디언 펼침: filter(카테고리)는 기본 펼침 / 브랜드는 기본 닫힘  // ← [2026-06-24]
   const [catOpen, setCatOpen] = useState(true);
-  const [brandOpen, setBrandOpen] = useState(true);
+  const [brandOpen, setBrandOpen] = useState(false);
 
   const activeCatName = catTags.find((t) => t.slug === activeCat)?.name;
   const activeBrandName = brandTags.find((t) => t.slug === activeBrand)?.name;
