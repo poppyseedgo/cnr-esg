@@ -26,16 +26,30 @@ export interface LoadProductsOptions {
   limit?: number;  // ← [2026-06-04] 무한 스크롤 페이징
   offset?: number; // ← [2026-06-04]
   search?: string; // ← [2026-06-17] 상품 이름 검색(서버사이드 ilike, %·_ 는 리터럴)
-  tagId?: string;  // ← [2026-06-22] 태그 필터(esg_product_tags inner join). 있으면 해당 태그 상품만
+  tagId?: string;  // ← [2026-06-22] 단일 태그 필터(inner join)
+  tagIds?: string[]; // ← [2026-06-23] 다중 태그 AND 필터(카테고리+브랜드 동시). 2개↑면 교집합 RPC 사용
 }
 
 /** 상품 목록 (정렬: 고정(is_pinned) 먼저 → sort_order ASC → created_at) */
 export async function loadProducts(opts: LoadProductsOptions = {}): Promise<EsgProductRow[]> {
-  const { scope = 'all', limit, offset = 0, search, tagId } = opts;   // ← [2026-06-22] tagId
+  const { scope = 'all', limit, offset = 0, search, tagId, tagIds } = opts;   // ← [2026-06-23] tagIds
   const statuses: EsgProductStatus[] = scope === 'on_sale_only' ? ['on_sale'] : ['on_sale', 'sold_out'];
 
-  // ← [2026-06-22] 태그 필터 시 매핑 테이블 inner join (정렬·상태 조건은 그대로 유지)
-  const selectCols = tagId ? '*, esg_product_tags!inner(tag_id)' : '*';
+  // 필터 태그 정규화(tagIds 우선, 없으면 단일 tagId)
+  const ids = (tagIds && tagIds.length > 0) ? tagIds : (tagId ? [tagId] : []); // ← [2026-06-23]
+
+  // 태그 2개 이상이면 "모두 가진" 상품 id를 RPC로 구해 .in('id', …) (AND 교집합)
+  let matchIds: string[] | null = null;
+  if (ids.length >= 2) {
+    const { data: m, error: mErr } = await supabase.rpc('esg_product_ids_with_all_tags', { p_tag_ids: ids });
+    if (mErr) throw mErr;
+    matchIds = ((m ?? []) as Array<{ product_id: string }>).map((r) => r.product_id);
+    if (matchIds.length === 0) return []; // 교집합 없음 → 빈 결과
+  }
+
+  // 단일 태그면 기존 inner join(효율적), 그 외엔 일반 select
+  const singleTagId = ids.length === 1 ? ids[0] : null;
+  const selectCols = singleTagId ? '*, esg_product_tags!inner(tag_id)' : '*';
 
   let query = supabase
     .from('esg_products')
@@ -45,8 +59,11 @@ export async function loadProducts(opts: LoadProductsOptions = {}): Promise<EsgP
     .order('sort_order', { ascending: true })
     .order('created_at', { ascending: false });
 
-  if (tagId) {
-    query = query.eq('esg_product_tags.tag_id', tagId);   // ← [2026-06-22] 해당 태그만
+  if (singleTagId) {
+    query = query.eq('esg_product_tags.tag_id', singleTagId);   // ← [2026-06-22] 해당 태그만
+  }
+  if (matchIds) {
+    query = query.in('id', matchIds);   // ← [2026-06-23] 다중 태그 교집합
   }
 
   const q = (search ?? '').trim();

@@ -330,10 +330,10 @@ export function BazaarProductPage() {
               return (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 12 }}>
                   {categories.map((t) => (
-                    <Link key={t.id} to={`/bazaar?tag=${t.slug}`} style={detailTagChip('#ecfdf5', '#047857')}>#{t.name}</Link>
+                    <Link key={t.id} to={`/bazaar?cat=${t.slug}`} style={detailTagChip('#ecfdf5', '#047857')}>#{t.name}</Link>
                   ))}
                   {brands.map((t) => (
-                    <Link key={t.id} to={`/bazaar?tag=${t.slug}`} style={detailTagChip('#111', '#fff')}>#{t.name}</Link>
+                    <Link key={t.id} to={`/bazaar?brand=${t.slug}`} style={detailTagChip('#111', '#fff')}>#{t.name}</Link>
                   ))}
                 </div>
               );

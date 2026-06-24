@@ -40,37 +40,55 @@ export function BazaarPage() {
     return () => clearTimeout(t);
   }, [searchInput]);
 
-  // ── [2026-06-22] 태그 메뉴 필터 ────────────────────────────────────────
+  // ── [2026-06-23] 태그 필터 — 카테고리/브랜드 2축 동시 필터 ────────────────
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTagSlug = searchParams.get('tag') ?? '';
+  const activeCatSlug = searchParams.get('cat') ?? '';
+  const activeBrandSlug = searchParams.get('brand') ?? '';
+  const legacyTagSlug = searchParams.get('tag') ?? ''; // 이전 ?tag= 링크 호환
   const [tags, setTags] = useState<EsgTagWithCount[]>([]);
   const reloadTags = useCallback(() => {
     listTagsWithCount().then(setTags).catch(() => {/* 메뉴 로드 실패는 조용히(필터 없이 동작) */});
   }, []);
   useEffect(() => { reloadTags(); }, [reloadTags]);
 
-  // slug → id 변환(태그 로드 후 결정). 존재하지 않는 slug면 undefined → 전체 표시.
-  const activeTag = tags.find((t) => t.slug === activeTagSlug);
-  const activeTagId = activeTag?.id;
+  // slug → 태그(종류 구분). legacy ?tag= 는 종류에 따라 해당 축으로 흡수.
+  const legacyTag = legacyTagSlug ? tags.find((t) => t.slug === legacyTagSlug) : undefined;
+  const activeCat = tags.find((t) => t.kind !== 'brand' && t.slug === (activeCatSlug || (legacyTag?.kind !== 'brand' ? legacyTagSlug : '')));
+  const activeBrand = tags.find((t) => t.kind === 'brand' && t.slug === (activeBrandSlug || (legacyTag?.kind === 'brand' ? legacyTagSlug : '')));
+  const activeCatId = activeCat?.id;
+  const activeBrandId = activeBrand?.id;
+  // AND 필터용 태그 id 배열(선택된 것만)
+  const tagIds = [activeCatId, activeBrandId].filter((x): x is string => !!x);
 
-  // 칩 클릭: 같은 태그 재클릭 = 해제, 다른 태그 = 교체
-  const selectTag = (slug: string) => {
+  // 축별 칩 클릭: 같은 슬러그 재클릭=해제, 다른 슬러그=교체. (cat/brand 독립)
+  const selectAxis = (axis: 'cat' | 'brand', slug: string, currentSlug: string) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
-      if (slug && slug !== activeTagSlug) next.set('tag', slug);
-      else next.delete('tag');
+      next.delete('tag'); // legacy 파라미터 정리
+      if (slug && slug !== currentSlug) next.set(axis, slug);
+      else next.delete(axis);
       return next;
     });
   };
+  const selectCat = (slug: string) => selectAxis('cat', slug, activeCat?.slug ?? '');
+  const selectBrand = (slug: string) => selectAxis('brand', slug, activeBrand?.slug ?? '');
+  const clearAll = () => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('cat'); next.delete('brand'); next.delete('tag');
+      return next;
+    });
+  };
+  const anyActive = !!(activeCat || activeBrand);
 
   // 무한 스크롤 — 12개씩 누적 로드 (고정 먼저 → sort_order → created_at)
   const fetchPage = useCallback(
     async (offset: number, limit: number) => {
-      const rows = await loadProducts({ scope: hideSoldOut ? 'on_sale_only' : 'all', offset, limit, search, tagId: activeTagId }); // ← [2026-06-22] 태그 필터
+      const rows = await loadProducts({ scope: hideSoldOut ? 'on_sale_only' : 'all', offset, limit, search, tagIds }); // ← [2026-06-23] 다중 AND 필터
       const tagMap = await loadProductTagsBatch(rows.map((r) => r.id)); // ← [2026-06-23] 카드 표시용 태그 배치 주입
       return rows.map((r) => ({ ...r, tags: tagMap.get(r.id) ?? [] }));
     },
-    [hideSoldOut, search, activeTagId]
+    [hideSoldOut, search, activeCatId, activeBrandId]
   );
   const {
     items: products,
@@ -80,7 +98,7 @@ export function BazaarPage() {
     sentinelRef,
     reload,
     refresh,
-  } = useInfiniteScroll<EsgProductRow>(fetchPage, { pageSize: 12, deps: [hideSoldOut, search, activeTagId] }); // ← [2026-06-22] 태그 변경 시 리셋
+  } = useInfiniteScroll<EsgProductRow>(fetchPage, { pageSize: 12, deps: [hideSoldOut, search, activeCatId, activeBrandId] }); // ← [2026-06-23] 필터 변경 시 리셋
 
   const [createOpen, setCreateOpen] = useState(false);
 
@@ -201,20 +219,20 @@ export function BazaarPage() {
         </button>
       </div>
 
-      {/* ← [2026-06-23] 태그 필터 — 카테고리/브랜드 그룹 분리. 단일 활성(?tag=slug). 상품 있는 태그만 */}
+      {/* ← [2026-06-23] 태그 필터 — 카테고리/브랜드 동시(AND). 그룹별 단일 활성 */}
       {tags.some((t) => t.product_count > 0) && (() => {
         const catTags = tags.filter((t) => t.kind !== 'brand' && t.product_count > 0);
         const brandTags = tags.filter((t) => t.kind === 'brand' && t.product_count > 0);
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              <TagChip label="전체" active={!activeTagSlug} onClick={() => selectTag('')} />
+              <TagChip label="전체" active={!anyActive} onClick={clearAll} />
             </div>
             {catTags.length > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
                 <span style={tagGroupLabel}>카테고리</span>
                 {catTags.map((t) => (
-                  <TagChip key={t.id} label={`#${t.name} ${t.product_count}`} active={t.slug === activeTagSlug} onClick={() => selectTag(t.slug)} />
+                  <TagChip key={t.id} label={`#${t.name} ${t.product_count}`} active={t.slug === (activeCat?.slug ?? '')} onClick={() => selectCat(t.slug)} />
                 ))}
               </div>
             )}
@@ -222,7 +240,7 @@ export function BazaarPage() {
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
                 <span style={tagGroupLabel}>브랜드</span>
                 {brandTags.map((t) => (
-                  <TagChip key={t.id} label={`#${t.name} ${t.product_count}`} active={t.slug === activeTagSlug} onClick={() => selectTag(t.slug)} />
+                  <TagChip key={t.id} label={`#${t.name} ${t.product_count}`} active={t.slug === (activeBrand?.slug ?? '')} onClick={() => selectBrand(t.slug)} />
                 ))}
               </div>
             )}
@@ -250,8 +268,8 @@ export function BazaarPage() {
           <p style={{ margin: 0, color: '#888' }}>
             {search
               ? '검색 결과가 없습니다.'
-              : activeTag
-                ? `'#${activeTag.name}' 태그의 상품이 없습니다.`
+              : anyActive
+                ? `${[activeCat, activeBrand].filter(Boolean).map((t) => `#${t!.name}`).join(' ')} 조건의 상품이 없습니다.`
                 : '아직 등록된 상품이 없습니다.'}
           </p>
         </div>
