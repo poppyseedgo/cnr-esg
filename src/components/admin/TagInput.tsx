@@ -16,15 +16,17 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { listAllTags, upsertTag } from '@/lib/tags';
-import type { EsgTagRow } from '@/types/esg';
+import type { EsgTagRow, TagKind } from '@/types/esg';
 
 interface TagInputProps {
   value: EsgTagRow[];
   onChange: (tags: EsgTagRow[]) => void;
   disabled?: boolean;
+  kind?: TagKind;          // ← [2026-06-23] 'category'(기본) | 'brand' — 자동완성/생성 종류
+  placeholder?: string;    // ← [2026-06-23] 입력 안내문
 }
 
-export function TagInput({ value, onChange, disabled }: TagInputProps) {
+export function TagInput({ value, onChange, disabled, kind = 'category', placeholder }: TagInputProps) {
   const [allTags, setAllTags] = useState<EsgTagRow[]>([]);
   const [input, setInput] = useState('');
   const [open, setOpen] = useState(false);
@@ -43,14 +45,14 @@ export function TagInput({ value, onChange, disabled }: TagInputProps) {
   const candidates = useMemo(() => {
     if (!q) return [];
     return allTags
-      .filter((t) => !selectedIds.has(t.id) && t.name.toLowerCase().includes(q))
+      .filter((t) => t.kind === kind && !selectedIds.has(t.id) && t.name.toLowerCase().includes(q)) // ← [2026-06-23] 같은 종류만
       .slice(0, 8);
-  }, [q, allTags, selectedIds]);
+  }, [q, allTags, selectedIds, kind]);
 
   // 입력값과 정확히 같은 이름이 이미 존재(전체/선택)하는가 → "새로 만들기" 노출 여부
   const exactExists = useMemo(
-    () => allTags.some((t) => t.name.toLowerCase() === q) || value.some((t) => t.name.toLowerCase() === q),
-    [allTags, value, q]
+    () => allTags.some((t) => t.kind === kind && t.name.toLowerCase() === q) || value.some((t) => t.name.toLowerCase() === q),
+    [allTags, value, q, kind]
   );
 
   const addTag = (tag: EsgTagRow) => {
@@ -65,7 +67,7 @@ export function TagInput({ value, onChange, disabled }: TagInputProps) {
     if (!trimmed || creating) return;
     setCreating(true);
     try {
-      const tag = await upsertTag(trimmed); // 있으면 기존 반환, 없으면 생성
+      const tag = await upsertTag(trimmed, kind); // ← [2026-06-23] 종류 지정 생성/조회
       setAllTags((prev) => (prev.some((t) => t.id === tag.id) ? prev : [...prev, tag]));
       if (!value.some((t) => t.id === tag.id)) onChange([...value, tag]);
       setInput('');
@@ -84,7 +86,7 @@ export function TagInput({ value, onChange, disabled }: TagInputProps) {
       e.preventDefault();
       const name = input.trim();
       if (!name) return;
-      const existing = allTags.find((t) => t.name.toLowerCase() === name.toLowerCase());
+      const existing = allTags.find((t) => t.kind === kind && t.name.toLowerCase() === name.toLowerCase()); // ← [2026-06-23] 같은 종류만
       if (existing) addTag(existing);
       else void createAndAdd(name);
     } else if (e.key === 'Backspace' && !input && value.length > 0) {
@@ -150,7 +152,7 @@ export function TagInput({ value, onChange, disabled }: TagInputProps) {
           onFocus={() => setOpen(true)}
           onKeyDown={onKeyDown}
           disabled={disabled || creating}
-          placeholder={value.length ? '' : '태그 입력 후 Enter (예: 빈티지, 친환경)'}
+          placeholder={value.length ? '' : (placeholder ?? '태그 입력 후 Enter (예: 빈티지, 친환경)')}
           style={{ flex: 1, minWidth: 120, border: 'none', outline: 'none', fontSize: 13, padding: '4px', background: 'transparent' }}
         />
       </div>

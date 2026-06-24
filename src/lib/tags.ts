@@ -18,7 +18,7 @@
 // ============================================================================
 
 import { supabase as _supabase } from './supabase';
-import type { EsgTagRow, EsgTagWithCount } from '@/types/esg';
+import type { EsgTagRow, EsgTagWithCount, TagKind } from '@/types/esg';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const supabase = _supabase as any;
@@ -29,9 +29,18 @@ const supabase = _supabase as any;
 export async function listTagsWithCount(): Promise<EsgTagWithCount[]> {
   const { data, error } = await supabase.rpc('esg_list_tags_with_count');
   if (error) throw error;
+
+  // 카운트 RPC는 kind를 안 주므로 esg_tags(공개 읽기)에서 kind를 병합. // ← [2026-06-23]
+  const kindMap = new Map<string, TagKind>();
+  const { data: kinds } = await supabase.from('esg_tags').select('id, kind');
+  for (const k of (kinds ?? []) as Array<{ id: string; kind: TagKind }>) {
+    kindMap.set(k.id, k.kind);
+  }
+
   // product_count 는 bigint → 문자열로 올 수 있어 Number 정규화
   return ((data ?? []) as EsgTagWithCount[]).map((t) => ({
     ...t,
+    kind: kindMap.get(t.id) ?? 'category',          // ← [2026-06-23] kind 병합(기본 category)
     product_count: Number(t.product_count) || 0,   // ← bigint 문자열 방어
   }));
 }
@@ -53,18 +62,30 @@ export async function listAllTags(): Promise<EsgTagRow[]> {
 // 태그 즉시 등록 — 같은 slug 있으면 그 태그 반환, 없으면 생성
 //   (워드프레스 "엔터 → 즉시 생성". 중복 입력해도 안전)
 // ============================================================================
-export async function upsertTag(name: string): Promise<EsgTagRow> {
+export async function upsertTag(name: string, kind: TagKind = 'category'): Promise<EsgTagRow> {
   const trimmed = name.trim();
   if (!trimmed) throw new Error('태그 이름을 입력해주세요.');
 
-  const { data, error } = await supabase.rpc('esg_upsert_tag', { p_name: trimmed });
+  // ← [2026-06-23] kind 보존 upsert(신규만 kind 부여, 기존은 보존)
+  const { data, error } = await supabase.rpc('esg_upsert_tag_kind', { p_name: trimmed, p_kind: kind });
   if (error) {
     const msg = error.message ?? '';
     if (msg.includes('NOT_ADMIN')) throw new Error('관리자만 태그를 만들 수 있습니다.');
     if (msg.includes('EMPTY_TAG_NAME')) throw new Error('태그 이름을 입력해주세요.');
+    if (msg.includes('INVALID_KIND')) throw new Error('태그 종류가 올바르지 않습니다.');
     throw new Error(msg || '태그 등록 실패');
   }
   return data as EsgTagRow;
+}
+
+// ============================================================================
+// 태그 종류 변경(관리자) — 기존 태그를 카테고리↔브랜드로 재분류   // ← [2026-06-23]
+// ============================================================================
+export async function setTagKind(tagId: string, kind: TagKind): Promise<void> {
+  const { data, error } = await supabase.rpc('esg_set_tag_kind', { p_tag_id: tagId, p_kind: kind });
+  if (error) throw new Error(error.message ?? '태그 종류 변경 실패');
+  const res = data as { success: boolean; error?: string };
+  if (!res?.success) throw new Error(res?.error ?? '태그 종류 변경 실패');
 }
 
 // ============================================================================
@@ -98,4 +119,41 @@ export async function setProductTags(productId: string, tagIds: string[]): Promi
     if (msg.includes('PRODUCT_NOT_FOUND')) throw new Error('상품을 찾을 수 없습니다.');
     throw new Error(msg || '태그 변경 실패');
   }
+}
+
+// ============================================================================
+// 여러 상품의 태그 일괄 조회 — 리스트 카드 표시용(N+1 방지)   // ← [2026-06-23]
+//   반환: Map<product_id, EsgTagRow[]>  (sort_order→name 정렬)
+// ============================================================================
+export async function loadProductTagsBatch(productIds: string[]): Promise<Map<string, EsgTagRow[]>> {
+  const map = new Map<string, EsgTagRow[]>();
+  if (productIds.length === 0) return map;
+
+  const { data, error } = await supabase
+    .from('esg_product_tags')
+    .select('product_id, esg_tags(*)')
+    .in('product_id', productIds);
+  if (error) {
+    console.warn('[loadProductTagsBatch] 태그 조회 실패:', error.message);
+    return map;
+  }
+
+  for (const r of (data ?? []) as Array<{ product_id: string; esg_tags: EsgTagRow | null }>) {
+    if (!r.esg_tags) continue;
+    const arr = map.get(r.product_id) ?? [];
+    arr.push(r.esg_tags);
+    map.set(r.product_id, arr);
+  }
+  for (const arr of map.values()) {
+    arr.sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name));
+  }
+  return map;
+}
+
+/** 태그 배열을 종류별로 분리 — 표시/편집 공통 유틸. // ← [2026-06-23] */
+export function splitTagsByKind(tags: EsgTagRow[]): { categories: EsgTagRow[]; brands: EsgTagRow[] } {
+  return {
+    categories: tags.filter((t) => t.kind !== 'brand'),
+    brands: tags.filter((t) => t.kind === 'brand'),
+  };
 }

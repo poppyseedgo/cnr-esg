@@ -320,17 +320,23 @@ export interface EsgProductRow {
   sale_price: number | null;  // ← [2026-06-09] 세일가(수동). NULL=세일 아님. 앱에서 sale_price<price 일 때만 세일
   created_at: string;
   updated_at: string;
+  /** 클라이언트 보강(서버 컬럼 아님) — 리스트/상세에서 태그 표시용. // ← [2026-06-23] */
+  tags?: EsgTagRow[];
 }
 
 // ============================================================================
 // esg_tags / esg_product_tags — 상품 태그(워드프레스식 taxonomy)   // ← [추가 2026-06-22]
 // ============================================================================
 
+/** 태그 종류 — 카테고리(#유아용품) vs 브랜드(#나이키) // ← [2026-06-23] */
+export type TagKind = 'category' | 'brand';
+
 /** 태그 마스터 */   // ← [추가 2026-06-22]
 export interface EsgTagRow {
   id: string;
   name: string;       // 표시 이름(한글 OK)
   slug: string;       // URL/필터 키 (UNIQUE)
+  kind: TagKind;      // ← [2026-06-23] 카테고리/브랜드 구분
   sort_order: number; // 메뉴 정렬
   created_at: string;
 }
@@ -347,6 +353,7 @@ export interface EsgTagWithCount {
   id: string;
   name: string;
   slug: string;
+  kind: TagKind;        // ← [2026-06-23] 카테고리/브랜드 구분(클라이언트 병합)
   sort_order: number;
   product_count: number;
 }

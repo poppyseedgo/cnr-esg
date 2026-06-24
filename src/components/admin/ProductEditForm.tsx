@@ -13,7 +13,7 @@ import { useState, useEffect } from 'react';
 import { updateProduct, deleteProduct } from '@/lib/adminProducts';
 import { pushNoteToLinkedIntake } from '@/lib/bazaarIntake'; // ← [2026-06-17] 상품 상세 → 검수 메모 밀어넣기
 import { getAvailableStock } from '@/lib/products';
-import { getProductTags, setProductTags } from '@/lib/tags'; // ← [2026-06-22] 상품 태그
+import { getProductTags, setProductTags, splitTagsByKind } from '@/lib/tags'; // ← [2026-06-23] 카테고리/브랜드 분리
 import { TagInput } from '@/components/admin/TagInput'; // ← [2026-06-22] 태그 입력 UI
 import { ThumbnailUploader, DetailImagesUploader } from '@/components/ImageUploader';
 import { RichEditor } from '@/components/RichEditor';
@@ -73,15 +73,18 @@ export function ProductEditForm({
   const [isPinned, setIsPinned] = useState(product.is_pinned);                         // ← [2026-06-17] 상품 고정
   const [salePrice, setSalePrice] = useState<number | ''>(product.sale_price ?? '');   // ← [2026-06-09]
 
-  // ── [2026-06-22] 상품 태그 ─────────────────────────────────────────────
-  const [tags, setTags] = useState<EsgTagRow[]>([]);
+  // ── [2026-06-22 → 2026-06-23] 상품 태그(카테고리/브랜드 분리) ──────────────
+  const [categoryTags, setCategoryTags] = useState<EsgTagRow[]>([]); // ← #유아용품 #식품
+  const [brandTags, setBrandTags] = useState<EsgTagRow[]>([]);       // ← #나이키 #샤넬
   const [initialTagIds, setInitialTagIds] = useState<string[]>([]);
   useEffect(() => {
     let alive = true;
     getProductTags(product.id)
       .then((rows) => {
         if (!alive) return;
-        setTags(rows);
+        const { categories, brands } = splitTagsByKind(rows); // ← [2026-06-23] 종류별 분리
+        setCategoryTags(categories);
+        setBrandTags(brands);
         setInitialTagIds(rows.map((t) => t.id));
       })
       .catch(() => {/* 태그 로드 실패는 조용히(빈 상태로 시작) */});
@@ -132,8 +135,9 @@ export function ProductEditForm({
       if (isPinned !== product.is_pinned) patch.is_pinned = isPinned;   // ← [2026-06-17] 고정 diff
       if (nextSale !== product.sale_price) patch.sale_price = nextSale;
 
-      // ← [2026-06-22] 태그 변경 감지(정렬 후 비교). RPC는 patch와 별개로 호출.
-      const curTagIds = tags.map((t) => t.id).sort();
+      // ← [2026-06-23] 카테고리+브랜드 합쳐서 변경 감지(정렬 후 비교). RPC는 patch와 별개로 호출.
+      const allTags = [...categoryTags, ...brandTags];
+      const curTagIds = allTags.map((t) => t.id).sort();
       const tagsChanged = JSON.stringify(curTagIds) !== JSON.stringify([...initialTagIds].sort());
 
       if (Object.keys(patch).length === 0 && !tagsChanged) {
@@ -145,7 +149,7 @@ export function ProductEditForm({
         await updateProduct(product.id, patch as never);
       }
       if (tagsChanged) {
-        await setProductTags(product.id, tags.map((t) => t.id)); // 원자적 교체(빈 배열=전체 해제)
+        await setProductTags(product.id, allTags.map((t) => t.id)); // 원자적 교체(빈 배열=전체 해제)
       }
       onSuccess();
     } catch (e) {
@@ -236,9 +240,24 @@ export function ProductEditForm({
         />
       </Field>
 
-      {/* ← [2026-06-22] 태그(워드프레스식 자동완성+즉시생성). 사용자 페이지에서 메뉴 필터로 사용 */}
-      <Field label="태그 (사용자 페이지 필터 메뉴로 노출)">
-        <TagInput value={tags} onChange={setTags} disabled={busy} />
+      {/* ← [2026-06-23] 태그 — 카테고리 / 브랜드 분리 입력. 사용자 페이지 필터 메뉴로 노출 */}
+      <Field label="카테고리 태그 (예: 유아용품, 식품, 저당과자)">
+        <TagInput
+          value={categoryTags}
+          onChange={setCategoryTags}
+          disabled={busy}
+          kind="category"
+          placeholder="카테고리 입력 후 Enter (예: 유아용품, 식품)"
+        />
+      </Field>
+      <Field label="브랜드 태그 (예: 나이키, 샤넬)">
+        <TagInput
+          value={brandTags}
+          onChange={setBrandTags}
+          disabled={busy}
+          kind="brand"
+          placeholder="브랜드 입력 후 Enter (예: 나이키, 샤넬)"
+        />
       </Field>
 
       <div

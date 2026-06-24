@@ -15,6 +15,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll'; // ← [2026-06-04] 무한 스크롤
 import { loadProducts, subscribeProducts } from '@/lib/products';
 import { listTagsWithCount } from '@/lib/tags'; // ← [2026-06-22] 태그 메뉴
+import { loadProductTagsBatch } from '@/lib/tags'; // ← [2026-06-23] 카드 태그 배치
 import { SearchBar } from '@/components/SearchBar'; // ← [2026-06-17] 상품 이름 검색
 import { formatKSTDate } from '@/utils/time';
 import { ProductCard } from '@/components/ProductCard';
@@ -64,8 +65,11 @@ export function BazaarPage() {
 
   // 무한 스크롤 — 12개씩 누적 로드 (고정 먼저 → sort_order → created_at)
   const fetchPage = useCallback(
-    (offset: number, limit: number) =>
-      loadProducts({ scope: hideSoldOut ? 'on_sale_only' : 'all', offset, limit, search, tagId: activeTagId }), // ← [2026-06-22] 태그 필터
+    async (offset: number, limit: number) => {
+      const rows = await loadProducts({ scope: hideSoldOut ? 'on_sale_only' : 'all', offset, limit, search, tagId: activeTagId }); // ← [2026-06-22] 태그 필터
+      const tagMap = await loadProductTagsBatch(rows.map((r) => r.id)); // ← [2026-06-23] 카드 표시용 태그 배치 주입
+      return rows.map((r) => ({ ...r, tags: tagMap.get(r.id) ?? [] }));
+    },
     [hideSoldOut, search, activeTagId]
   );
   const {
@@ -197,22 +201,34 @@ export function BazaarPage() {
         </button>
       </div>
 
-      {/* ← [2026-06-22] 태그 메뉴 — 칩 클릭 시 해당 태그 상품만(?tag=slug). 상품 있는 태그만 노출 */}
-      {tags.some((t) => t.product_count > 0) && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
-          <TagChip label="전체" active={!activeTagSlug} onClick={() => selectTag('')} />
-          {tags
-            .filter((t) => t.product_count > 0)
-            .map((t) => (
-              <TagChip
-                key={t.id}
-                label={`#${t.name} ${t.product_count}`}
-                active={t.slug === activeTagSlug}
-                onClick={() => selectTag(t.slug)}
-              />
-            ))}
-        </div>
-      )}
+      {/* ← [2026-06-23] 태그 필터 — 카테고리/브랜드 그룹 분리. 단일 활성(?tag=slug). 상품 있는 태그만 */}
+      {tags.some((t) => t.product_count > 0) && (() => {
+        const catTags = tags.filter((t) => t.kind !== 'brand' && t.product_count > 0);
+        const brandTags = tags.filter((t) => t.kind === 'brand' && t.product_count > 0);
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              <TagChip label="전체" active={!activeTagSlug} onClick={() => selectTag('')} />
+            </div>
+            {catTags.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+                <span style={tagGroupLabel}>카테고리</span>
+                {catTags.map((t) => (
+                  <TagChip key={t.id} label={`#${t.name} ${t.product_count}`} active={t.slug === activeTagSlug} onClick={() => selectTag(t.slug)} />
+                ))}
+              </div>
+            )}
+            {brandTags.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+                <span style={tagGroupLabel}>브랜드</span>
+                {brandTags.map((t) => (
+                  <TagChip key={t.id} label={`#${t.name} ${t.product_count}`} active={t.slug === activeTagSlug} onClick={() => selectTag(t.slug)} />
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* 상품 그리드 */}
       {initialLoading ? (
@@ -277,6 +293,14 @@ export function BazaarPage() {
 }
 
 // ← [2026-06-22] 태그 메뉴 칩
+// ← [2026-06-23] 필터 그룹(카테고리/브랜드) 라벨 스타일
+const tagGroupLabel: React.CSSProperties = {
+  fontSize: 12,
+  fontWeight: 700,
+  color: '#888',
+  minWidth: 44,
+};
+
 function TagChip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
     <button

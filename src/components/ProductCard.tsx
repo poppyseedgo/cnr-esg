@@ -6,8 +6,23 @@
 
 import { Link } from 'react-router-dom';
 import { getAvailableStock, isSoldOut, isNewProduct } from '@/lib/products';
+import { splitTagsByKind } from '@/lib/tags'; // ← [2026-06-23] 카테고리/브랜드 분리
 import { BlurImage } from './BlurImage'; // ← [2026-06-19] 썸네일 lazy+블러업
 import type { EsgProductRow } from '@/types/esg';
+
+// ← [2026-06-23] 카드 태그 칩 공통 스타일
+function cardTagChip(bg: string, color: string): React.CSSProperties {
+  return {
+    fontSize: 10,
+    fontWeight: 600,
+    background: bg,
+    color,
+    borderRadius: 4,
+    padding: '2px 6px',
+    lineHeight: 1.4,
+    whiteSpace: 'nowrap',
+  };
+}
 
 interface ProductCardProps {
   product: EsgProductRow;
@@ -133,6 +148,22 @@ export function ProductCard({ product }: ProductCardProps) {
         >
           {product.name}
         </h3>
+
+        {/* ← [2026-06-23] 카테고리/브랜드 태그 (종류별 스타일 구분) */}
+        {product.tags && product.tags.length > 0 && (() => {
+          const { categories, brands } = splitTagsByKind(product.tags!);
+          return (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+              {categories.map((t) => (
+                <span key={t.id} style={cardTagChip('#ecfdf5', '#047857')}>#{t.name}</span>
+              ))}
+              {brands.map((t) => (
+                <span key={t.id} style={cardTagChip('#111', '#fff')}>#{t.name}</span>
+              ))}
+            </div>
+          );
+        })()}
+
         <div style={{ marginTop: 'auto' }}>
           <div style={{ fontSize: 16, fontWeight: 700, color: '#222' }}>
             {product.price.toLocaleString()}원

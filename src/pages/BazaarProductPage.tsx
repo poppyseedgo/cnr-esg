@@ -25,7 +25,22 @@ import { addToCart } from '@/lib/cart';
 import { signInWithMicrosoft } from '@/lib/auth';
 import { ProductEditForm } from '@/components/admin/ProductEditForm';
 import { ProductDetailTabs } from '@/components/ProductDetailTabs';
-import type { EsgProductRow } from '@/types/esg';
+import { getProductTags, splitTagsByKind } from '@/lib/tags'; // ← [2026-06-23] 상세 태그
+import type { EsgProductRow, EsgTagRow } from '@/types/esg';
+
+// ← [2026-06-23] 상세 태그 칩(클릭 시 해당 태그 필터로 이동)
+function detailTagChip(bg: string, color: string): React.CSSProperties {
+  return {
+    fontSize: 12,
+    fontWeight: 600,
+    background: bg,
+    color,
+    borderRadius: 5,
+    padding: '4px 9px',
+    textDecoration: 'none',
+    whiteSpace: 'nowrap',
+  };
+}
 
 export function BazaarProductPage() {
   const { productId } = useParams();
@@ -45,6 +60,13 @@ export function BazaarProductPage() {
     text: string;
   } | null>(null);
   const [adminEditing, setAdminEditing] = useState(false);
+  const [tags, setTags] = useState<EsgTagRow[]>([]); // ← [2026-06-23] 상세 태그
+  useEffect(() => {
+    if (!product?.id) { setTags([]); return; }
+    let alive = true;
+    getProductTags(product.id).then((rows) => { if (alive) setTags(rows); }).catch(() => { if (alive) setTags([]); });
+    return () => { alive = false; };
+  }, [product?.id]);
 
   const reload = async () => {
     if (!productId) return;
@@ -301,6 +323,22 @@ export function BazaarProductPage() {
               </span>
             )}
             <h1 style={{ margin: 0, fontSize: 22, lineHeight: 1.4 }}>{product.name}</h1>
+
+            {/* ← [2026-06-23] 카테고리/브랜드 태그 (클릭 시 해당 태그 상품 목록으로) */}
+            {tags.length > 0 && (() => {
+              const { categories, brands } = splitTagsByKind(tags);
+              return (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 12 }}>
+                  {categories.map((t) => (
+                    <Link key={t.id} to={`/bazaar?tag=${t.slug}`} style={detailTagChip('#ecfdf5', '#047857')}>#{t.name}</Link>
+                  ))}
+                  {brands.map((t) => (
+                    <Link key={t.id} to={`/bazaar?tag=${t.slug}`} style={detailTagChip('#111', '#fff')}>#{t.name}</Link>
+                  ))}
+                </div>
+              );
+            })()}
+
             <div style={{ marginTop: 12, fontSize: 28, fontWeight: 700, color: '#222' }}>
               {product.price.toLocaleString()}원
             </div>
