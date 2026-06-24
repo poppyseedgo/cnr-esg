@@ -22,6 +22,9 @@
 //   2026-06-16  최초 작성 — Figma 1433:295
 //   2026-06-16  [수정] 풀블리드(100vw) + margin 기반 seamless 루프로 재작성(끊김/너비 해결)
 //   2026-06-17  [수정] 밴드 세로 패딩 16px → 24px (고지님 요청, Figma py16 대비 상향)
+//   2026-06-24  [버그수정·근본] 밴드에 position:relative 추가 — 측정용 abspos div 가
+//               static 밴드의 overflow:hidden 을 빠져나가 페이지 가로 무한 스크롤을
+//               유발하던 문제 해결(밴드를 컨테이닝 블록으로 만들어 클립).
 // ============================================================================
 
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -224,6 +227,12 @@ export function DonorMarquee() {
         marginTop: -24,
         marginBottom: 24,
         background: '#fff',
+        // ← [2026-06-24 버그수정·근본] position:relative 추가.
+        //   측정용 div(measureRef)는 position:absolute 인데, 밴드가 static 이면
+        //   밴드가 그 div 의 '컨테이닝 블록'이 아니라서 overflow:hidden 이 그 div 를
+        //   클립하지 못함 → 폭 ~2200px 숨김 div 가 페이지를 가로로 밀어 무한 가로 스크롤.
+        //   relative 로 밴드를 컨테이닝 블록으로 만들면 기존 overflow:hidden 이 비로소 클립.
+        position: 'relative',
         overflow: 'hidden',
         padding: '20px 0', // ← [2026-06-23] 세로 패딩 24px→20px (고지님 요청)
       }}
