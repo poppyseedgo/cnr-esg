@@ -12,6 +12,7 @@ import {
   AUCTION_STATUS_LABELS,
   AUCTION_STATUS_COLORS,
 } from '@/lib/auctions';
+import { deleteAuctionAdmin } from '@/lib/adminAuctions'; // ← [2026-06-23] 경매 영구 삭제
 import { AuctionEditForm } from '@/components/admin/AuctionEditForm';
 import { CreateAuctionForm } from '@/components/admin/CreateAuctionForm';
 import type { EsgAuctionRow } from '@/types/esg';
@@ -136,7 +137,25 @@ export function AdminAuctions() {
 
 function AuctionAdminCard({ auction, onChange }: { auction: EsgAuctionRow; onChange: () => void }) {
   const [editing, setEditing] = useState(false);
+  const [deleting, setDeleting] = useState(false); // ← [2026-06-23] 삭제 진행중
   const statusColor = AUCTION_STATUS_COLORS[auction.status];
+
+  // ← [2026-06-23] 상태/입찰 무관 영구 삭제. 입찰/낙찰이 있으면 경고 후 진행.
+  const handleDelete = async () => {
+    const hasBids = auction.bid_count > 0;
+    const warn = hasBids
+      ? `입찰 ${auction.bid_count}건이 함께 삭제됩니다. (낙찰/주문이 있으면 주문 기록은 보존되지만 경매 연결은 끊깁니다)\n\n`
+      : '';
+    if (!window.confirm(`${warn}"${auction.product_name}" 경매를 영구 삭제할까요?\n이 작업은 되돌릴 수 없습니다.`)) return;
+    setDeleting(true);
+    try {
+      await deleteAuctionAdmin(auction.id);
+      onChange();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '삭제 실패');
+      setDeleting(false);
+    }
+  };
 
   return (
     <div
@@ -191,23 +210,43 @@ function AuctionAdminCard({ auction, onChange }: { auction: EsgAuctionRow; onCha
         </div>
 
         {!editing && (
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            disabled={auction.status === 'cancelled'}
-            style={{
-              padding: '4px 10px',
-              background: '#fff',
-              border: '1px solid #111',
-              color: '#111',
-              borderRadius: 4,
-              cursor: auction.status === 'cancelled' ? 'not-allowed' : 'pointer',
-              fontSize: 11,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            ✏️ 수정
-          </button>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              disabled={auction.status === 'cancelled' || deleting}
+              style={{
+                padding: '4px 10px',
+                background: '#fff',
+                border: '1px solid #111',
+                color: '#111',
+                borderRadius: 4,
+                cursor: auction.status === 'cancelled' || deleting ? 'not-allowed' : 'pointer',
+                fontSize: 11,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              ✏️ 수정
+            </button>
+            {/* ← [2026-06-23] 상태/입찰 무관 영구 삭제 */}
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleting}
+              style={{
+                padding: '4px 10px',
+                background: '#fff',
+                border: '1px solid #dc2626',
+                color: '#dc2626',
+                borderRadius: 4,
+                cursor: deleting ? 'not-allowed' : 'pointer',
+                fontSize: 11,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {deleting ? '삭제 중…' : '🗑 삭제'}
+            </button>
+          </div>
         )}
       </div>
 

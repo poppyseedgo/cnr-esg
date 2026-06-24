@@ -120,6 +120,18 @@ export async function cancelAuctionAdmin(id: string, reason: string): Promise<vo
   void reason; // 추후 audit_log
 }
 
+/** 경매 영구 삭제 — 상태/입찰 무관(서버 RPC가 접수대장 연결 해제 후 삭제). // ← [2026-06-23] */
+export async function deleteAuctionAdmin(id: string): Promise<void> {
+  const { data, error } = await supabase.rpc('esg_delete_auction', { p_auction_id: id });
+  if (error) throw new Error(error.message ?? '삭제 실패');
+  const res = data as { success: boolean; error?: string };
+  if (!res?.success) {
+    if (res?.error === 'NOT_ADMIN') throw new Error('관리자만 삭제할 수 있습니다.');
+    if (res?.error === 'AUCTION_NOT_FOUND') throw new Error('경매를 찾을 수 없습니다.');
+    throw new Error(res?.error ?? '삭제 실패');
+  }
+}
+
 /** 경매 강제 종료 (낙찰 처리) */
 export async function finalizeAuctionAdmin(id: string): Promise<{
   hasWinner: boolean;
