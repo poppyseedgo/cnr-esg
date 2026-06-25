@@ -19,6 +19,7 @@
 import { supabase as _supabase } from './supabase';
 import type { EsgCartItemRow, EsgProductRow } from '@/types/esg';
 import { trackAddToCart } from './analytics'; // ← [2026-06-02 추가] GA4 장바구니 담기 추적
+import { getDisplayPrice } from './products'; // ← [2026-06-25] 세일가 기준 합계(서버 청구액과 일치)
 
 // supabase-js 2.49 타입 추론 한계 우회 (TODO #1)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -140,7 +141,7 @@ export function calcCartTotal(items: CartItemWithProduct[]): {
   let totalAmount = 0;
   for (const item of items) {
     totalQuantity += item.quantity;
-    totalAmount += item.product.price * item.quantity;
+    totalAmount += getDisplayPrice(item.product) * item.quantity; // ← [2026-06-25] 세일가 반영(서버 청구액과 일치)
   }
   return {
     itemCount: items.length,

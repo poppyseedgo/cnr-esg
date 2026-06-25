@@ -28,7 +28,7 @@ import {
   calcCartTotal,
   type CartItemWithProduct,
 } from '@/lib/cart';
-import { getAvailableStock, isSoldOut } from '@/lib/products';
+import { getAvailableStock, isSoldOut, getDisplayPrice, isOnSale } from '@/lib/products';
 
 export function CartPage() {
   const { currentUser } = useCurrentUser();
@@ -264,7 +264,13 @@ export function CartPage() {
                       {item.product.name}
                     </Link>
                     <div style={{ fontSize: 13, color: '#666', marginBottom: 8 }}>
-                      {item.product.price.toLocaleString()}원
+                      {/* ← [2026-06-25] 세일가 반영(원가 취소선 병기) */}
+                      {isOnSale(item.product) && (
+                        <span style={{ textDecoration: 'line-through', color: '#bbb', marginRight: 6 }}>
+                          {item.product.price.toLocaleString()}원
+                        </span>
+                      )}
+                      {getDisplayPrice(item.product).toLocaleString()}원
                     </div>
 
                     {overstock && (
@@ -362,7 +368,7 @@ export function CartPage() {
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    {(item.product.price * item.quantity).toLocaleString()}원
+                    {(getDisplayPrice(item.product) * item.quantity).toLocaleString()}원
                   </div>
                 </div>
               );

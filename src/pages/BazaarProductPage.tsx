@@ -23,8 +23,10 @@ import {
   getAvailableStock,
   isSoldOut,
   isNewProduct,
+  getDisplayPrice,
   subscribeProducts,
 } from '@/lib/products';
+import { PriceTag } from '@/components/PriceTag'; // ← [2026-06-25] 원가/판매가/할인율 표시
 import { addToCart } from '@/lib/cart';
 import { signInWithMicrosoft } from '@/lib/auth';
 import { ProductEditForm } from '@/components/admin/ProductEditForm';
@@ -342,8 +344,9 @@ export function BazaarProductPage() {
               );
             })()}
 
-            <div style={{ marginTop: 12, fontSize: 28, fontWeight: 700, color: '#222' }}>
-              {product.price.toLocaleString()}원
+            {/* ← [2026-06-25] 세일이면 원가(취소선)+할인%+판매가, 아니면 정상가 */}
+            <div style={{ marginTop: 12 }}>
+              <PriceTag product={product} size="detail" />
             </div>
           </div>
 
@@ -417,7 +420,8 @@ export function BazaarProductPage() {
                 </button>
               </div>
               <span style={{ fontSize: 12, color: '#888' }}>
-                총 {(product.price * quantity).toLocaleString()}원
+                {/* ← [2026-06-25] 세일가 기준 합계(서버 청구액과 일치) */}
+                총 {(getDisplayPrice(product) * quantity).toLocaleString()}원
               </span>
             </div>
           )}

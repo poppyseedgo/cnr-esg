@@ -9,23 +9,27 @@
 //
 // 가드:
 //   - 장바구니 비어있으면 → 바자회로 redirect
-//   - bazaar 활동 active + purchase_enabled (프론트, RPC도 다시 체크)
+//   - 구매 가능 여부는 useBazaarSale() 정책으로 판정 (선판매/공개/종료/기부자/토글, RPC+트리거도 재검증)
+//
+// 변경 이력:
+//   2026-06-25  결제 게이팅을 useBazaarSale 훅으로 이관 (물품 기부자 선판매 정책).
+//               shopActive/purchaseEnabled 로컬 계산 제거. payerName 검증은 유지.
 //   - 가용재고 부족 시 차단 + 장바구니로 안내
 // ============================================================================
 
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useEventPhase } from '@/hooks/useEventPhase';
+import { useBazaarSale } from '@/hooks/useBazaarSale'; // ← [2026-06-25] 선판매 정책 훅
 import { loadMyCart, calcCartTotal, type CartItemWithProduct } from '@/lib/cart';
-import { getAvailableStock, isSoldOut } from '@/lib/products';
+import { getAvailableStock, isSoldOut, getDisplayPrice, isOnSale } from '@/lib/products';
 import { createBazaarOrder } from '@/lib/orders';
 
 export function CheckoutPage() {
-  const { currentUser, isAdmin } = useCurrentUser(); // ← [2026-06-23] 어드민 기간 우회용
+  const { currentUser } = useCurrentUser();
   const navigate = useNavigate();
-  const { getActivity, settings } = useEventPhase();
-  const { status: bazaarStatus } = getActivity('bazaar');
+  // ← [2026-06-25] 결제 가능 여부/사유를 정책 훅에서 수신 (기간·기부자·토글·어드민·아카이브 반영)
+  const { canPurchase: windowAllows, blockReason } = useBazaarSale();
 
   const [items, setItems] = useState<CartItemWithProduct[]>([]);
   const [loading, setLoading] = useState(true);
@@ -88,13 +92,11 @@ export function CheckoutPage() {
     const available = getAvailableStock(item.product);
     return item.quantity > available || isSoldOut(item.product);
   });
-  const shopActive = bazaarStatus === 'active' || isAdmin; // ← [2026-06-23] 어드민은 기간 무관 결제 가능
-  const purchaseEnabled = settings.purchase_enabled !== false;
+  // ← [2026-06-25] 기간/기부자/토글/어드민 판정은 windowAllows로 일원화. 재고/항목수/결제자명은 별도 AND.
   const canCheckout =
     items.length > 0 &&
     overstockItems.length === 0 &&
-    shopActive &&
-    purchaseEnabled &&
+    windowAllows &&
     payerName.trim().length > 0;
 
   // 주문 진행
@@ -202,11 +204,17 @@ export function CheckoutPage() {
                     {item.product.name}
                   </div>
                   <div style={{ fontSize: 13, color: '#666' }}>
-                    {item.product.price.toLocaleString()}원 × {item.quantity}개
+                    {/* ← [2026-06-25] 세일가 반영(원가 취소선 병기) */}
+                    {isOnSale(item.product) && (
+                      <span style={{ textDecoration: 'line-through', color: '#bbb', marginRight: 6 }}>
+                        {item.product.price.toLocaleString()}원
+                      </span>
+                    )}
+                    {getDisplayPrice(item.product).toLocaleString()}원 × {item.quantity}개
                   </div>
                 </div>
                 <div style={{ fontSize: 14, fontWeight: 700, whiteSpace: 'nowrap' }}>
-                  {(item.product.price * item.quantity).toLocaleString()}원
+                  {(getDisplayPrice(item.product) * item.quantity).toLocaleString()}원
                 </div>
               </div>
             ))}
@@ -332,6 +340,23 @@ export function CheckoutPage() {
               }}
             >
               ⚠️ {submitError}
+            </div>
+          )}
+
+          {/* ← [2026-06-25] 구매 불가 사유 안내 (선판매/구경전/종료/중단). /checkout 직접 진입 대비 */}
+          {blockReason && overstockItems.length === 0 && (
+            <div
+              style={{
+                marginTop: 16,
+                padding: 10,
+                background: '#fef3c7',
+                color: '#92400e',
+                borderRadius: 6,
+                fontSize: 12,
+                textAlign: 'center',
+              }}
+            >
+              {blockReason}
             </div>
           )}
 

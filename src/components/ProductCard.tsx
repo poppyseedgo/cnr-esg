@@ -27,6 +27,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getAvailableStock, isSoldOut, isNewProduct } from '@/lib/products';
 import { BlurImage } from './BlurImage'; // ← 썸네일 lazy+블러업
+import { PriceTag } from './PriceTag'; // ← [2026-06-25] 원가/판매가/할인율 표시
 import { addToCart } from '@/lib/cart'; // ← [2026-06-24] 카드 빠른 담기
 import { signInWithMicrosoft } from '@/lib/auth'; // ← [2026-06-24] 비로그인 가드
 import { useCurrentUser } from '@/hooks/useCurrentUser'; // ← [2026-06-24]
@@ -181,9 +182,10 @@ export function ProductCard({ product, canQuickAdd = true, quickAddBlockReason =
             >
               {product.name}
             </p>
-            <p style={{ margin: 0, fontSize: 20, lineHeight: 1.4, color: '#111', letterSpacing: '0.2px' }}>
-              {product.price.toLocaleString()}원
-            </p>
+            {/* ← [2026-06-25] 가격: 세일이면 원가(취소선)+할인%+판매가, 아니면 정상가 */}
+            <div style={{ marginTop: 2 }}>
+              <PriceTag product={product} size="card" />
+            </div>
           </div>
         </div>
 
