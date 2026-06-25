@@ -10,16 +10,21 @@
 //   2026-06-23  [UX] 수정→저장 시 해당 카드를 화면 중앙으로 스크롤.
 //               기존엔 폼 접힘으로 문서 높이가 줄며 스크롤이 상단으로 클램프됐음.
 //               카드 ref + 저장 후 scrollIntoView(block:'center')로 최종 위치 보정.
+//   2026-06-25  [찜 명단] 카드에 "❤️ 찜 N" 배지 버튼 추가 → 클릭 시 찜한 사람 모달.
+//               찜 수는 esg_product_wishlist_counts() 1회 집계(N+1 방지),
+//               명단은 esg_product_wishlist_users() (둘 다 어드민 가드 RPC).
 // ============================================================================
 
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { loadAllProducts, hideProduct, unhideProduct, reorderProducts } from '@/lib/adminProducts'; // ← [고정/정렬] reorderProducts
+import { loadWishlistCounts } from '@/lib/adminWishlist'; // ← [2026-06-25] 상품별 찜 수 일괄 집계
 import { subscribeProducts, getAvailableStock } from '@/lib/products';
 import { SearchBar } from '@/components/SearchBar'; // ← [2026-06-17] 상품 이름 검색
 import { matchesQuery } from '@/utils/search';
 import { ProductEditForm } from '@/components/admin/ProductEditForm';
 import { CreateProductForm } from '@/components/admin/CreateProductForm';
+import { WishlistUsersModal } from '@/components/admin/WishlistUsersModal'; // ← [2026-06-25] 찜한 사람 명단 모달
 import type { EsgProductRow, EsgProductStatus } from '@/types/esg';
 
 const STATUS_LABELS: Record<EsgProductStatus, string> = {
@@ -40,6 +45,9 @@ export function AdminProducts() {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState(''); // ← [2026-06-17] 상품 이름 검색어
   const [creating, setCreating] = useState(false);
+
+  const [wishlistCounts, setWishlistCounts] = useState<Map<string, number>>(new Map()); // ← [2026-06-25] product_id→찜 수(전체 1회 집계)
+  const [wishlistTarget, setWishlistTarget] = useState<EsgProductRow | null>(null);      // ← [2026-06-25] 찜 명단 모달 대상(null=닫힘)
 
   // ← [고정/정렬] 드래그 재정렬 상태
   const dragIndexRef = useRef<number | null>(null);          // 드래그 시작 인덱스 (리렌더 불필요 → ref)
@@ -89,6 +97,13 @@ export function AdminProducts() {
   useEffect(() => {
     setLoading(true);
     void reload();
+  }, []);
+
+  // ← [2026-06-25] 찜 수 1회 집계(어드민 RPC). 실패해도 배지만 미표시 → 페이지 동작엔 영향 없음.
+  useEffect(() => {
+    loadWishlistCounts()
+      .then(setWishlistCounts)
+      .catch((e) => console.error('[AdminProducts] wishlist counts:', e));
   }, []);
 
   useEffect(() => {
@@ -220,11 +235,26 @@ export function AdminProducts() {
                 ⠿
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <ProductAdminCard product={p} onChange={reload} pinnedCount={pinnedCount} />
+                <ProductAdminCard
+                  product={p}
+                  onChange={reload}
+                  pinnedCount={pinnedCount}
+                  wishlistCount={wishlistCounts.get(p.id) ?? 0}   // ← [2026-06-25] 집계 Map에서 O(1) 조회
+                  onShowWishlist={() => setWishlistTarget(p)}      // ← [2026-06-25] 명단 모달 열기
+                />
               </div>
             </div>
           ))}
         </div>
+      )}
+
+      {/* ← [2026-06-25] 찜한 사람 명단 모달 (페이지 단일 인스턴스 — 카드 N개와 무관) */}
+      {wishlistTarget && (
+        <WishlistUsersModal
+          productId={wishlistTarget.id}
+          productName={wishlistTarget.name}
+          onClose={() => setWishlistTarget(null)}
+        />
       )}
     </div>
   );
@@ -238,10 +268,14 @@ function ProductAdminCard({
   product,
   onChange,
   pinnedCount,
+  wishlistCount = 0,    // ← [2026-06-25] 이 상품 찜 수(배지 표시·0이면 미표시)
+  onShowWishlist,       // ← [2026-06-25] 명단 모달 열기 콜백
 }: {
   product: EsgProductRow;
   onChange: () => void;
   pinnedCount?: number;   // ← [고정] N/8 표시용 전달
+  wishlistCount?: number; // ← [2026-06-25]
+  onShowWishlist?: () => void; // ← [2026-06-25]
 }) {
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);                    // ← [정책㉠] 숨김/해제 처리 중 잠금
@@ -346,6 +380,28 @@ function ProductAdminCard({
               <span style={{ color: '#aaa' }}> / {product.stock} (선점 {product.reserved_stock})</span>
             </span>
           </div>
+          {/* ← [2026-06-25] 찜한 사람 명단 열기. 0명도 클릭 가능(빈 명단 확인 가능). */}
+          <button
+            type="button"
+            onClick={onShowWishlist}
+            title="이 상품을 찜한 사람 보기"
+            style={{
+              marginTop: 8,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              padding: '3px 10px',
+              background: wishlistCount > 0 ? '#fff1f2' : '#f5f5f5',
+              border: `1px solid ${wishlistCount > 0 ? '#fecdd3' : '#e5e5e5'}`,
+              color: wishlistCount > 0 ? '#e11d48' : '#999',
+              borderRadius: 999,
+              cursor: 'pointer',
+              fontSize: 12,
+              fontWeight: 600,
+            }}
+          >
+            {wishlistCount > 0 ? '❤️' : '🤍'} 찜 {wishlistCount}명
+          </button>
         </div>
 
         {!editing && (

@@ -602,6 +602,18 @@ export interface EsgWishlistRow {
   created_at: string;
 }
 
+// ← [2026-06-25] 상품별 "찜한 사람" 어드민 조회 결과 행.
+//   esg_product_wishlist_users(p_product_id) RPC 가 profiles 조인 후 반환.
+//   (RPC 가 SECURITY DEFINER + esg_is_admin() 가드로 RLS 우회 — adminWishlist.ts 참조)
+export interface EsgWishlistUser {
+  user_id: string;
+  name: string | null;
+  dept: string | null;
+  email: string | null;
+  avatar_url: string | null;
+  created_at: string; // 찜한 시각(UTC ISO)
+}
+
 // ============================================================================
 // Views
 // ============================================================================
