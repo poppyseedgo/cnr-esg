@@ -10,12 +10,16 @@
 //   - Realtime (다른 탭/디바이스에서 변경 시 동기화)
 //
 // 가용 재고 초과 시 경고 표시 (어드민이 재고를 줄였거나 다른 사람이 먼저 주문한 경우)
+//
+// 변경 이력:
+//   2026-06-25  결제 게이팅을 useBazaarSale 훅으로 이관 (물품 기부자 선판매 정책).
+//               shopActive/purchaseEnabled 로컬 계산 + 2개 메시지 블록 → blockReason 단일화.
 // ============================================================================
 
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useEventPhase } from '@/hooks/useEventPhase';
+import { useBazaarSale } from '@/hooks/useBazaarSale'; // ← [2026-06-25] 선판매 정책 훅
 import {
   loadMyCart,
   updateCartQuantity,
@@ -27,10 +31,10 @@ import {
 import { getAvailableStock, isSoldOut } from '@/lib/products';
 
 export function CartPage() {
-  const { currentUser, isAdmin } = useCurrentUser(); // ← [2026-06-23] 어드민 기간 우회용
+  const { currentUser } = useCurrentUser();
   const navigate = useNavigate();
-  const { getActivity, settings } = useEventPhase();
-  const { status: bazaarStatus } = getActivity('bazaar');
+  // ← [2026-06-25] 결제 가능 여부/사유를 정책 훅에서 수신 (기간·기부자·토글·어드민·아카이브 반영)
+  const { canPurchase: windowAllows, blockReason } = useBazaarSale();
 
   const [items, setItems] = useState<CartItemWithProduct[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,8 +76,6 @@ export function CartPage() {
   }
 
   const totals = calcCartTotal(items);
-  const shopActive = bazaarStatus === 'active' || isAdmin; // ← [2026-06-23] 어드민은 기간 무관 결제 가능
-  const purchaseEnabled = settings.purchase_enabled !== false;
 
   // 가용 재고를 초과한 항목 (어드민이 재고 줄였거나 다른 사람 주문)
   const overstockItems = items.filter((item) => {
@@ -81,8 +83,9 @@ export function CartPage() {
     return item.quantity > available || isSoldOut(item.product);
   });
 
+  // ← [2026-06-25] 기간/기부자/토글/어드민 판정은 windowAllows로 일원화. 재고/항목수는 별도 AND.
   const canCheckout =
-    items.length > 0 && overstockItems.length === 0 && shopActive && purchaseEnabled;
+    items.length > 0 && overstockItems.length === 0 && windowAllows;
 
   // 수량 변경
   const handleChangeQuantity = async (item: CartItemWithProduct, delta: number) => {
@@ -394,7 +397,8 @@ export function CartPage() {
               </span>
             </div>
 
-            {!shopActive && (
+            {/* ← [2026-06-25] 구매 불가 사유 단일 표시 (구경전/선판매/종료/중단 모두 blockReason이 처리) */}
+            {!canCheckout && blockReason && (
               <div
                 style={{
                   padding: 10,
@@ -406,22 +410,7 @@ export function CartPage() {
                   textAlign: 'center',
                 }}
               >
-                {bazaarStatus === 'before' ? '아직 판매 기간이 아닙니다' : '판매가 종료되었습니다'}
-              </div>
-            )}
-            {!purchaseEnabled && (
-              <div
-                style={{
-                  padding: 10,
-                  background: '#fee2e2',
-                  color: '#991b1b',
-                  borderRadius: 6,
-                  fontSize: 12,
-                  marginBottom: 12,
-                  textAlign: 'center',
-                }}
-              >
-                🚫 구매가 일시 중단되었습니다 (관리자 설정)
+                {blockReason}
               </div>
             )}
 

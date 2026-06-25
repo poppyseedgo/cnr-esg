@@ -99,8 +99,10 @@ const router = createBrowserRouter([
       { path: '/posts', element: <PostsPage /> },
       { path: '/posts/:category', element: <PostsPage /> },
       { path: '/posts/detail/:id', element: <PostDetailPage /> },
-      { path: '/bazaar', element: <ActivityGate activityKey="bazaar"><BazaarPage /></ActivityGate> },
-      { path: '/bazaar/:productId', element: <ActivityGate activityKey="bazaar"><BazaarProductPage /></ActivityGate> },
+      // ← [2026-06-25] 바자회 ActivityGate 제거: 시작 전에도 전 직원 '열람' 허용(요구사항#3).
+      //                구매 차단은 useBazaarSale 정책 + 서버 트리거가 담당. (경매는 게이트 유지)
+      { path: '/bazaar', element: <BazaarPage /> },
+      { path: '/bazaar/:productId', element: <BazaarProductPage /> },
       { path: '/auction', element: <ActivityGate activityKey="auction"><AuctionPage /></ActivityGate> },
       { path: '/auction/:auctionId', element: <ActivityGate activityKey="auction"><AuctionDetailPage /></ActivityGate> },
       { path: '/donate', element: <DonatePage /> },

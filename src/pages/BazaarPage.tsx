@@ -21,6 +21,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams, Link } from 'react-router-dom'; // ← [2026-06-22] 필터 URL / [2026-06-24] 브레드크럼
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useBazaarSale } from '@/hooks/useBazaarSale'; // ← [2026-06-25] 선판매 정책(빠른담기 게이팅, 페이지 1회 판정)
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll'; // ← [2026-06-04] 무한 스크롤
 import { loadProducts, subscribeProducts } from '@/lib/products';
 import { listTagsWithCount } from '@/lib/tags'; // ← [2026-06-22] slug→id 해석용 태그
@@ -34,6 +35,8 @@ import type { EsgProductRow, EsgTagWithCount } from '@/types/esg'; // ← [2026-
 
 export function BazaarPage() {
   const { isAdmin } = useCurrentUser();
+  // ← [2026-06-25] 선판매 정책 1회 판정 → 그리드 카드에 prop 전달(카드별 RPC/구독 방지)
+  const { canPurchase: canQuickAdd, blockReason: quickAddBlockReason } = useBazaarSale();
 
   // ── [2026-06-24] 필터 상태의 단일 소스 = URL 파라미터 ─────────────────────
   //  검색(q)·품절제외(soldout)·정렬(sort)도 cat/brand 와 함께 URL로 통일.
@@ -209,7 +212,7 @@ export function BazaarPage() {
           className="bazaar-grid"
         >
           {products.map((p) => (
-            <ProductCard key={p.id} product={p} />
+            <ProductCard key={p.id} product={p} canQuickAdd={canQuickAdd} quickAddBlockReason={quickAddBlockReason} />
           ))}
         </div>
       )}

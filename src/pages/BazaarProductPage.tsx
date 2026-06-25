@@ -6,14 +6,18 @@
 //   - 상품 정보 (이름, 가격, 재고, 설명)
 //   - 수량 선택 (1 ~ 가용재고)
 //   - 장바구니 추가 / 즉시 구매
-//   - 활동 active일 때만 구매 가능
+//   - 구매 가능 여부는 useBazaarSale() 정책으로 판정 (선판매/공개/종료/기부자)
+//
+// 변경 이력:
+//   2026-06-25  구매 게이팅을 useBazaarSale 훅으로 이관 (물품 기부자 선판매 정책).
+//               기존 shopActive/purchaseEnabled 로컬 계산 제거 → 정책 SSOT 사용.
 // ============================================================================
 
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { BlurImage } from '@/components/BlurImage'; // ← [2026-06-19] 이미지 lazy+블러업
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useEventPhase } from '@/hooks/useEventPhase';
+import { useBazaarSale } from '@/hooks/useBazaarSale'; // ← [2026-06-25] 선판매 정책 훅
 import {
   loadProduct,
   getAvailableStock,
@@ -46,8 +50,8 @@ export function BazaarProductPage() {
   const { productId } = useParams();
   const navigate = useNavigate();
   const { currentUser, isAdmin } = useCurrentUser();
-  const { getActivity, settings } = useEventPhase();
-  const { status: bazaarStatus } = getActivity('bazaar');
+  // ← [2026-06-25] 구매 가능 여부/사유를 정책 훅에서 직접 수신 (선판매·공개·종료·기부자·토글 반영)
+  const { canPurchase: windowAllows, blockReason } = useBazaarSale();
 
   const [product, setProduct] = useState<EsgProductRow | null>(null);
   const [loading, setLoading] = useState(true);
@@ -146,9 +150,8 @@ export function BazaarProductPage() {
 
   const available = getAvailableStock(product);
   const soldOut = isSoldOut(product);
-  const shopActive = bazaarStatus === 'active' || isAdmin; // ← [2026-06-23] 어드민은 기간 무관 구매 가능
-  const purchaseEnabled = settings.purchase_enabled !== false; // 기본 true
-  const canPurchase = !soldOut && shopActive && purchaseEnabled;
+  // ← [2026-06-25] 재고(soldOut)는 정책이 모르는 영역이라 별도 AND. 나머지(기간/기부자/토글/어드민)는 windowAllows가 판정.
+  const canPurchase = !soldOut && windowAllows;
 
   const handleAddToCart = async () => {
     if (!currentUser) {
@@ -500,11 +503,10 @@ export function BazaarProductPage() {
                 fontSize: 13,
               }}
             >
+              {/* ← [2026-06-25] 품절은 정책이 모르므로 최우선, 그 외 사유는 정책 blockReason 사용 */}
               {soldOut
                 ? '품절된 상품입니다'
-                : !shopActive
-                ? '아직 판매 기간이 아닙니다'
-                : '구매가 일시 중단되었습니다 (관리자 설정)'}
+                : blockReason ?? '지금은 구매할 수 없습니다'}
             </div>
           )}
         </div>

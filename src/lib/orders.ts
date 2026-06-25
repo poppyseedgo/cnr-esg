@@ -47,6 +47,8 @@ const RPC_ERROR_MESSAGES: Record<string, string> = {
   BAZAAR_NOT_CONFIGURED: '바자회 설정이 없습니다. 관리자에게 문의하세요.',
   ACTIVITY_PERIODS_NOT_CONFIGURED: '활동 기간 설정이 없습니다. 관리자에게 문의하세요.',
   PURCHASE_DISABLED: '구매가 일시 중단되었습니다. (관리자 설정)',
+  // ← [2026-06-25] 선판매 기간 비기부자 차단 (esg_assert_bazaar_purchasable 트리거의 RAISE 코드와 1:1)
+  BAZAAR_PRESALE_DONOR_ONLY: '물품 기부자 선판매 기간입니다. 일반 구매는 공개일부터 가능합니다.',
   EMPTY_ITEMS: '주문 항목이 없습니다.',
   USER_NOT_FOUND: '사용자 정보를 찾을 수 없습니다.',
 };

@@ -2,6 +2,10 @@
 // ProductCard — 바자회 상품 카드 (BazaarPage 등에서 공통 사용)
 //
 // [변경 이력]
+//   2026-06-25  [선판매 정책] 빠른 담기(add to cart)를 구매권한 정책과 일치시킴.
+//               · canQuickAdd/quickAddBlockReason prop 추가(페이지에서 useBazaarSale 1회 판정 후 주입)
+//               · 불가 구간(시작전/선판매 비기부자/종료/중단)엔 버튼 회색 비활성 + 호버 tooltip
+//               · 카드별 훅 호출 회피(N Realtime 구독/RPC 방지) — wishlist 패턴과 동일 철학
 //   2026-06-24  [Task 2] Figma 리스트 카드 3-상태 1:1 재구현.
 //               · 기본(1791:216) / 호버·찜안함(1791:194) / 호버·찜함(1791:411)
 //               · full-bleed 정사각 이미지(aspect 1/1, bg #d7d7d7) + 모서리/보더/그림자 제거
@@ -33,9 +37,14 @@ import type { EsgProductRow } from '@/types/esg';
 
 interface ProductCardProps {
   product: EsgProductRow;
+  /** 빠른 담기 허용 여부(선판매 정책). 페이지에서 useBazaarSale로 1회 판정해 전달. 기본 true.
+   *  ← [2026-06-25] 카드마다 훅 호출 시 N개의 Realtime 구독+기부자 RPC가 생기므로 prop으로 주입. */
+  canQuickAdd?: boolean;
+  /** 빠른 담기 불가 사유(데스크톱 호버 tooltip 표시용). 상세 사유 안내는 상세페이지가 담당. */
+  quickAddBlockReason?: string | null;
 }
 
-export function ProductCard({ product }: ProductCardProps) {
+export function ProductCard({ product, canQuickAdd = true, quickAddBlockReason = null }: ProductCardProps) {
   const { currentUser } = useCurrentUser();
   const { wishlisted, toggle } = useWishlist(product.id); // ← [2026-06-24]
 
@@ -48,6 +57,7 @@ export function ProductCard({ product }: ProductCardProps) {
   // 빠른 담기 — 카드는 Link이므로 버튼 클릭 시 네비게이션 차단
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault(); e.stopPropagation(); // ← Link 이동 방지
+    if (!canQuickAdd) return; // ← [2026-06-25] 선판매 정책: 구매 불가 구간/비기부자 차단(버튼도 비활성)
     if (!currentUser) { signInWithMicrosoft().catch(console.error); return; }
     if (soldOut || adding) return;
     setAdding(true);
@@ -104,9 +114,11 @@ export function ProductCard({ product }: ProductCardProps) {
               type="button"
               className="pcard-btn"
               onClick={handleAddToCart}
-              disabled={adding}
+              disabled={adding || !canQuickAdd}
+              title={!canQuickAdd ? (quickAddBlockReason ?? undefined) : undefined}
               style={{
-                background: '#000', color: '#fff', textTransform: 'capitalize',
+                background: !canQuickAdd ? '#9ca3af' : '#000', // ← [2026-06-25] 선판매 불가 시 회색 비활성
+                color: '#fff', textTransform: 'capitalize',
               }}
             >
               {justAdded ? '담음!' : 'add to cart'}

@@ -147,6 +147,12 @@ export interface EsgSettingsValueMap {
    * 시작·종료 시각을 한 곳에서 관리. SSOT. 어드민이 변경 가능.
    */
   activity_periods: EsgActivityPeriods;
+  /**
+   * 바자회 전 직원 공개 판매 시작 시각 (UTC ISO). // ← [2026-06-25] 물품 기부자 선판매 정책
+   * 선판매 시작(=activity_periods.bazaar.starts_at_utc) ~ 이 시각 사이엔 물품 기부자만 구매 가능,
+   * 이 시각부터 전 직원 구매 가능. 미설정 시 선판매 정책 비활성(기존 동작 폴백).
+   */
+  bazaar_public_sale_starts_at: string;
   /** 바자회/경매 상품 상세 페이지의 "상품 수령" 탭에 표시되는 공통 안내 (markdown) */
   delivery_info: string;
   /**
@@ -890,6 +896,11 @@ export interface Database {
     };
     Functions: {
       esg_is_admin: {
+        Args: Record<string, never>;
+        Returns: boolean;
+      };
+      // ← [2026-06-25] 현재 로그인 사용자가 물품 기부자인지 판정 (선판매 정책). SECURITY DEFINER
+      esg_am_i_item_donor: {
         Args: Record<string, never>;
         Returns: boolean;
       };

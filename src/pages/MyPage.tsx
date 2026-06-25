@@ -12,6 +12,7 @@ import { useEffect, useState, Suspense } from 'react'; // ← [코드 스플리�
 import { NavLink, Outlet, Link } from 'react-router-dom';
 import { LoadingScreen } from '@/components/routing/LoadingScreen'; // ← [코드 스플리팅] Suspense fallback
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useBazaarSale } from '@/hooks/useBazaarSale'; // ← [2026-06-25] 찜 목록 빠른담기 선판매 게이팅
 import {
   loadMyOrders,
   subscribeMyOrders,
@@ -399,6 +400,8 @@ export function MyPageAuctionWon() {
 
 export function MyPageWishlist() {
   const { currentUser } = useCurrentUser();
+  // ← [2026-06-25] 찜 목록 카드의 빠른 담기도 선판매 정책 일치(페이지 1회 판정 → 카드 prop)
+  const { canPurchase: canQuickAdd, blockReason: quickAddBlockReason } = useBazaarSale();
   const [items, setItems] = useState<EsgProductRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -453,7 +456,7 @@ export function MyPageWishlist() {
   return (
     <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
       {visible.map((p) => (
-        <ProductCard key={p.id} product={p} />
+        <ProductCard key={p.id} product={p} canQuickAdd={canQuickAdd} quickAddBlockReason={quickAddBlockReason} />
       ))}
     </div>
   );
