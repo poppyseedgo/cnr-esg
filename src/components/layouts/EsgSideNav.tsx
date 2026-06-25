@@ -182,14 +182,16 @@ function CountBadge({ n, t }: { n: number; t: SideTokens }) {
 // ============================================================================
 
 function PrimaryItem({
-  to, label, badge, t, activityKey, onNavigate,
+  to, label, badge, t, activityKey, onNavigate, gated = true,
 }: {
   to: string; label: string; badge?: BadgeInfo; t: SideTokens;
   activityKey?: EsgActivityKey; onNavigate?: () => void;
+  /** ← [2026-06-25] false면 활동 게이트(모달) 무시하고 항상 라우트로 이동. 바자회=열람 상시 허용. */
+  gated?: boolean;
 }) {
   // hooks 규칙: 조건부 호출 금지 → activityKey 없으면 placeholder 키로 호출 후 결과 무시
   const gate = useEventGate(activityKey ?? 'bazaar');
-  const blocked = activityKey ? gate.blocked : false;
+  const blocked = activityKey && gated ? gate.blocked : false; // ← [2026-06-25] gated=false면 차단 안 함
 
   const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     if (blocked) { e.preventDefault(); gate.openGuide(); }
@@ -330,7 +332,7 @@ function NavBody({
 
       {/* 1차 네비 (우측 정렬 — [2026-06-23] 캡쳐대로 복원: items-end + 뱃지 좌측) */}
       <nav style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
-        <PrimaryItem to="/bazaar" label="나무 심는 바자회" badge={badges.bazaar} t={t} activityKey="bazaar" onNavigate={onNavigate} />
+        <PrimaryItem to="/bazaar" label="나무 심는 바자회" badge={badges.bazaar} t={t} activityKey="bazaar" gated={false} onNavigate={onNavigate} />{/* ← [2026-06-25] 바자회=모달 제거, 물품 페이지 직행(열람 상시 허용) */}
         <PrimaryItem to="/auction" label="ESG 경매" badge={badges.auction} t={t} activityKey="auction" onNavigate={onNavigate} />
         <PrimaryItem to="/donate" label="기부하기" t={t} onNavigate={onNavigate} />
         {isAdmin && <AdminItem t={t} onNavigate={onNavigate} />}
