@@ -19,7 +19,7 @@
 import { supabase as _supabase } from './supabase';
 import type { EsgCartItemRow, EsgProductRow } from '@/types/esg';
 import { trackAddToCart } from './analytics'; // ← [2026-06-02 추가] GA4 장바구니 담기 추적
-import { getDisplayPrice } from './products'; // ← [2026-06-25] 세일가 기준 합계(서버 청구액과 일치)
+import { getDisplayPrice, getAvailableStock } from './products'; // ← [2026-06-25] 세일가 합계 + 가용재고 상한
 
 // supabase-js 2.49 타입 추론 한계 우회 (TODO #1)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -72,6 +72,20 @@ export async function addToCart(
 ): Promise<void> {
   if (quantity < 1) throw new Error('수량은 1 이상이어야 합니다.');
 
+  // ← [2026-06-25 버그수정] 가용재고 상한 검증 — 상품 재고 조회
+  //   장바구니 수량이 가용재고(stock - reserved_stock)를 넘지 못하게 캡.
+  //   (기존: existing.quantity + quantity 로 무조건 증가 → 재고 초과 반복 담기 버그)
+  const { data: product, error: pErr } = await supabase
+    .from('esg_products')
+    .select('stock, reserved_stock, status')
+    .eq('id', productId)
+    .maybeSingle();
+  if (pErr) throw pErr;
+  if (!product) throw new Error('상품을 찾을 수 없습니다.');
+  if (product.status !== 'on_sale') throw new Error('현재 구매할 수 없는 상품입니다.');
+  const available = getAvailableStock(product); // max(0, stock - reserved_stock) — 카드/장바구니와 1:1
+  if (available <= 0) throw new Error('품절된 상품입니다.');
+
   // 기존 항목 확인
   const { data: existing, error: checkErr } = await supabase
     .from('esg_cart_items')
@@ -81,10 +95,18 @@ export async function addToCart(
     .maybeSingle();
   if (checkErr) throw checkErr;
 
+  const currentQty = existing?.quantity ?? 0;
+  // ← [2026-06-25 버그수정] 이미 가용재고만큼 담겨 있으면 더 못 담음(초과 차단)
+  if (currentQty >= available) {
+    throw new Error(`재고가 ${available}개뿐이라 더 담을 수 없습니다.`);
+  }
+  const newQty = Math.min(currentQty + quantity, available); // ← 가용재고 상한 캡
+  const addedQty = newQty - currentQty;                      // ← 실제 추가분(부분 추가 가능)
+
   if (existing) {
     const { error } = await supabase
       .from('esg_cart_items')
-      .update({ quantity: existing.quantity + quantity })
+      .update({ quantity: newQty }) // ← [2026-06-25 버그수정] 캡된 수량으로 설정(무조건 증가 X)
       .eq('id', existing.id);
     if (error) throw error;
   } else {
@@ -93,12 +115,12 @@ export async function addToCart(
         user_id: user.id,
         user_email: user.email,
         product_id: productId,
-        quantity,
+        quantity: newQty, // ← [2026-06-25 버그수정] 캡된 수량
       },
     ]);
     if (error) throw error;
   }
-  trackAddToCart(productId, quantity); // ← [2026-06-02 추가] GA4 add_to_cart (성공 시에만)
+  trackAddToCart(productId, addedQty); // ← [2026-06-25] 실제 추가분으로 추적(성공 시에만)
   notifyCartChanged(); // ← 같은 탭 즉시 갱신
 }
 
