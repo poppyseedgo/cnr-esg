@@ -2,13 +2,19 @@
 # Cloudflare Pages 캐시 정책 (코드 스플리팅 청크 stale 문제 근본 차단)
 #
 # 규칙은 위→아래 순서로 적용되며, 같은 헤더는 아래(더 구체적) 규칙이 덮어쓴다.
-#   1) 기본(/*)         : no-cache  — HTML/SPA 진입은 항상 재검증 → 최신 청크 참조 수신
+#   1) 기본(/*)         : no-store  — HTML/SPA 진입점은 절대 캐시 재사용 금지(항상 최신 수신)
+#                          ※ no-cache(재검증)에서 강화: 엣지/브라우저가 옛 index.html 을
+#                            재검증 없이 쓰는 경로까지 차단 → 재배포 직후 옛 청크 요청 제거.
 #   2) /assets/*        : immutable — 해시 파일명이라 내용 바뀌면 이름도 바뀜 → 영구 캐시 안전
 # 효과: 재배포 후에도 브라우저가 옛 index.html 을 재사용하지 않아 옛 청크 요청이 사라진다.
+#       (lazyWithRetry 의 1회 자동 새로고침이 '최신' index.html 을 확실히 받도록 보장)
 # ============================================================================
 
 /*
-  Cache-Control: no-cache
+  Cache-Control: no-store, must-revalidate
+
+/index.html
+  Cache-Control: no-store, must-revalidate
 
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
