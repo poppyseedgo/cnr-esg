@@ -25,6 +25,7 @@
 import { Link } from 'react-router-dom';
 import { BazaarFilters } from '@/components/bazaar/BazaarFilters';
 import { useNavCounts } from '@/hooks/useNavCounts'; // ← [2026-06-24] 1차 사이드바와 동일 카운트 공유
+import { useMyPendingOrders } from '@/hooks/useMyPendingOrders'; // ← [2026-06-25] 결제대기 dot
 
 interface SecondarySidebarProps {
   /** 메인 사이드바(EsgSideNav) 접힘 여부. 펼침이면 보조내비를 숨긴다. */
@@ -40,6 +41,8 @@ const SECONDARY_NAV: Array<{ to: string; label: string }> = [
 
 export function SecondarySidebar({ mainCollapsed }: SecondarySidebarProps) {
   const { cartCount, unread, wishlistCount } = useNavCounts(); // ← [2026-06-24] 1차 사이드바와 동일 소스
+  const { expiries } = useMyPendingOrders();                    // ← [2026-06-25] 결제대기 주문
+  const hasPendingOrder = expiries.length > 0;                  // ← [2026-06-25] My Account dot
 
   // 라벨별 카운트 매핑(Cart=장바구니 / 찜=위시리스트 / Notification=미읽음). 나머지는 없음.
   const countFor = (label: string): number | undefined =>
@@ -81,6 +84,17 @@ export function SecondarySidebar({ mainCollapsed }: SecondarySidebarProps) {
                 }}
               >
                 {item.label}
+                {/* ← [2026-06-25] My Account 결제대기 빨간 점(깜빡임) */}
+                {item.label === 'My Account' && hasPendingOrder && (
+                  <span
+                    aria-label="결제 대기 중인 주문 있음"
+                    style={{
+                      width: 7, height: 7, borderRadius: '50%', background: '#EF4444',
+                      display: 'inline-block', alignSelf: 'flex-start', marginTop: 2,
+                      animation: 'cnrPendingBlink 1s ease-in-out infinite',
+                    }}
+                  />
+                )}
                 {typeof count === 'number' && count > 0 && <CountBadge n={count} />}
               </Link>
             );

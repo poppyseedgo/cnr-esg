@@ -127,6 +127,11 @@ button {
   from { opacity: 0; }
   to { opacity: 1; }
 }
+/* [2026-06-25] 결제대기 알림 dot — 빨간 점 깜빡임 (My Account 네비) */
+@keyframes cnrPendingBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
 /* 주의: .route-fade에는 transform을 쓰지 않는다.
    transform/filter 조상은 position:fixed 자손의 컨테이닝 블록이 되어
    모달(fixed) 백드롭이 뷰포트 전체를 못 덮는 버그를 유발한다. (opacity 전용 유지) */

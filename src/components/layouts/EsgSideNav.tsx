@@ -40,6 +40,7 @@ import { useEventPhase } from '@/hooks/useEventPhase';
 import { useEventGate } from '@/hooks/useEventGate';
 import { signInWithMicrosoft } from '@/lib/auth';
 import { useNavCounts } from '@/hooks/useNavCounts'; // ← [2026-06-24] 1·2차 사이드바 공용 카운트(중복 제거)
+import { useMyPendingOrders } from '@/hooks/useMyPendingOrders'; // ← [2026-06-25] 결제대기 dot
 import type {
   EsgActivityKey,
   EsgActivityStatus,
@@ -239,10 +240,10 @@ function AdminItem({ t, onNavigate }: { t: SideTokens; onNavigate?: () => void }
 
 /** 2차 네비 / 지난 이벤트 항목 (muted, 우측 카운트/배지/시상예정 텍스트 옵션) */
 function MutedItem({
-  to, label, t, size = 24, badge, count, award, onNavigate,
+  to, label, t, size = 24, badge, count, award, dot, onNavigate,
 }: {
   to: string; label: string; t: SideTokens; size?: number;
-  badge?: BadgeInfo; count?: number; award?: string; onNavigate?: () => void; // ← [2026-06-23] award: 시상예정 텍스트
+  badge?: BadgeInfo; count?: number; award?: string; dot?: boolean; onNavigate?: () => void; // ← [2026-06-25] dot: 결제대기 깜빡임
 }) {
   return (
     <NavLink
@@ -256,6 +257,17 @@ function MutedItem({
       })}
     >
       {label}
+      {/* ← [2026-06-25] 결제대기 빨간 점(깜빡임) — 라벨 우측 상단 */}
+      {dot && (
+        <span
+          aria-label="결제 대기 중인 주문 있음"
+          style={{
+            width: 7, height: 7, borderRadius: '50%', background: '#EF4444',
+            display: 'inline-block', alignSelf: 'flex-start', marginTop: 2,
+            animation: 'cnrPendingBlink 1s ease-in-out infinite',
+          }}
+        />
+      )}
       {typeof count === 'number' && <CountBadge n={count} t={t} />}
       <Badge badge={badge} t={t} />
       {/* ← [2026-06-23] 지난 이벤트 시상예정: 알약 대신 흰 텍스트(Figma 1698:1378) */}
@@ -279,6 +291,7 @@ interface NavBodyProps {
   cartCount: number;
   unread: number;
   wishlistCount: number; // ← [2026-06-24] 찜 개수
+  hasPendingOrder: boolean; // ← [2026-06-25] 결제대기 dot
   badges: { zeroWaste: BadgeInfo; wiseLife: BadgeInfo; bazaar: BadgeInfo; auction: BadgeInfo };
   onLogin: () => void;
   onSignOut: () => void;
@@ -313,7 +326,7 @@ function CloseIcon({ color, size = 24 }: { color: string; size?: number }) {
 }
 
 function NavBody({
-  t, isAdmin, currentUser, cartCount, unread, wishlistCount, badges, onLogin, onSignOut, onNavigate, onCollapse,
+  t, isAdmin, currentUser, cartCount, unread, wishlistCount, hasPendingOrder, badges, onLogin, onSignOut, onNavigate, onCollapse,
 }: NavBodyProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 44, fontFamily: FONT }}>
@@ -352,7 +365,7 @@ function NavBody({
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <MutedItem to="/cart" label="Cart" t={t} count={currentUser ? cartCount : undefined} onNavigate={onNavigate} />
           <MutedItem to="/mypage/wishlist" label="찜" t={t} count={currentUser ? wishlistCount : undefined} onNavigate={onNavigate} />{/* ← [2026-06-24] 찜 카운트 */}
-          <MutedItem to="/mypage" label="My Account" t={t} onNavigate={onNavigate} />
+          <MutedItem to="/mypage" label="My Account" t={t} dot={currentUser ? hasPendingOrder : false} onNavigate={onNavigate} />{/* ← [2026-06-25] 결제대기 dot */}
           <MutedItem to="/notifications" label="Notification" t={t} count={currentUser ? unread : undefined} onNavigate={onNavigate} />
         </div>
         {/* 40px 유저 아바타 (로그인 시) / 로그인 버튼 (비로그인) */}
@@ -449,6 +462,8 @@ export function EsgSideNav({ collapsed = false, onToggleCollapse }: {
   const location = useLocation();
 
   const { cartCount, unread, wishlistCount } = useNavCounts(); // ← [2026-06-24] 공용 훅(찜 카운트 포함)
+  const { expiries: pendingExpiries } = useMyPendingOrders(); // ← [2026-06-25] 결제대기 주문
+  const hasPendingOrder = pendingExpiries.length > 0;        // ← [2026-06-25] My Account dot 표시 여부
   const [mobileOpen, setMobileOpen] = useState(false);
   // ← [2026-06-24 근본] 초기값을 '실제 뷰포트'로 산출(기존 useState(false)).
   //   기존: 첫 렌더가 무조건 false=데스크톱 → mount 후 useEffect 가 모바일로 정정 →
@@ -515,7 +530,7 @@ export function EsgSideNav({ collapsed = false, onToggleCollapse }: {
               overflowY: 'auto', WebkitOverflowScrolling: 'touch',
             }}>
               <NavBody t={t} isAdmin={isAdmin} currentUser={currentUser}
-                cartCount={cartCount} unread={unread} wishlistCount={wishlistCount} badges={badges}
+                cartCount={cartCount} unread={unread} wishlistCount={wishlistCount} hasPendingOrder={hasPendingOrder} badges={badges}
                 onLogin={handleLogin} onSignOut={handleSignOut} onNavigate={() => setMobileOpen(false)} />
             </aside>
           </>
@@ -551,7 +566,7 @@ export function EsgSideNav({ collapsed = false, onToggleCollapse }: {
       transition: 'width 0.2s, background 0.2s, color 0.2s',
     }}>
       <NavBody t={t} isAdmin={isAdmin} currentUser={currentUser}
-        cartCount={cartCount} unread={unread} wishlistCount={wishlistCount} badges={badges}
+        cartCount={cartCount} unread={unread} wishlistCount={wishlistCount} hasPendingOrder={hasPendingOrder} badges={badges}
         onLogin={handleLogin} onSignOut={handleSignOut} onCollapse={onToggleCollapse} />
     </aside>
   );

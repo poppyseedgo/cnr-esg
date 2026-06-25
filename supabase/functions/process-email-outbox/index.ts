@@ -30,6 +30,13 @@
 //     ※ 근본 원인(링크)은 APP_BASE_URL 환경변수 미설정. 배포 전 secrets 설정 필수.
 //   2026-06-16  [재발송] 'donation_certificate_resend' 템플릿 추가
 //     ("기부금 인증서가 도착했습니다") — 관리자 선택 재발송용. enrich 대상에 포함.
+//   2026-06-25  [15분 결제정책] 바자회 메일 문구를 정책에 맞게 정정.
+//     (1) bazaar_order_created: "오늘 23:59까지" 하드코딩 → "주문 후 15분 이내(아래 입금 기한)".
+//         ※ 실제 기한은 paymentGuideBlock 의 입금 기한(formatKst(expires_at))이 SSOT(동적).
+//     (2) bazaar_order_expired: "입금 기한 내에" → "입금 기한(주문 후 15분) 내에"로 명확화.
+//     ※ 경매(auction_won)·기부(donation_created)의 "오늘 23:59"는 정책 범위 밖(미변경).
+//     ※ 입금 리마인더(bazaar_payment_reminder)는 15분 정책상 메일이 도착 전 만료되어 무의미 →
+//        바자회는 리마인더 크론에서 제외(크론 SQL은 별도). 템플릿은 경매용으로 존치.
 // ============================================================================
 
 // @deno-types="https://deno.land/std@0.224.0/types.d.ts"
@@ -374,7 +381,7 @@ function tmplBazaarOrderCreated(data: Record<string, unknown>): string {
   return wrap(`
 <h2 style="margin:0 0 12px;font-size:18px;color:#222;">🛍 바자회 주문이 접수되었습니다</h2>
 <p>${escapeHtml(data.user_name)}님, 주문해 주셔서 감사합니다.</p>
-${alertBox('아래 계좌로 <strong>입금자명 일치</strong>하여 송금해 주세요.<br>오늘 23:59까지 입금이 확인되지 않으면 주문이 자동 취소됩니다.', 'warning')}
+${alertBox('아래 계좌로 <strong>입금자명 일치</strong>하여 송금해 주세요.<br><strong>주문 후 15분 이내</strong>(아래 입금 기한)에 입금이 확인되지 않으면 주문이 자동 취소됩니다.', 'warning')}
 ${paymentGuideBlock(data)}
 ${infoBox([['주문번호', escapeHtml(data.order_number)]])}
 ${button('주문 상세 보기', `${APP_BASE_URL}/orders/${data.order_number}`)}
@@ -400,13 +407,13 @@ ${button('주문 상세 보기', `${APP_BASE_URL}/orders/${data.order_number}`)}
 `);
 }
 
-// 3. 바자회 입금 리마인더 (21:00 KST)
+// 3. 입금 리마인더 — 입금 기한 임박 안내(동적 expires_at). [2026-06-25] 바자회는 15분 정책상 리마인더 무의미 → 크론에서 제외(경매 전용 권장).
 function tmplBazaarPaymentReminder(data: Record<string, unknown>): string {
   const isBazaar = data.order_type === 'bazaar';
   return wrap(`
-<h2 style="margin:0 0 12px;font-size:18px;color:#222;">⏰ 입금 안내 (오늘 23:59 만료)</h2>
+<h2 style="margin:0 0 12px;font-size:18px;color:#222;">⏰ 입금 안내 (입금 기한 임박)</h2>
 <p>${escapeHtml(data.user_name)}님, ${isBazaar ? '바자회' : '경매 낙찰'} 주문의 입금이 아직 확인되지 않았습니다.</p>
-${alertBox('<strong>오늘 23:59(KST)까지 미입금 시 주문이 자동 취소됩니다.</strong><br>취소되면 ' + (isBazaar ? '재고가 다른 분에게 돌아가며 다시 구매할 수 있습니다.' : '낙찰 권한이 소멸됩니다.'), 'warning')}
+${alertBox('<strong>입금 기한(' + formatKst(data.expires_at) + ' KST)까지 미입금 시 주문이 자동 취소됩니다.</strong><br>취소되면 ' + (isBazaar ? '재고가 다른 분에게 돌아가며 다시 구매할 수 있습니다.' : '낙찰 권한이 소멸됩니다.'), 'warning')}
 ${paymentGuideBlock(data)}
 ${infoBox([['주문번호', escapeHtml(data.order_number)]])}
 ${button('지금 입금 안내 다시 보기', `${APP_BASE_URL}/orders/${data.order_number}`, '#dc2626')}
@@ -418,7 +425,7 @@ function tmplBazaarOrderExpired(data: Record<string, unknown>): string {
   const isBazaar = data.order_type === 'bazaar';
   return wrap(`
 <h2 style="margin:0 0 12px;font-size:18px;color:#222;">⌛ 입금 기한 초과로 주문이 취소되었습니다</h2>
-<p>${escapeHtml(data.user_name)}님, 안타깝게도 입금 기한 내에 입금이 확인되지 않아 주문이 자동 취소되었습니다.</p>
+<p>${escapeHtml(data.user_name)}님, 안타깝게도 입금 기한(주문 후 15분) 내에 입금이 확인되지 않아 주문이 자동 취소되었습니다.</p>
 ${infoBox([
   ['주문번호', escapeHtml(data.order_number)],
   ['주문 종류', isBazaar ? '🛍 바자회' : '🔨 경매'],

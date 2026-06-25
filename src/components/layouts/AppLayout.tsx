@@ -19,6 +19,7 @@ import { Suspense, useState, useEffect, useRef } from 'react'; // ← [코드 �
 import { Outlet, ScrollRestoration, useLocation } from 'react-router-dom';
 import { EsgSideNav } from './EsgSideNav'; // ← [2026-06-23] 상단 Header 대체(좌측 사이드바)
 import { SecondarySidebar } from './SecondarySidebar'; // ← [2026-06-24] 두 단계 사이드바 2차 패널(바자회/경매)
+import { PendingOrderBar } from './PendingOrderBar'; // ← [2026-06-25] 결제대기 주문 상단 알림바
 import { Footer } from './Footer';
 import { LoadingScreen } from '@/components/routing/LoadingScreen'; // ← [코드 스플리팅] Suspense fallback
 import { GlobalEventModal } from '@/components/home/GlobalEventModal';
@@ -77,6 +78,8 @@ export function AppLayout() {
         {isTwoTier && <SecondarySidebar mainCollapsed={collapsed} />}
 
         <main className="app-main" style={{ flex: 1, minWidth: 0, padding: '0 20px', background: isTwoTier ? '#fff' : undefined }}>{/* ← [2026-06-24] 상품리스트 페이지 배경 화이트 */}
+          {/* ← [2026-06-25] 결제대기 주문 알림바 — 콘텐츠 최상단 풀블리드(maxWidth 제약 밖) */}
+          <PendingOrderBar />
           {/* ← [2026-06-24] 2-tier 에서는 중앙정렬 해제(풀폭) → 그리드가 가용폭을 모두 사용 */}
           <div style={{ maxWidth: isTwoTier ? 'none' : 1360, margin: isTwoTier ? 0 : '0 auto', padding: '24px 0 320px' }}>
             {/* ← [코드 스플리팅] lazy 페이지 로딩 중 사이드바/푸터 유지, 본문만 fallback */}
