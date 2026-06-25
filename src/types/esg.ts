@@ -137,6 +137,7 @@ export interface EsgSettingsValueMap {
     memo?: string;
   };
   order_expire_hours: number;
+  order_expire_minutes: number; // ← [2026-06-25] 바자회 주문 입금 만료(분). 15분 정책.
   homepage_notice: {
     title: string;
     subtitle: string;

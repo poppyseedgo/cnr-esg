@@ -133,6 +133,38 @@ export function isSoldOut(product: EsgProductRow): boolean {
 }
 
 // ============================================================================
+// 표시 상태 파생 (2026-06-25, 15분 결제 정책)
+//   상품 status enum(on_sale/sold_out/hidden)은 그대로 두고, 화면에 보일 상태를
+//   (status, stock, reserved_stock, 활성예약 만료시각)로 파생한다.
+//
+//   판매 중      : 가용재고 > 0
+//   입금 대기 중 : 가용재고 0 & 활성(미만료) 예약 존재 → 카운트다운(reserved_until)
+//   판매 완료    : status=sold_out(=결제로 stock 0) 또는 가용 0 & 예약 없음(=재고 0)
+//   (hidden 은 어드민 전용)
+//
+//   ※ 가용 0 인데 활성 예약이 없으면(만료 예약만 남음) "판매 중"으로 낙관 표시한다.
+//     서버 자가치유(create_bazaar_order)가 실제 구매 성공을 보장하므로 간극이 없다.
+// ============================================================================
+export type ProductDisplayStatus = 'on_sale' | 'payment_pending' | 'sold_out' | 'hidden';
+
+export function getDisplayStatus(
+  product: Pick<EsgProductRow, 'status' | 'stock' | 'reserved_stock'>,
+  reservedUntil: string | null,   // 활성 예약의 reserved_until(ISO UTC). 없으면 null.
+  nowMs: number = Date.now(),
+): ProductDisplayStatus {
+  if (product.status === 'hidden') return 'hidden';
+  if (product.status === 'sold_out') return 'sold_out';
+
+  const available = Math.max(0, product.stock - product.reserved_stock);
+  if (available > 0) return 'on_sale';
+
+  // 가용재고 0 ----------------------------------------------------------------
+  if (product.reserved_stock <= 0) return 'sold_out';        // 재고 0 & 예약 없음 → 판매 완료
+  const active = reservedUntil != null && new Date(reservedUntil).getTime() > nowMs;
+  return active ? 'payment_pending' : 'on_sale';             // 만료 예약만 → 낙관적 판매 중
+}
+
+// ============================================================================
 // 세일가 / "새 상품" — 표시·결제 공용 SSOT (2026-06-09)
 //   ※ 카드·상세·장바구니·결제 합계 모두 이 함수들을 사용 (서버 RPC와 동일 규칙).
 //   ※ 세일 판정 규칙(서버 create_bazaar_order 와 1:1): sale_price != null && sale_price < price

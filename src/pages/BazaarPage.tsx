@@ -24,6 +24,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useBazaarSale } from '@/hooks/useBazaarSale'; // ← [2026-06-25] 선판매 정책(빠른담기 게이팅, 페이지 1회 판정)
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll'; // ← [2026-06-04] 무한 스크롤
 import { loadProducts, subscribeProducts } from '@/lib/products';
+import { loadReservationStatus } from '@/lib/reservations'; // ← [2026-06-25] 입금 대기(예약) 현황
 import { listTagsWithCount } from '@/lib/tags'; // ← [2026-06-22] slug→id 해석용 태그
 import { loadProductTagsBatch } from '@/lib/tags'; // ← [2026-06-23] 카드 태그 배치
 import { BazaarFilters } from '@/components/bazaar/BazaarFilters'; // ← [2026-06-24] 필터는 공용 컴포넌트로 이관(모바일 최상단/데스크톱 사이드바)
@@ -108,9 +109,11 @@ export function BazaarPage() {
 
   // Realtime — 재고 변경 / 신규 상품 조용히 제자리 갱신(깜빡임 없음)
   useEffect(() => {
+    void loadReservationStatus(); // ← [2026-06-25] 진입 시 예약(입금 대기) 현황 1회 로드
     const cleanup = subscribeProducts(() => {
       refresh();
       reloadTags(); // ← [2026-06-22] 상품 변경 시 태그 카운트도 갱신
+      void loadReservationStatus(); // ← [2026-06-25] reserved_stock 변동 = 주문/만료 발생 → 예약 현황 동기화
     });
     return cleanup;
   }, [refresh, reloadTags]);

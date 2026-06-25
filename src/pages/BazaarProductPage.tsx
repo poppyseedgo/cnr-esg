@@ -21,11 +21,15 @@ import { useBazaarSale } from '@/hooks/useBazaarSale'; // ← [2026-06-25] 선�
 import {
   loadProduct,
   getAvailableStock,
-  isSoldOut,
+  getDisplayStatus,
   isNewProduct,
   getDisplayPrice,
   subscribeProducts,
 } from '@/lib/products';
+import { formatShortCountdown } from '@/lib/orders'; // ← [2026-06-25] MM:SS 카운트다운
+import { loadReservationStatus } from '@/lib/reservations'; // ← [2026-06-25]
+import { useNowTick } from '@/hooks/useNowTick'; // ← [2026-06-25]
+import { useProductReservation } from '@/hooks/useProductReservation'; // ← [2026-06-25]
 import { PriceTag } from '@/components/PriceTag'; // ← [2026-06-25] 원가/판매가/할인율 표시
 import { addToCart } from '@/lib/cart';
 import { signInWithMicrosoft } from '@/lib/auth';
@@ -67,6 +71,11 @@ export function BazaarProductPage() {
   } | null>(null);
   const [adminEditing, setAdminEditing] = useState(false);
   const [tags, setTags] = useState<EsgTagRow[]>([]); // ← [2026-06-23] 상세 태그
+
+  // ← [2026-06-25] 입금 대기(예약) 상태 + 1초 틱 (early return 전에 무조건 호출)
+  const reservation = useProductReservation(product?.id ?? '');
+  const nowMs = useNowTick();
+
   useEffect(() => {
     if (!product?.id) { setTags([]); return; }
     let alive = true;
@@ -105,8 +114,10 @@ export function BazaarProductPage() {
 
   // Realtime — 재고 / 상태 변경 즉시 반영
   useEffect(() => {
+    void loadReservationStatus(); // ← [2026-06-25] 진입 시 예약 현황 로드
     const cleanup = subscribeProducts(() => {
       void reload();
+      void loadReservationStatus(); // ← [2026-06-25] reserved_stock 변동 동기화
     });
     return cleanup;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -151,9 +162,12 @@ export function BazaarProductPage() {
   }
 
   const available = getAvailableStock(product);
-  const soldOut = isSoldOut(product);
-  // ← [2026-06-25] 재고(soldOut)는 정책이 모르는 영역이라 별도 AND. 나머지(기간/기부자/토글/어드민)는 windowAllows가 판정.
-  const canPurchase = !soldOut && windowAllows;
+  const displayStatus = getDisplayStatus(product, reservation?.until ?? null, nowMs); // ← [2026-06-25] 파생 상태
+  const soldOut = displayStatus === 'sold_out';            // 판매 완료(품절)
+  const paymentPending = displayStatus === 'payment_pending'; // 입금 대기 중
+  const countdownMs = reservation ? new Date(reservation.until).getTime() - nowMs : 0; // ← [2026-06-25]
+  // ← [2026-06-25] 재고/예약(soldOut·paymentPending)은 정책이 모르는 영역이라 별도 AND. 나머지는 windowAllows가 판정.
+  const canPurchase = !soldOut && !paymentPending && windowAllows;
 
   const handleAddToCart = async () => {
     if (!currentUser) {
@@ -350,18 +364,22 @@ export function BazaarProductPage() {
             </div>
           </div>
 
-          {/* 재고 */}
+          {/* 재고 / 입금 대기 상태 */}
           <div
             style={{
               padding: 12,
-              background: soldOut ? '#fee2e2' : available <= 5 ? '#fef3c7' : '#f0fdf4',
-              color: soldOut ? '#991b1b' : available <= 5 ? '#92400e' : '#166534',
+              background: paymentPending ? '#fffbeb' : soldOut ? '#fee2e2' : available <= 5 ? '#fef3c7' : '#f0fdf4',
+              color: paymentPending ? '#b45309' : soldOut ? '#991b1b' : available <= 5 ? '#92400e' : '#166534',
               borderRadius: 8,
               fontSize: 13,
             }}
           >
-            {soldOut ? (
-              <>🚫 품절되었습니다</>
+            {paymentPending ? (
+              <>⏳ 다른 분이 입금 대기 중입니다 · 남은 시간{' '}
+                <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{formatShortCountdown(countdownMs)}</strong>
+                {' '}· 미입금 시 다시 구매 가능</>
+            ) : soldOut ? (
+              <>🚫 판매 완료되었습니다</>
             ) : available <= 5 ? (
               <>⚠️ {available}개 남았어요. 서두르세요!</>
             ) : (

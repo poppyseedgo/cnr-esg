@@ -252,6 +252,18 @@ export function formatTimeLeft(ms: number): string {
 }
 
 /**
+ * 짧은 카운트다운 "MM:SS" (15분 결제 정책 — 입금 대기 카운트다운용).  // ← [2026-06-25]
+ * 0 이하면 "00:00". 60분 이상이면 분이 2자리+로 자연 증가(예: "75:00").
+ */
+export function formatShortCountdown(ms: number): string {
+  if (ms <= 0) return '00:00';
+  const totalSec = Math.floor(ms / 1000);
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+/**
  * UTC ISO 문자열을 KST 종료 일시로 표시.
  * 형식: "2026-06-02 (월) 17:42 종료"
  */
