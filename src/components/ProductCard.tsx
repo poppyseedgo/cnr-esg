@@ -110,16 +110,19 @@ export function ProductCard({ product, canQuickAdd = true, quickAddBlockReason =
           </div>
         )}
 
-        {/* 판매 완료(품절) 오버레이 — 액션바 대신 노출 */}
+        {/* 품절 오버레이 — '한 그루의 나무가 되었습니다' 유쾌 표기(나무 심는 바자회 테마) */}
         {soldOut && (
           <div
             style={{
-              position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#fff', fontWeight: 700, fontSize: 18, letterSpacing: 0.5,
+              position: 'absolute', inset: 0, background: 'rgba(15,46,32,0.62)', // ← [2026-06-26] 검정→짙은 녹색(나무 테마)
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', // ← [2026-06-26] 아이콘+문구 세로 배치
+              gap: 8, padding: 16, textAlign: 'center', // ← [2026-06-26] 긴 문구 여백/줄바꿈 대비
             }}
           >
-            판매 완료
+            <span style={{ fontSize: 30, lineHeight: 1 }} aria-hidden> 🌳 </span>{/* ← [2026-06-26] 나무 이모지 */}
+            <span style={{ color: '#fff', fontWeight: 500, fontSize: 14, lineHeight: 1.5 }}>{/* ← [2026-06-26] 18/700 → 14/500(긴 문구) */}
+              품절되어 한 그루의<br />나무가 되었습니다
+            </span>
           </div>
         )}
 
