@@ -162,7 +162,7 @@ export async function loadOrderByNumber(
  * 주문 강제 취소 (어드민 전용).
  *
  * ⚠️ 정책: 사용자는 직접 주문을 취소할 수 없음.
- *   - 입금 기한(주문 당일 23:59 KST)까지 미입금 → cron(expire_pending_orders)이 자동 처리
+ *   - 입금 기한(주문 후 15분, order_expire_minutes)까지 미입금 → cron(expire_pending_orders)이 자동 처리
  *   - 어드민 페이지에서만 수동 호출 (예: 특수 사유 환불, 잘못된 주문 정리 등)
  *
  * - cancel_order RPC가 reserved_stock 복원 + status='cancelled'

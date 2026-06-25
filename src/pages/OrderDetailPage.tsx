@@ -410,7 +410,7 @@ function BankAccountGuide({
         </div>
         ⏰ 입금 기한: <strong>{formatTimeLeft(timeLeftMs)}</strong> 남음
         <div style={{ marginTop: 4, fontSize: 11, opacity: 0.85 }}>
-          오늘 23:59까지 미입금 시 주문이 자동 취소되며, 재고는 다시 구매 가능 상태로 복원됩니다.
+          위 입금 기한까지 미입금 시 주문이 자동 취소되며, 재고는 다시 구매 가능 상태로 복원됩니다.
         </div>
       </div>
 
