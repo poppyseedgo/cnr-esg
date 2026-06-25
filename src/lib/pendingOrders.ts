@@ -14,7 +14,7 @@
 //     (cron/자가치유가 status=expired 로 바꾸면 Realtime 으로 목록에서 빠짐)
 // ============================================================================
 
-import { loadMyOrders, subscribeMyOrders } from './orders';
+import { loadMyOrders, subscribeMyOrders, onOrdersChanged } from './orders';
 
 const PENDING_CHANGED_EVENT = 'esg:pending-orders-changed';
 
@@ -22,6 +22,7 @@ let expiries: string[] = [];               // pending 바자회 주문들의 exp
 let currentUserId: string | null = null;
 let refCount = 0;
 let stopRealtime: (() => void) | null = null;
+let stopSignal: (() => void) | null = null; // ← [2026-06-25] 즉시 신호(onOrdersChanged) 해제
 
 function emit(): void {
   if (typeof window !== 'undefined') {
@@ -50,11 +51,13 @@ export function startPendingOrdersSync(userId: string | null): () => void {
   if (userId !== currentUserId) {
     // 유저 변경(로그인/로그아웃) → 기존 구독 정리 후 재설정
     if (stopRealtime) { stopRealtime(); stopRealtime = null; }
+    if (stopSignal) { stopSignal(); stopSignal = null; }
     currentUserId = userId;
     expiries = [];
     if (userId) {
       void reload();
-      stopRealtime = subscribeMyOrders(userId, () => { void reload(); });
+      stopRealtime = subscribeMyOrders(userId, () => { void reload(); }); // 서버측 입금확인/만료
+      stopSignal = onOrdersChanged(() => { void reload(); });             // ← [2026-06-25] 주문 생성 즉시 신호(라이브)
     } else {
       emit();
     }
@@ -66,6 +69,7 @@ export function startPendingOrdersSync(userId: string | null): () => void {
     if (refCount <= 0) {
       refCount = 0;
       if (stopRealtime) { stopRealtime(); stopRealtime = null; }
+      if (stopSignal) { stopSignal(); stopSignal = null; }
       currentUserId = null;
       expiries = [];
     }

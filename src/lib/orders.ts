@@ -95,6 +95,8 @@ export async function createBazaarOrder(
     notifyCartChanged();
   }
 
+  notifyOrdersChanged(); // ← [2026-06-25] 결제대기 알림바/네비 dot 즉시 반영(Realtime 왕복 대기 X)
+
   trackPurchase({
     orderNumber: result.order_number,   // ← [2026-06-02 추가] transaction_id
     totalAmount: result.total_amount,   // ← [2026-06-02 추가] value (총액)
@@ -204,6 +206,25 @@ export function subscribeMyOrders(userId: string, callback: () => void): () => v
   return () => {
     supabase.removeChannel(channel);
   };
+}
+
+// ── [2026-06-25] 주문 변경 즉시 신호 (window event) ──────────────────────────
+//   주문 생성 직후 Realtime INSERT 도달을 기다리지 않고 같은 탭에서 즉시 갱신.
+//   (cart 의 notifyCartChanged 와 동일 패턴 — 결제대기 알림바/네비 dot 라이브 반영)
+//   서버측 상태변경(입금확인/만료)은 subscribeMyOrders Realtime 이 담당.
+const ORDERS_CHANGED_EVENT = 'esg:orders-changed';
+
+export function notifyOrdersChanged(): void {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(ORDERS_CHANGED_EVENT));
+  }
+}
+
+export function onOrdersChanged(callback: () => void): () => void {
+  if (typeof window === 'undefined') return () => {};
+  const handler = () => callback();
+  window.addEventListener(ORDERS_CHANGED_EVENT, handler);
+  return () => window.removeEventListener(ORDERS_CHANGED_EVENT, handler);
 }
 
 // ============================================================================
