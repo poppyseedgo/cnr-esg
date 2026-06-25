@@ -127,13 +127,13 @@ export function ProductCard({ product, canQuickAdd = true, quickAddBlockReason =
         {paymentPending && (
           <div
             style={{
-              position: 'absolute', inset: 0, background: 'rgba(180,83,9,0.62)',
+              position: 'absolute', inset: 0, background: 'rgb(0 0 0 / 82%)', // ← [2026-06-25] 앰버 → 블랙 82%
               display: 'flex', flexDirection: 'column', gap: 4,
               alignItems: 'center', justifyContent: 'center', color: '#fff',
             }}
           >
-            <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: 0.3 }}>입금 대기 중</span>
-            <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 22, fontWeight: 800, letterSpacing: 1 }}>
+            <span style={{ fontWeight: 400, fontSize: 15, letterSpacing: 0.3 }}>입금 대기 중</span>
+            <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: 22, fontWeight: 400, letterSpacing: 1 }}>
               {formatShortCountdown(countdownMs)}
             </span>
             <span style={{ fontSize: 11, opacity: 0.85 }}>미입금 시 다시 판매됩니다</span>

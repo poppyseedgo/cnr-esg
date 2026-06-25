@@ -156,6 +156,27 @@ export async function loadOrderByNumber(
   return data as OrderWithItems | null;
 }
 
+// ── [2026-06-25] 주문 식별자 통합 조회 (order_number 또는 id) ────────────────
+//   [버그수정·근본] 알림 트리거가 링크를 '/orders/{id}'(UUID)로 만들어, order_number
+//   로만 조회하던 OrderDetailPage 가 "주문을 찾을 수 없습니다"로 깨졌다(앱 내부 네비는
+//   모두 order_number 사용 → 트리거만 deviation). 페이지가 둘 다 해석하도록 통합:
+//   UUID 형식이면 id 로, 아니면 order_number 로 조회 → 기존 깨진 알림 링크까지 즉시 복구.
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export async function loadOrderByNumberOrId(
+  param: string
+): Promise<OrderWithItems | null> {
+  const col = UUID_RE.test(param) ? 'id' : 'order_number'; // UUID → id, 그 외 → order_number
+  const { data, error } = await supabase
+    .from('esg_orders')
+    .select('*, items:esg_order_items(*)')
+    .eq(col, param)
+    .maybeSingle();
+  if (error) throw error;
+  return data as OrderWithItems | null;
+}
+
 // ============================================================================
 // 취소
 // ============================================================================

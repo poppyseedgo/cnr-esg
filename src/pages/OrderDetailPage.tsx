@@ -17,7 +17,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useEventPhase } from '@/hooks/useEventPhase';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import {
-  loadOrderByNumber,
+  loadOrderByNumberOrId,
   subscribeMyOrders,
   formatTimeLeft,
   formatKstEndDate,
@@ -42,7 +42,7 @@ export function OrderDetailPage() {
     if (!orderNumber) return;
     try {
       setError(null);
-      const o = await loadOrderByNumber(orderNumber);
+      const o = await loadOrderByNumberOrId(orderNumber); // ← [2026-06-25] order_number/id 둘 다 해석(알림 링크 복구)
       if (!o) {
         setError('주문을 찾을 수 없습니다.');
       } else {
