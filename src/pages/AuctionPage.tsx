@@ -12,7 +12,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useEventPhase } from '@/hooks/useEventPhase';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll'; // ← [2026-06-04] 무한 스크롤
 import {
   loadAuctions,
@@ -24,17 +23,14 @@ import {
 } from '@/lib/auctions';
 import { formatTimeLeft } from '@/lib/orders';
 import { formatKSTDate, formatKSTFull } from '@/utils/time';
-import { FormModal } from '@/components/FormModal';
 import { InfiniteScrollFooter } from '@/components/InfiniteScrollFooter'; // ← [2026-06-04]
 import { BlurImage } from '@/components/BlurImage'; // ← [2026-06-19] 썸네일 lazy+블러업
 import { Avatar } from '@/components/Avatar'; // ← [2026-06-23] 기부자 아바타
-import { CreateAuctionForm } from '@/components/admin/CreateAuctionForm';
 import type { EsgAuctionRow } from '@/types/esg';
 
 export function AuctionPage() {
   const { getActivity } = useEventPhase();
   const { period, status } = getActivity('auction');
-  const { isAdmin } = useCurrentUser();
 
   // 무한 스크롤 — 12개씩 누적 로드 (sort_order, starts_at)
   const fetchPage = useCallback(
@@ -52,7 +48,6 @@ export function AuctionPage() {
   } = useInfiniteScroll<EsgAuctionRow>(fetchPage, { pageSize: 12 });
 
   const [, setTick] = useState(0);
-  const [createOpen, setCreateOpen] = useState(false);
 
   // Realtime + 같은 탭 즉시 신호 — 조용히 제자리 갱신(깜빡임 없음)
   useEffect(() => {
@@ -81,41 +76,8 @@ export function AuctionPage() {
           <h1 style={{ margin: 0 }}>🔨 ESG 온라인 경매</h1>
           <p style={{ color: '#666', margin: '4px 0 0' }}>실시간 비딩으로 한정 굿즈를 낙찰받으세요.</p>
         </div>
-        {isAdmin && (
-          <button
-            type="button"
-            onClick={() => setCreateOpen(true)}
-            style={{
-              padding: '10px 16px',
-              background: '#0ea5e9',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 8,
-              cursor: 'pointer',
-              fontSize: 13,
-              fontWeight: 600,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            ➕ 새 경매 등록
-          </button>
-        )}
+        {/* ← [2026-06-26] 어드민 '새 경매 등록' CTA·모달 제거(요청) — 경매 등록은 어드민 관리 탭에서 */}
       </div>
-
-      <FormModal
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
-        title="➕ 새 경매 등록"
-        maxWidth={720}
-      >
-        <CreateAuctionForm
-          onCancel={() => setCreateOpen(false)}
-          onSuccess={() => {
-            setCreateOpen(false);
-            refresh();
-          }}
-        />
-      </FormModal>
 
       {/* 상태 안내 */}
       {period && (

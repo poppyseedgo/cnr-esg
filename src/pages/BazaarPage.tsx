@@ -20,7 +20,6 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams, Link } from 'react-router-dom'; // ← [2026-06-22] 필터 URL / [2026-06-24] 브레드크럼
-import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useBazaarSale } from '@/hooks/useBazaarSale'; // ← [2026-06-25] 선판매 정책(빠른담기 게이팅, 페이지 1회 판정)
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll'; // ← [2026-06-04] 무한 스크롤
 import { loadProducts, subscribeProducts } from '@/lib/products';
@@ -30,12 +29,9 @@ import { loadProductTagsBatch } from '@/lib/tags'; // ← [2026-06-23] 카드 �
 import { BazaarFilters } from '@/components/bazaar/BazaarFilters'; // ← [2026-06-24] 필터는 공용 컴포넌트로 이관(모바일 최상단/데스크톱 사이드바)
 import { ProductCard } from '@/components/ProductCard';
 import { InfiniteScrollFooter } from '@/components/InfiniteScrollFooter'; // ← [2026-06-04]
-import { FormModal } from '@/components/FormModal';
-import { CreateProductForm } from '@/components/admin/CreateProductForm';
 import type { EsgProductRow, EsgTagWithCount } from '@/types/esg'; // ← [2026-06-22] EsgTagWithCount
 
 export function BazaarPage() {
-  const { isAdmin } = useCurrentUser();
   // ← [2026-06-25] 선판매 정책 1회 판정 → 그리드 카드에 prop 전달(카드별 RPC/구독 방지)
   const { canPurchase: canQuickAdd, blockReason: quickAddBlockReason } = useBazaarSale();
 
@@ -105,8 +101,6 @@ export function BazaarPage() {
     refresh,
   } = useInfiniteScroll<EsgProductRow>(fetchPage, { pageSize: 12, deps: [hideSoldOut, search, catKey, brandKey, sort] }); // ← [2026-06-24] 다중선택 키로 리셋
 
-  const [createOpen, setCreateOpen] = useState(false);
-
   // Realtime — 재고 변경 / 신규 상품 조용히 제자리 갱신(깜빡임 없음)
   useEffect(() => {
     void loadReservationStatus(); // ← [2026-06-25] 진입 시 예약(입금 대기) 현황 1회 로드
@@ -132,42 +126,7 @@ export function BazaarPage() {
           <span style={{ color: '#b8b8b8' }}>›</span>
           <span style={{ color: '#111' }}>Bazaar</span>
         </nav>
-        {isAdmin && (
-          <button
-            type="button"
-            onClick={() => setCreateOpen(true)}
-            style={{
-              padding: '10px 16px',
-              background: '#0ea5e9',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 8,
-              cursor: 'pointer',
-              fontSize: 13,
-              fontWeight: 600,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            ➕ 새 상품 등록
-          </button>
-        )}
       </div>
-
-      {/* 새 상품 등록 모달 (어드민만) */}
-      <FormModal
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
-        title="➕ 새 상품 등록"
-        maxWidth={720}
-      >
-        <CreateProductForm
-          onCancel={() => setCreateOpen(false)}
-          onSuccess={() => {
-            setCreateOpen(false);
-            refresh();
-          }}
-        />
-      </FormModal>
 
       {/* ← [2026-06-24] 상단 구매가능 상태 배너 제거 (요청) */}
 

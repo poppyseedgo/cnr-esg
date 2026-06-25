@@ -492,7 +492,8 @@ export function EsgSideNav({ collapsed = false, onToggleCollapse }: {
   const badges = {
     zeroWaste: getBadge(getActivity('zero_waste').status, getActivity('zero_waste').period, 'award', t),
     wiseLife: getBadge(getActivity('wise_life').status, getActivity('wise_life').period, 'award', t),
-    bazaar: getBadge(getActivity('bazaar').status, getActivity('bazaar').period, 'commerce', t),
+    // ← [2026-06-26] 바자회 사이드바 배지는 D-day 대신 '진행중' 강제 표시(요청)
+    bazaar: { text: '진행중', bg: t.badgeActive, show: true, isActive: true },
     auction: getBadge(getActivity('auction').status, getActivity('auction').period, 'commerce', t),
   };
 
