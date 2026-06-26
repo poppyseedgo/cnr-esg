@@ -1,17 +1,21 @@
 // ============================================================================
-// useBazaarSale.ts — 바자회 구매 권한 훅 (세 구매 표면의 단일 출처)
+// useBazaarSale.ts — 바자회 구매 권한 훅 (구매 표면들의 단일 출처)
 //
 // 변경 이력:
 //   2026-06-24  최초 작성 — 물품 기부자 선판매 정책 (BazaarProductPage/CartPage/CheckoutPage 공유)
+//   2026-06-26  선구매 자격 확장 — esg_am_i_item_donor() → esg_am_i_presale_eligible() RPC.
+//               isDonor→isPresaleEligible, donorResolved→eligibilityResolved 리네임.
+//               (외부 표면은 canPurchase/blockReason 만 사용 → 리네임 안전, 교차검증 완료)
 //
 // 동작:
 //   - useEventPhase의 settings에서 경계/토글을 읽음 (Realtime 반영 자동)
-//   - 물품 기부자 여부는 esg_am_i_item_donor() RPC로 1회 판정 (어드민/비로그인은 조회 생략)
+//   - 선구매 자격(물품 기부자 OR 입금확인 기부자)은 esg_am_i_presale_eligible() RPC로 1회 판정
+//     (어드민/비로그인은 조회 생략)
 //   - 시간 경계 통과를 위해 30초 틱으로 윈도우 재평가(자정 전환 등 무새로고침 대응)
 //   - 최종 판정은 bazaarSalePolicy.decideBazaarPurchase() (서버 트리거와 동일 규칙)
 //
 // 사용:
-//   const { canPurchase, blockReason, window, isDonor } = useBazaarSale();
+//   const { canPurchase, blockReason, window, isPresaleEligible } = useBazaarSale();
 // ============================================================================
 
 import { useEffect, useMemo, useState } from 'react';
@@ -27,15 +31,15 @@ import {
 export interface UseBazaarSaleResult {
   /** 시간 기반 윈도우 (loading/before/presale/public/ended) */
   window: BazaarSaleWindow;
-  /** 현재 사용자가 지금 구매 가능한가 (어드민/기부자/토글/아카이브 모두 반영) */
+  /** 현재 사용자가 지금 구매 가능한가 (어드민/자격/토글/아카이브 모두 반영) */
   canPurchase: boolean;
   /** 구매 불가 사유(UI 표시용). null이면 표시 안 함 */
   blockReason: string | null;
   isAdmin: boolean;
-  /** 물품 기부자 여부 (어드민은 false로 두되 canPurchase는 항상 true) */
-  isDonor: boolean;
-  /** 기부자 판정 완료 여부 */
-  donorResolved: boolean;
+  /** 선구매 자격 여부 = 물품 기부자 OR 입금확인 기부자 (어드민은 false로 두되 canPurchase는 항상 true) */
+  isPresaleEligible: boolean;
+  /** 자격 판정 완료 여부 */
+  eligibilityResolved: boolean;
   presaleStartUtc: string | null;
   publicStartUtc: string | null;
   endUtc: string | null;
@@ -47,32 +51,32 @@ export function useBazaarSale(): UseBazaarSaleResult {
   const { currentUser, isAdmin } = useCurrentUser();
   const { settings, loading: phaseLoading } = useEventPhase();
 
-  // ── 물품 기부자 판정 (RPC) ──────────────────────────────────────────────
-  // 일반 유저는 esg_bazaar_intake 직접 SELECT 불가(관리자 RLS) → SECURITY DEFINER RPC 경유.
-  const [isDonor, setIsDonor] = useState(false);
-  const [donorResolved, setDonorResolved] = useState(false);
+  // ── 선구매 자격 판정 (RPC) ──────────────────────────────────────────────
+  // 일반 유저는 esg_bazaar_intake / esg_donations 직접 SELECT 불가(관리자 RLS) → SECURITY DEFINER RPC 경유.
+  const [isPresaleEligible, setIsPresaleEligible] = useState(false); // ← [수정 2026-06-26]
+  const [eligibilityResolved, setEligibilityResolved] = useState(false); // ← [수정 2026-06-26]
 
   useEffect(() => {
-    // 비로그인: 기부자 아님(확정). 어드민: 기부자 판정 불필요(확정 처리, 어차피 전권).
+    // 비로그인: 자격 없음(확정). 어드민: 자격 판정 불필요(확정 처리, 어차피 전권).
     if (!currentUser || isAdmin) {
-      setIsDonor(false);
-      setDonorResolved(true);
+      setIsPresaleEligible(false);
+      setEligibilityResolved(true);
       return;
     }
     let alive = true;
-    setDonorResolved(false);
-    callRpc('esg_am_i_item_donor', {})
+    setEligibilityResolved(false);
+    callRpc('esg_am_i_presale_eligible', {}) // ← [수정 2026-06-26] 물품 기부자 OR 입금확인 기부자
       .then((v) => {
         if (alive) {
-          setIsDonor(v === true);
-          setDonorResolved(true);
+          setIsPresaleEligible(v === true);
+          setEligibilityResolved(true);
         }
       })
       .catch((e) => {
-        console.error('[useBazaarSale] donor check error:', e);
+        console.error('[useBazaarSale] presale eligibility check error:', e);
         if (alive) {
-          setIsDonor(false); // 판정 실패 시 보수적으로 비기부자 처리(서버가 최종 차단)
-          setDonorResolved(true);
+          setIsPresaleEligible(false); // 판정 실패 시 보수적으로 비자격 처리(서버가 최종 차단)
+          setEligibilityResolved(true);
         }
       });
     return () => {
@@ -100,8 +104,8 @@ export function useBazaarSale(): UseBazaarSaleResult {
     return decideBazaarPurchase({
       nowMs: Date.now(),
       isAdmin,
-      isDonor,
-      donorResolved,
+      isPresaleEligible, // ← [수정 2026-06-26]
+      eligibilityResolved, // ← [수정 2026-06-26]
       purchaseEnabled,
       archived,
       presaleStartMs: toMs(presaleStartUtc),
@@ -114,8 +118,8 @@ export function useBazaarSale(): UseBazaarSaleResult {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     isAdmin,
-    isDonor,
-    donorResolved,
+    isPresaleEligible, // ← [수정 2026-06-26]
+    eligibilityResolved, // ← [수정 2026-06-26]
     purchaseEnabled,
     archived,
     presaleStartUtc,
@@ -124,15 +128,15 @@ export function useBazaarSale(): UseBazaarSaleResult {
     tick,
   ]);
 
-  const loading = phaseLoading || (!!currentUser && !isAdmin && !donorResolved);
+  const loading = phaseLoading || (!!currentUser && !isAdmin && !eligibilityResolved); // ← [수정 2026-06-26]
 
   return {
     window: phaseLoading ? 'loading' : result.window,
     canPurchase: phaseLoading ? false : result.canPurchase,
     blockReason: phaseLoading ? null : result.blockReason,
     isAdmin,
-    isDonor,
-    donorResolved,
+    isPresaleEligible, // ← [수정 2026-06-26]
+    eligibilityResolved, // ← [수정 2026-06-26]
     presaleStartUtc,
     publicStartUtc,
     endUtc,

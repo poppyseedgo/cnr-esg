@@ -3,6 +3,9 @@
 //
 // 변경 이력:
 //   2026-06-24  최초 작성 — 물품 기부자 선판매 정책 도입
+//   2026-06-26  선구매 자격 확장 — "물품 기부자" → "물품 기부자 OR 기부금 입금확인자".
+//               윈도우 구조/우선순위는 그대로, 자격 술어만 확장.
+//               isDonor→isPresaleEligible, donorResolved→eligibilityResolved 로 리네임.
 //
 // 목적:
 //   "지금 이 사용자가 바자회 상품을 구매할 수 있는가?"를 한 곳에서 판정.
@@ -10,17 +13,17 @@
 //   - 서버측 최종 차단은 esg_assert_bazaar_purchasable()(esg_orders BEFORE INSERT 트리거)가
 //     동일 규칙으로 수행. (프론트는 UX, 서버는 보안 경계 — 규칙은 한 벌)
 //
-// 정책 (요구사항 2026-06-24):
+// 정책 (요구사항 2026-06-26):
 //   1) 바자회 시작 전            : 전 직원 '구경만' 가능, 구매 불가
-//   2) 선판매 구간(바자회시작~공개시작): 물품 기부자만 구매 가능
+//   2) 선구매 구간(바자회시작~공개시작): 물품 기부자 OR 기부금 입금확인자만 구매 가능
 //   3) 공개 구간(공개시작~종료)  : 전 직원 구매 가능
 //   4) 종료 후                  : 구매 불가
-//   - 어드민: 기간/기부자 무관 항상 구매 가능 (비상 중단 토글만 존중 — 기존 동작 유지)
+//   - 어드민: 기간/자격 무관 항상 구매 가능 (비상 중단 토글만 존중 — 기존 동작 유지)
 //   - purchase_enabled=false(관리자 비상 중단): 전원 차단(어드민 포함, 기존 동작 유지)
 //   - event_phase='archived': 비어드민 차단(어드민은 통과 — 기존 동작 유지)
 //
 // 시간 경계 (UTC 비교, KST는 표시용):
-//   presaleStart = activity_periods.bazaar.starts_at_utc  (기존 SSOT 재사용 = 선판매 시작)
+//   presaleStart = activity_periods.bazaar.starts_at_utc  (기존 SSOT 재사용 = 선구매 시작)
 //   publicStart  = esg_settings.bazaar_public_sale_starts_at (신규 1개)
 //   end          = activity_periods.bazaar.ends_at_utc
 //   → 신규 설정 1개만 추가. 나머지는 기존 값 재사용(중복/드리프트 없음).
@@ -31,11 +34,11 @@ export type BazaarSaleWindow = 'loading' | 'before' | 'presale' | 'public' | 'en
 export interface BazaarPolicyInput {
   nowMs: number;                  // 현재 시각(ms) — 호출측이 Date.now() 주입(테스트 주입 가능)
   isAdmin: boolean;               // 관리자 여부 (role='ADMIN' && is_active)
-  isDonor: boolean;               // 물품 기부자 여부 (esg_bazaar_intake.donor_id 보유)
-  donorResolved: boolean;         // 기부자 판정 완료 여부 (로딩 중 오판 방지)
+  isPresaleEligible: boolean;     // ← [수정 2026-06-26] 선구매 자격(물품 기부자 OR 입금확인 기부자)
+  eligibilityResolved: boolean;   // ← [수정 2026-06-26] 자격 판정 완료 여부 (로딩 중 오판 방지)
   purchaseEnabled: boolean;       // 관리자 비상 토글 (false면 전원 차단)
   archived: boolean;              // event_phase === 'archived'
-  presaleStartMs: number | null;  // 바자회 구매 시작(=선판매 시작)
+  presaleStartMs: number | null;  // 바자회 구매 시작(=선구매 시작)
   publicStartMs: number | null;   // 전 직원 공개 시작
   endMs: number | null;           // 바자회 구매 종료
   presaleStartLabel?: string;     // 표시용 KST 날짜 (예: "2026. 06. 30.")
@@ -74,7 +77,7 @@ export function decideBazaarPurchase(input: BazaarPolicyInput): BazaarPolicyResu
     return { window, canPurchase: false, blockReason: '구매가 일시 중단되었습니다 (관리자 설정)' };
   }
 
-  // 2) 어드민 — 기간/기부자 무관 항상 가능
+  // 2) 어드민 — 기간/자격 무관 항상 가능
   if (input.isAdmin) {
     return { window, canPurchase: true, blockReason: null };
   }
@@ -100,19 +103,20 @@ export function decideBazaarPurchase(input: BazaarPolicyInput): BazaarPolicyResu
       };
 
     case 'presale':
-      if (!input.donorResolved) {
-        // 기부자 판정 진행 중 — 성급한 차단 메시지 방지
+      if (!input.eligibilityResolved) {
+        // 자격 판정 진행 중 — 성급한 차단 메시지 방지 (← [수정 2026-06-26])
         return { window, canPurchase: false, blockReason: '구매 권한 확인 중…' };
       }
-      if (input.isDonor) {
+      if (input.isPresaleEligible) {
+        // 물품 기부자 OR 입금확인 기부자 — 선구매 허용 (← [수정 2026-06-26])
         return { window, canPurchase: true, blockReason: null };
       }
       return {
         window,
         canPurchase: false,
         blockReason: input.publicStartLabel
-          ? `물품 기부자 선판매 기간입니다. 일반 구매는 ${input.publicStartLabel}부터 가능합니다.`
-          : '물품 기부자 선판매 기간입니다. 일반 구매는 곧 시작됩니다.',
+          ? `선구매 기간입니다(물품 기부자·기부금 입금 확인자 한정). 일반 구매는 ${input.publicStartLabel}부터 가능합니다.`
+          : '선구매 기간입니다(물품 기부자·기부금 입금 확인자 한정). 일반 구매는 곧 시작됩니다.',
       };
 
     case 'public':

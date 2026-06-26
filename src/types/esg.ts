@@ -615,6 +615,24 @@ export interface EsgWishlistUser {
   created_at: string; // 찜한 시각(UTC ISO)
 }
 
+// ← [추가 2026-06-26] 선구매 자격자 명단 한 행 (esg_list_presale_eligible RPC 반환).
+//   자격 = 물품 기부자(esg_bazaar_intake.donor_id) OR 입금확인 기부자(esg_donations.payment_status='paid').
+//   외부 기부자(donor_id IS NULL)는 로그인 불가 → 명단 제외(선구매 무의미).
+//   (RPC 가 SECURITY DEFINER + esg_is_admin() 가드로 RLS 우회 — adminPresale.ts 참조)
+export interface EsgPresaleEligibleRow {
+  user_id: string;
+  name: string | null;
+  dept: string | null;
+  email: string | null;
+  is_active: boolean;
+  is_item_donor: boolean;        // 물품 기부자 여부
+  is_paid_donor: boolean;        // 입금확인(paid) 기부금 납부자 여부
+  item_donation_count: number;   // 게시된 기부 물품 수
+  paid_donation_count: number;   // 입금확인된 기부 건수
+  paid_donation_total: number;   // 입금확인된 기부 합계(원)
+  first_qualified_at: string | null; // 최초 자격 충족 시각(UTC ISO)
+}
+
 // ============================================================================
 // Views
 // ============================================================================
@@ -913,9 +931,20 @@ export interface Database {
         Returns: boolean;
       };
       // ← [2026-06-25] 현재 로그인 사용자가 물품 기부자인지 판정 (선판매 정책). SECURITY DEFINER
+      // ← [하위호환 2026-06-26] 선구매 자격 확장 후 esg_am_i_presale_eligible 로 대체됨. 기존 호출 안전망으로 유지.
       esg_am_i_item_donor: {
         Args: Record<string, never>;
         Returns: boolean;
+      };
+      // ← [추가 2026-06-26] 현재 로그인 사용자가 선구매 자격자인지 판정 (물품 기부자 OR 입금확인 기부자). SECURITY DEFINER
+      esg_am_i_presale_eligible: {
+        Args: Record<string, never>;
+        Returns: boolean;
+      };
+      // ← [추가 2026-06-26] 어드민 전용 — 선구매 자격자 명단(사유/근거 수치 포함). esg_is_admin() 가드
+      esg_list_presale_eligible: {
+        Args: Record<string, never>;
+        Returns: EsgPresaleEligibleRow[];
       };
       // ← [2026-06-19] 게시글 이미지 원자적 재구성 RPC (delete+insert+esg_posts 갱신 단일 트랜잭션)
       esg_update_post_with_images: {

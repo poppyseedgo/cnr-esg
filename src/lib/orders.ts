@@ -1,6 +1,11 @@
 // ============================================================================
 // orders.ts — 주문 관련 API
 //
+// 변경 이력:
+//   2026-06-26  선구매 자격 확장(물품 기부자 OR 기부금 입금확인자) — 트리거 RAISE 코드
+//               BAZAAR_PRESALE_NOT_ELIGIBLE 매핑 추가, 구 코드(BAZAAR_PRESALE_DONOR_ONLY)
+//               메시지를 동일 문구로 통일(하위호환). RPC_ERROR_MESSAGES 외 로직 변경 없음.
+//
 // 함수:
 //   - createBazaarOrder(items, opts)         : create_bazaar_order RPC 호출
 //   - loadMyOrders(userId, opts?)            : 내 주문 목록 + 항목 JOIN
@@ -47,8 +52,10 @@ const RPC_ERROR_MESSAGES: Record<string, string> = {
   BAZAAR_NOT_CONFIGURED: '바자회 설정이 없습니다. 관리자에게 문의하세요.',
   ACTIVITY_PERIODS_NOT_CONFIGURED: '활동 기간 설정이 없습니다. 관리자에게 문의하세요.',
   PURCHASE_DISABLED: '구매가 일시 중단되었습니다. (관리자 설정)',
-  // ← [2026-06-25] 선판매 기간 비기부자 차단 (esg_assert_bazaar_purchasable 트리거의 RAISE 코드와 1:1)
-  BAZAAR_PRESALE_DONOR_ONLY: '물품 기부자 선판매 기간입니다. 일반 구매는 공개일부터 가능합니다.',
+  // ← [수정 2026-06-26] 선구매 자격 확장: 물품 기부자 OR 기부금 입금확인자 (esg_assert_bazaar_purchasable 트리거 RAISE 코드와 1:1)
+  BAZAAR_PRESALE_NOT_ELIGIBLE: '선구매 기간에는 물품 기부자 또는 기부금 입금 확인자만 구매할 수 있어요. 공개 판매일부터 누구나 구매할 수 있습니다.', // ← [추가 2026-06-26] 신 정책 코드
+  // ← [하위호환 2026-06-26] 구 정책 코드(물품 기부자 한정). 트리거 교체 전 인서트 대비해 동일 메시지로 유지.
+  BAZAAR_PRESALE_DONOR_ONLY: '선구매 기간에는 물품 기부자 또는 기부금 입금 확인자만 구매할 수 있어요. 공개 판매일부터 누구나 구매할 수 있습니다.', // ← [수정 2026-06-26] 메시지 통일
   EMPTY_ITEMS: '주문 항목이 없습니다.',
   USER_NOT_FOUND: '사용자 정보를 찾을 수 없습니다.',
 };

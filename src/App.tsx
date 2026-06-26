@@ -75,6 +75,7 @@ const AdminSettings = lazyWithRetry(() => import('@/pages/admin/AdminSettings').
 const AdminAuctions = lazyWithRetry(() => import('@/pages/admin/AdminAuctions').then((m) => ({ default: m.AdminAuctions })));
 const AdminProducts = lazyWithRetry(() => import('@/pages/admin/AdminProducts').then((m) => ({ default: m.AdminProducts })));
 const AdminBazaarIntake = lazyWithRetry(() => import('@/pages/admin/AdminBazaarIntake').then((m) => ({ default: m.AdminBazaarIntake }))); // ← [추가 2026-06-08] 바자회 물품 접수
+const AdminPresale = lazyWithRetry(() => import('@/pages/admin/AdminPresale').then((m) => ({ default: m.AdminPresale }))); // ← [추가 2026-06-26] 선구매 관리
 const AdminOrders = lazyWithRetry(() => import('@/pages/admin/AdminOrders').then((m) => ({ default: m.AdminOrders })));
 const AdminPosts = lazyWithRetry(() => import('@/pages/admin/AdminPosts').then((m) => ({ default: m.AdminPosts })));
 const AdminEmails = lazyWithRetry(() => import('@/pages/admin/AdminEmails').then((m) => ({ default: m.AdminEmails })));
@@ -195,6 +196,7 @@ const router = createBrowserRouter([
           { path: 'qna-event', element: <AdminQnaEvent /> },
           { path: 'products', element: <AdminProducts /> },
           { path: 'bazaar-intake', element: <AdminBazaarIntake /> }, // ← [추가 2026-06-08] 바자회 물품 접수
+          { path: 'presale', element: <AdminPresale /> }, // ← [추가 2026-06-26] 선구매 관리
           { path: 'auctions', element: <AdminAuctions /> },
           { path: 'orders', element: <AdminOrders /> },
           { path: 'donations', element: <AdminDonations /> },
