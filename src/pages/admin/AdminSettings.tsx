@@ -105,7 +105,10 @@ export function AdminSettings() {
       {/* 5. 바자회 구매 운영시간 (← [2026-06-29]) */}
       <BazaarHoursSection settings={settings} onChange={reload} />
 
-      {/* 6. 상품 수령 안내 */}
+      {/* 6. 바자회 운영시간 공지바 (← [2026-06-29]) */}
+      <BazaarNoticeBarSection settings={settings} onChange={reload} />
+
+      {/* 7. 상품 수령 안내 */}
       <DeliveryInfoSection settings={settings} onChange={reload} />
     </div>
   );
@@ -762,6 +765,235 @@ function BazaarHoursSection({
         </div>
       )}
     </SectionCard>
+  );
+}
+
+// ============================================================================
+// 6. 바자회 운영시간 공지바 (← [2026-06-29])
+//    - /bazaar 목록 상단 풀블리드 공지바(BazaarNoticeBar)의 표시/문구 제어.
+//    - 운영시간 자체는 위 "구매 운영시간" 섹션에서 관리(여기선 안내 문구만).
+// ============================================================================
+
+const NOTICE_DEFAULT_MESSAGE = '구매는 {open}부터 {close}까지만 가능합니다.';
+
+/** 0~24(KST) → "오전 7시"/"오후 8시" (미리보기용) */
+function noticeKoAmPm(hour: number): string {
+  const h = ((hour % 24) + 24) % 24;
+  const isAm = h < 12;
+  const display = h % 12 === 0 ? 12 : h % 12;
+  return `${isAm ? '오전' : '오후'} ${display}시`;
+}
+
+function BazaarNoticeBarSection({
+  settings,
+  onChange,
+}: {
+  settings: Partial<EsgSettingsValueMap>;
+  onChange: () => void;
+}) {
+  const enabled = settings.bazaar_notice_bar_enabled !== false; // 기본 true
+  const showWhen = settings.bazaar_notice_bar_show_when ?? 'always';
+  const savedMessage = settings.bazaar_notice_bar_message ?? '';
+
+  const openHour = settings.bazaar_daily_open_hour ?? BAZAAR_DAILY_OPEN_HOUR_DEFAULT;
+  const closeHour = settings.bazaar_daily_close_hour ?? BAZAAR_DAILY_CLOSE_HOUR_DEFAULT;
+
+  const [message, setMessage] = useState(savedMessage);
+  const [saving, setSaving] = useState(false);
+
+  // 다른 곳에서 설정이 바뀌면 입력값 동기화
+  useEffect(() => {
+    setMessage(savedMessage);
+  }, [savedMessage]);
+
+  const setEnabled = async (next: boolean) => {
+    try {
+      await updateSetting('bazaar_notice_bar_enabled', next);
+      onChange();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '저장 실패');
+    }
+  };
+
+  const setShowWhen = async (next: 'always' | 'closed_only') => {
+    try {
+      await updateSetting('bazaar_notice_bar_show_when', next);
+      onChange();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '저장 실패');
+    }
+  };
+
+  const saveMessage = async () => {
+    setSaving(true);
+    try {
+      await updateSetting('bazaar_notice_bar_message', message.trim());
+      onChange();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '저장 실패');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // 미리보기: 토큰 치환 + 카운트다운 예시 (ES2020 호환: split/join)
+  const previewMsg = (message.trim() || NOTICE_DEFAULT_MESSAGE)
+    .split('{open}').join(noticeKoAmPm(openHour))
+    .split('{close}').join(noticeKoAmPm(closeHour));
+  const messageDirty = message.trim() !== savedMessage.trim();
+
+  return (
+    <SectionCard
+      title="📢 운영시간 공지바"
+      description="바자회 목록 페이지 상단에 운영시간 안내 바를 표시합니다. 운영시간은 위 ‘구매 운영시간’ 설정을 따릅니다."
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {/* 표시 on/off */}
+        <ToggleRow
+          label="📢 공지바 표시"
+          description="체크 해제 시 바자회 상단 공지바가 숨겨집니다."
+          value={enabled}
+          onChange={setEnabled}
+        />
+
+        {/* 표시 조건 */}
+        <div style={{ opacity: enabled ? 1 : 0.5, pointerEvents: enabled ? 'auto' : 'none' }}>
+          <p style={{ margin: '0 0 6px', fontSize: 12, color: '#666', fontWeight: 600 }}>표시 조건</p>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <SegBtn active={showWhen === 'always'} onClick={() => setShowWhen('always')}>
+              항상 표시
+            </SegBtn>
+            <SegBtn active={showWhen === 'closed_only'} onClick={() => setShowWhen('closed_only')}>
+              운영시간 외에만
+            </SegBtn>
+          </div>
+        </div>
+
+        {/* 안내 문구 */}
+        <div style={{ opacity: enabled ? 1 : 0.5, pointerEvents: enabled ? 'auto' : 'none' }}>
+          <p style={{ margin: '0 0 6px', fontSize: 12, color: '#666', fontWeight: 600 }}>
+            안내 문구 <span style={{ color: '#aaa', fontWeight: 400 }}>(빈 값이면 기본 문구)</span>
+          </p>
+          <input
+            type="text"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder={NOTICE_DEFAULT_MESSAGE}
+            disabled={saving}
+            style={{
+              width: '100%',
+              boxSizing: 'border-box',
+              padding: '8px 10px',
+              border: '1px solid #ddd',
+              borderRadius: 4,
+              fontSize: 13,
+            }}
+          />
+          <p style={{ margin: '6px 0 0', fontSize: 11, color: '#888' }}>
+            <code>{'{open}'}</code> → {noticeKoAmPm(openHour)} · <code>{'{close}'}</code> →{' '}
+            {noticeKoAmPm(closeHour)} (운영시간 변경 시 자동 반영). 카운트다운은 자동으로 뒤에 붙습니다.
+          </p>
+          {messageDirty && (
+            <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+              <button
+                type="button"
+                onClick={saveMessage}
+                disabled={saving}
+                style={{
+                  padding: '6px 14px',
+                  background: saving ? '#ccc' : '#111',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 4,
+                  cursor: saving ? 'not-allowed' : 'pointer',
+                  fontSize: 12,
+                  fontWeight: 600,
+                }}
+              >
+                {saving ? '저장 중…' : '문구 저장'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setMessage(savedMessage)}
+                disabled={saving}
+                style={{
+                  padding: '6px 14px',
+                  background: '#fff',
+                  border: '1px solid #ddd',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                  fontSize: 12,
+                }}
+              >
+                되돌리기
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* 미리보기 */}
+        <div>
+          <p style={{ margin: '0 0 6px', fontSize: 12, color: '#666', fontWeight: 600 }}>미리보기</p>
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              padding: '12px 16px',
+              background: '#bdffaf',
+              color: '#10220a',
+              fontSize: 14,
+              textAlign: 'center',
+              fontWeight: 500,
+              borderRadius: 6,
+            }}
+          >
+            <span>{previewMsg}</span>
+            <span>
+              구매 마감까지{' '}
+              <strong style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 700 }}>01:00:21</strong> 남음
+            </span>
+          </div>
+          <p style={{ margin: '6px 0 0', fontSize: 11, color: '#aaa' }}>
+            운영시간 외에는 앰버색으로 “구매 시작까지 …” 카운트다운이 표시됩니다.
+          </p>
+        </div>
+      </div>
+    </SectionCard>
+  );
+}
+
+/** 세그먼트 버튼 (표시 조건 선택용) */
+function SegBtn({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        flex: 1,
+        padding: '8px 12px',
+        background: active ? '#111' : '#fff',
+        color: active ? '#fff' : '#444',
+        border: '1px solid',
+        borderColor: active ? '#111' : '#ddd',
+        borderRadius: 6,
+        cursor: 'pointer',
+        fontSize: 12,
+        fontWeight: 600,
+      }}
+    >
+      {children}
+    </button>
   );
 }
 

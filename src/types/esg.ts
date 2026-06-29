@@ -164,6 +164,18 @@ export interface EsgSettingsValueMap {
    * 이 시각부터 구매 불가(예: 21이면 20:59:59까지 가능). // ← [2026-06-29]
    */
   bazaar_daily_close_hour: number;
+  /** 바자회 상단 운영시간 공지바 표시 여부. 기본 true. // ← [2026-06-29] */
+  bazaar_notice_bar_enabled: boolean;
+  /**
+   * 공지바 표시 조건. 'always'=운영 중/외 항상, 'closed_only'=운영시간 외에만. 기본 'always'.
+   * // ← [2026-06-29]
+   */
+  bazaar_notice_bar_show_when: 'always' | 'closed_only';
+  /**
+   * 공지바 안내 문구. {open}/{close} 토큰이 운영 시작/종료 시각(예: "오전 7시")으로 치환됨.
+   * 빈 값이면 기본 문구 사용. 카운트다운은 자동으로 뒤에 붙음. // ← [2026-06-29]
+   */
+  bazaar_notice_bar_message: string;
   /** 바자회/경매 상품 상세 페이지의 "상품 수령" 탭에 표시되는 공통 안내 (markdown) */
   delivery_info: string;
   /**
