@@ -20,6 +20,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useBazaarSale } from '@/hooks/useBazaarSale'; // ← [2026-06-25] 선판매 정책 훅
+import { BazaarHoursNotice } from '@/components/bazaar/BazaarHoursNotice'; // ← [2026-06-29] 운영시간 안내
 import {
   loadMyCart,
   updateCartQuantity,
@@ -402,6 +403,9 @@ export function CartPage() {
                 {totals.totalAmount.toLocaleString()}원
               </span>
             </div>
+
+            {/* ← [2026-06-29] 일일 구매 운영시간 실시간 안내/카운트다운 */}
+            <BazaarHoursNotice compact style={{ marginTop: 0, marginBottom: 12 }} />
 
             {/* ← [2026-06-25] 구매 불가 사유 단일 표시 (구경전/선판매/종료/중단 모두 blockReason이 처리) */}
             {!canCheckout && blockReason && (

@@ -18,6 +18,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import { BlurImage } from '@/components/BlurImage'; // ← [2026-06-19] 이미지 lazy+블러업
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useBazaarSale } from '@/hooks/useBazaarSale'; // ← [2026-06-25] 선판매 정책 훅
+import { BazaarHoursNotice } from '@/components/bazaar/BazaarHoursNotice'; // ← [2026-06-29] 운영시간 안내
 import {
   loadProduct,
   getAvailableStock,
@@ -473,6 +474,9 @@ export function BazaarProductPage() {
               )}
             </div>
           )}
+
+          {/* ← [2026-06-29] 일일 구매 운영시간 실시간 안내/카운트다운 (버튼 위) */}
+          <BazaarHoursNotice compact style={{ margin: 0 }} />
 
           {/* 버튼 */}
           {canPurchase ? (

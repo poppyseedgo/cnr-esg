@@ -52,6 +52,8 @@ const RPC_ERROR_MESSAGES: Record<string, string> = {
   BAZAAR_NOT_CONFIGURED: '바자회 설정이 없습니다. 관리자에게 문의하세요.',
   ACTIVITY_PERIODS_NOT_CONFIGURED: '활동 기간 설정이 없습니다. 관리자에게 문의하세요.',
   PURCHASE_DISABLED: '구매가 일시 중단되었습니다. (관리자 설정)',
+  // ← [추가 2026-06-29] 운영시간 외 차단 (esg_assert_bazaar_within_hours 트리거 RAISE 코드와 1:1)
+  BAZAAR_OUTSIDE_HOURS: '지금은 구매 운영시간이 아니에요. 운영시간(매일 07:00~21:00)에 다시 시도해 주세요.',
   // ← [수정 2026-06-26] 선구매 자격 확장: 물품 기부자 OR 기부금 입금확인자 (esg_assert_bazaar_purchasable 트리거 RAISE 코드와 1:1)
   BAZAAR_PRESALE_NOT_ELIGIBLE: '선구매 기간에는 물품 기부자 또는 기부금 입금 확인자만 구매할 수 있어요. 공개 판매일부터 누구나 구매할 수 있습니다.', // ← [추가 2026-06-26] 신 정책 코드
   // ← [하위호환 2026-06-26] 구 정책 코드(물품 기부자 한정). 트리거 교체 전 인서트 대비해 동일 메시지로 유지.
@@ -86,11 +88,19 @@ export async function createBazaarOrder(
 ): Promise<CreateBazaarOrderResult> {
   if (items.length === 0) throw new Error('주문 항목이 없습니다.');
 
-  const result = (await callRpc('create_bazaar_order', {
-    p_items: items,
-    p_memo: opts.memo,
-    p_clear_cart: opts.clearCart !== false,
-  } as CreateBazaarOrderInput)) as CreateBazaarOrderResult;
+  // ← [2026-06-29] 트리거 RAISE가 RPC에서 재포장되는 경우(result.error)와 그대로 throw되는 경우
+  //    둘 다 친절 메시지로 변환 (운영시간/선판매 등 서버 차단 코드가 raw로 노출되지 않도록).
+  let result: CreateBazaarOrderResult;
+  try {
+    result = (await callRpc('create_bazaar_order', {
+      p_items: items,
+      p_memo: opts.memo,
+      p_clear_cart: opts.clearCart !== false,
+    } as CreateBazaarOrderInput)) as CreateBazaarOrderResult;
+  } catch (e) {
+    const raw = e instanceof Error ? e.message : String(e);
+    throw new Error(humanizeRpcError(raw)); // 알 수 없는 메시지는 그대로 반환되므로 안전
+  }
 
   if (!result.success) {
     throw new Error(humanizeRpcError(result.error));

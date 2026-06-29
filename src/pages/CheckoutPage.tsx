@@ -21,6 +21,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useBazaarSale } from '@/hooks/useBazaarSale'; // ← [2026-06-25] 선판매 정책 훅
+import { BazaarHoursNotice } from '@/components/bazaar/BazaarHoursNotice'; // ← [2026-06-29] 운영시간 안내
 import { loadMyCart, calcCartTotal, type CartItemWithProduct } from '@/lib/cart';
 import { getAvailableStock, isSoldOut, getDisplayPrice, isOnSale } from '@/lib/products';
 import { createBazaarOrder } from '@/lib/orders';
@@ -342,6 +343,9 @@ export function CheckoutPage() {
               ⚠️ {submitError}
             </div>
           )}
+
+          {/* ← [2026-06-29] 일일 구매 운영시간 실시간 안내/카운트다운 */}
+          <BazaarHoursNotice compact style={{ marginTop: 16, marginBottom: 0 }} />
 
           {/* ← [2026-06-25] 구매 불가 사유 안내 (선판매/구경전/종료/중단). /checkout 직접 진입 대비 */}
           {blockReason && overstockItems.length === 0 && (

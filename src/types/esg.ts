@@ -154,6 +154,16 @@ export interface EsgSettingsValueMap {
    * 이 시각부터 전 직원 구매 가능. 미설정 시 선판매 정책 비활성(기존 동작 폴백).
    */
   bazaar_public_sale_starts_at: string;
+  /**
+   * 바자회 일일 구매 운영 시작 시각(KST, 0~23). 기본 7(=07:00).
+   * 이 시각부터 구매 가능. resolveDailyHours/서버 트리거가 동일 값 사용. // ← [2026-06-29]
+   */
+  bazaar_daily_open_hour: number;
+  /**
+   * 바자회 일일 구매 운영 종료 시각(KST, 1~24, exclusive). 기본 21(=21:00).
+   * 이 시각부터 구매 불가(예: 21이면 20:59:59까지 가능). // ← [2026-06-29]
+   */
+  bazaar_daily_close_hour: number;
   /** 바자회/경매 상품 상세 페이지의 "상품 수령" 탭에 표시되는 공통 안내 (markdown) */
   delivery_info: string;
   /**

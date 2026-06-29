@@ -21,6 +21,10 @@ import {
 } from '@/lib/settings';
 import { RichEditor } from '@/components/RichEditor';
 import { MarkdownRenderer } from '@/components/MarkdownRenderer';
+import {
+  BAZAAR_DAILY_OPEN_HOUR_DEFAULT,
+  BAZAAR_DAILY_CLOSE_HOUR_DEFAULT,
+} from '@/lib/bazaarSalePolicy'; // ← [2026-06-29] 운영시간 기본값
 import type {
   EsgSettingsValueMap,
   EsgActivityKey,
@@ -98,7 +102,10 @@ export function AdminSettings() {
       {/* 4. 모금 목표 */}
       <DonationGoalSection settings={settings} onChange={reload} />
 
-      {/* 5. 상품 수령 안내 */}
+      {/* 5. 바자회 구매 운영시간 (← [2026-06-29]) */}
+      <BazaarHoursSection settings={settings} onChange={reload} />
+
+      {/* 6. 상품 수령 안내 */}
       <DeliveryInfoSection settings={settings} onChange={reload} />
     </div>
   );
@@ -587,6 +594,136 @@ function DonationGoalSection({
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <NumberInput label="모금 목표 (원)" value={form} onChange={setForm} disabled={saving} />
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button
+              type="button"
+              onClick={save}
+              disabled={saving}
+              style={{
+                flex: 1,
+                padding: '8px 12px',
+                background: saving ? '#ccc' : '#111',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 4,
+                cursor: saving ? 'not-allowed' : 'pointer',
+                fontSize: 12,
+                fontWeight: 600,
+              }}
+            >
+              {saving ? '저장 중…' : '저장'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditing(false)}
+              disabled={saving}
+              style={{
+                padding: '8px 12px',
+                background: '#fff',
+                border: '1px solid #ddd',
+                borderRadius: 4,
+                cursor: 'pointer',
+                fontSize: 12,
+              }}
+            >
+              취소
+            </button>
+          </div>
+        </div>
+      )}
+    </SectionCard>
+  );
+}
+
+// ============================================================================
+// 5. 바자회 구매 운영시간 (← [2026-06-29])
+//    - 매일 이 시간대에만 사용자 구매/결제 가능 (KST). 어드민은 무관.
+//    - 정책 SSOT(bazaarSalePolicy)·서버 트리거와 동일 값을 사용.
+// ============================================================================
+
+function BazaarHoursSection({
+  settings,
+  onChange,
+}: {
+  settings: Partial<EsgSettingsValueMap>;
+  onChange: () => void;
+}) {
+  const open = settings.bazaar_daily_open_hour ?? BAZAAR_DAILY_OPEN_HOUR_DEFAULT;
+  const close = settings.bazaar_daily_close_hour ?? BAZAAR_DAILY_CLOSE_HOUR_DEFAULT;
+
+  const [editing, setEditing] = useState(false);
+  const [openForm, setOpenForm] = useState(open);
+  const [closeForm, setCloseForm] = useState(close);
+  const [saving, setSaving] = useState(false);
+
+  const beginEdit = () => {
+    setOpenForm(open);
+    setCloseForm(close);
+    setEditing(true);
+  };
+
+  const pad = (n: number) => String(n).padStart(2, '0');
+
+  const save = async () => {
+    // 유효성: open 0~23, close 1~24, open < close
+    if (openForm < 0 || openForm > 23) {
+      alert('시작 시각은 0~23 사이여야 합니다.');
+      return;
+    }
+    if (closeForm < 1 || closeForm > 24) {
+      alert('종료 시각은 1~24 사이여야 합니다.');
+      return;
+    }
+    if (closeForm <= openForm) {
+      alert('종료 시각은 시작 시각보다 커야 합니다.');
+      return;
+    }
+    setSaving(true);
+    try {
+      // 두 값 모두 저장 (순서 무관 — 각각 독립 key)
+      await updateSetting('bazaar_daily_open_hour', openForm);
+      await updateSetting('bazaar_daily_close_hour', closeForm);
+      onChange();
+      setEditing(false);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '저장 실패');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <SectionCard
+      title="🕖 바자회 구매 운영시간"
+      description="이 시간대(KST)에만 사용자가 상품을 구매·결제할 수 있습니다. 관리자는 운영시간과 무관하게 구매할 수 있어요. 변경 즉시 모든 사용자에게 반영됩니다."
+    >
+      {!editing ? (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontSize: 18, fontWeight: 700 }}>
+            매일 {pad(open)}:00 ~ {pad(close)}:00
+          </div>
+          <button
+            type="button"
+            onClick={beginEdit}
+            style={{
+              padding: '6px 12px',
+              background: '#fff',
+              border: '1px solid #ddd',
+              borderRadius: 4,
+              cursor: 'pointer',
+              fontSize: 12,
+            }}
+          >
+            ✏️ 수정
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <NumberInput label="시작 시 (0~23)" value={openForm} onChange={setOpenForm} disabled={saving} />
+          <NumberInput label="종료 시 (1~24)" value={closeForm} onChange={setCloseForm} disabled={saving} />
+          <p style={{ margin: '2px 0 6px', fontSize: 11, color: '#888' }}>
+            예) 시작 7, 종료 21 → 매일 07:00~21:00 구매 가능 (종료 시각은 포함하지 않음: 20:59까지)
+          </p>
           <div style={{ display: 'flex', gap: 6 }}>
             <button
               type="button"

@@ -28,6 +28,7 @@ import { listTagsWithCount } from '@/lib/tags'; // ← [2026-06-22] slug→id �
 import { loadProductTagsBatch } from '@/lib/tags'; // ← [2026-06-23] 카드 태그 배치
 import { BazaarFilters } from '@/components/bazaar/BazaarFilters'; // ← [2026-06-24] 필터는 공용 컴포넌트로 이관(모바일 최상단/데스크톱 사이드바)
 import { ProductCard } from '@/components/ProductCard';
+import { BazaarHoursNotice } from '@/components/bazaar/BazaarHoursNotice'; // ← [2026-06-29] 운영시간 안내
 import { InfiniteScrollFooter } from '@/components/InfiniteScrollFooter'; // ← [2026-06-04]
 import type { EsgProductRow, EsgTagWithCount } from '@/types/esg'; // ← [2026-06-22] EsgTagWithCount
 
@@ -129,6 +130,9 @@ export function BazaarPage() {
       </div>
 
       {/* ← [2026-06-24] 상단 구매가능 상태 배너 제거 (요청) */}
+
+      {/* ← [2026-06-29] 일일 구매 운영시간 실시간 안내/카운트다운 */}
+      <BazaarHoursNotice />
 
       {/* ← [2026-06-24] 정렬 행 (Figma: 등록 순 / 높은 가격 순 / 낮은 가격 순) — 우측 정렬 */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginTop: 16 }}>
