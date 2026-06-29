@@ -79,10 +79,12 @@ export function AppLayout() {
         {isTwoTier && <SecondarySidebar mainCollapsed={collapsed} />}
 
         <main className="app-main" style={{ flex: 1, minWidth: 0, padding: '0 20px', background: isTwoTier ? '#fff' : undefined }}>{/* ← [2026-06-24] 상품리스트 페이지 배경 화이트 */}
-          {/* ← [2026-06-25] 결제대기 주문 알림바 — 콘텐츠 최상단 풀블리드(maxWidth 제약 밖) */}
-          <PendingOrderBar />
-          {/* ← [2026-06-29] 바자회 운영시간 공지바 — /bazaar 목록에서만, 풀블리드 */}
-          {location.pathname === '/bazaar' && <BazaarNoticeBar />}
+          {/* ← [2026-06-29] 상단 알림 sticky 스택 — 결제대기 바 + 바자회 공지바를 한 컨테이너로
+              묶어 풀블리드(margin:0 -20px) + sticky 적용(둘이 겹치지 않고 위→아래로 쌓임) */}
+          <div style={{ position: 'sticky', top: 0, zIndex: 30, margin: '0 -20px' }}>
+            <PendingOrderBar />
+            {location.pathname === '/bazaar' && <BazaarNoticeBar />}
+          </div>
           {/* ← [2026-06-24] 2-tier 에서는 중앙정렬 해제(풀폭) → 그리드가 가용폭을 모두 사용 */}
           <div style={{ maxWidth: isTwoTier ? 'none' : 1360, margin: isTwoTier ? 0 : '0 auto', padding: '24px 0 320px' }}>
             {/* ← [코드 스플리팅] lazy 페이지 로딩 중 사이드바/푸터 유지, 본문만 fallback */}

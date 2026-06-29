@@ -83,7 +83,9 @@ export function BazaarNoticeBar() {
     publicStartMs: toMs(settings.bazaar_public_sale_starts_at),
     endMs: toMs(settings.activity_periods?.bazaar?.ends_at_utc),
   });
-  if (saleWindow !== 'presale' && saleWindow !== 'public') return null; // 시작 전/종료/로딩은 페이지 안내가 담당
+  // 행사가 완전히 종료(ended)된 경우에만 숨김. 시작 전(before)·선판매·공개·설정로딩(loading)은
+  // 운영시간 안내가 유효하므로 표시(최종 on/off는 관리자 설정이 제어). // ← [수정 2026-06-29]
+  if (saleWindow === 'ended') return null;
 
   // 운영시간 상태/경계
   const openHour = settings.bazaar_daily_open_hour ?? BAZAAR_DAILY_OPEN_HOUR_DEFAULT;
@@ -131,9 +133,9 @@ export function BazaarNoticeBar() {
 
 const mono: React.CSSProperties = { fontVariantNumeric: 'tabular-nums', letterSpacing: 0.3, fontWeight: 700 };
 
-// Figma 1937:399: 풀폭 flat, px16/py12, 14px center, gap8. app-main(padding:0 20px) 풀블리드.
+// Figma 1937:399: 풀폭 flat, px16/py12, 14px center, gap8.
+// 풀블리드/sticky 는 AppLayout 의 sticky 스택 래퍼가 담당(결제대기 바와 겹침 방지). // ← [2026-06-29]
 const barStyle: React.CSSProperties = {
-  margin: '0 -20px',
   display: 'flex',
   flexWrap: 'wrap',
   alignItems: 'center',

@@ -30,10 +30,7 @@ export function PendingOrderBar() {
       onClick={() => navigate('/mypage/pending')}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate('/mypage/pending'); }}
       style={{
-        margin: '0 -20px',
-        position: 'sticky',
-        top: 0,
-        zIndex: 30,
+        // ← [2026-06-29] sticky/풀블리드는 AppLayout sticky 스택 래퍼가 담당(바자회 공지바와 겹침 방지)
         display: 'flex',
         flexWrap: 'wrap',
         alignItems: 'center',
