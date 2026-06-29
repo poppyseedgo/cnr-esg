@@ -91,29 +91,22 @@ export function BazaarNoticeBar() {
   const openHour = settings.bazaar_daily_open_hour ?? BAZAAR_DAILY_OPEN_HOUR_DEFAULT;
   const closeHour = settings.bazaar_daily_close_hour ?? BAZAAR_DAILY_CLOSE_HOUR_DEFAULT;
   const dh = resolveDailyHours(nowMs, openHour, closeHour);
+  const within = dh.isWithinHours; // 실제 운영시간 내 여부 (관리자도 동일 상태로 표시 → 사용자 화면 검증 가능)
 
-  // 어드민은 운영시간 무관 → '운영 중' 톤으로 취급(혼동 방지)
-  const openTone = dh.isWithinHours || isAdmin;
-
-  // 표시 조건: 'closed_only'면 운영 중에는 숨김
+  // 표시 조건: 'closed_only'면 운영 중에는 숨김 (관리자 포함, 실제 운영시간 기준)
+  // → 관리자도 운영시간 외에는 사용자와 동일하게 공지바를 볼 수 있음. // ← [수정 2026-06-29]
   const showWhen = settings.bazaar_notice_bar_show_when ?? 'always';
-  if (showWhen === 'closed_only' && openTone) return null;
+  if (showWhen === 'closed_only' && within) return null;
 
   const message = (settings.bazaar_notice_bar_message ?? '').trim() || DEFAULT_MESSAGE;
   const messageNodes = renderMessage(message, dh.openHour, dh.closeHour);
 
-  let countdown: React.ReactNode;
-  if (isAdmin) {
-    countdown = <span>관리자는 운영시간과 무관하게 구매할 수 있어요</span>;
-  } else if (dh.isWithinHours) {
-    countdown = (
-      <span>구매 마감까지 <strong style={mono}>{fmtHMS(dh.closesAtMs - nowMs)}</strong> 남음</span>
-    );
-  } else {
-    countdown = (
-      <span>구매 시작까지 <strong style={mono}>{fmtHMS(dh.nextOpenMs - nowMs)}</strong> 남음</span>
-    );
-  }
+  // 카운트다운 — 실제 운영시간 상태 기준(관리자도 동일). 관리자에겐 면제 안내를 별도로 덧붙임.
+  const countdown: React.ReactNode = within ? (
+    <span>구매 마감까지 <strong style={mono}>{fmtHMS(dh.closesAtMs - nowMs)}</strong> 남음</span>
+  ) : (
+    <span>구매 시작까지 <strong style={mono}>{fmtHMS(dh.nextOpenMs - nowMs)}</strong> 남음</span>
+  );
 
   return (
     <div
@@ -121,12 +114,17 @@ export function BazaarNoticeBar() {
       aria-live="polite"
       style={{
         ...barStyle,
-        background: openTone ? OPEN_BG : CLOSED_BG,
-        color: openTone ? OPEN_FG : CLOSED_FG,
+        background: within ? OPEN_BG : CLOSED_BG,
+        color: within ? OPEN_FG : CLOSED_FG,
       }}
     >
       <p style={{ margin: 0, lineHeight: 1.3 }}>{messageNodes}</p>
       <p style={{ margin: 0, lineHeight: 1.3 }}>{countdown}</p>
+      {isAdmin && (
+        <p style={{ margin: 0, lineHeight: 1.3, opacity: 0.7, fontWeight: 600 }}>
+          · 관리자는 운영시간과 무관하게 구매할 수 있어요
+        </p>
+      )}
     </div>
   );
 }
