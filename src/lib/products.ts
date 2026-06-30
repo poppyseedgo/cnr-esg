@@ -38,7 +38,7 @@ export interface LoadProductsOptions {
   sort?: 'reg' | 'price_desc' | 'price_asc'; // ← [2026-06-24] 정렬: 등록순(기본) / 높은가격 / 낮은가격
 }
 
-/** 상품 목록 (정렬: 고정(is_pinned) 먼저 → sort_order ASC → created_at) */
+/** 상품 목록 (정렬: 고정(is_pinned) 먼저 → 비고정 품절 뒤로(list_rank) → sort_order ASC → created_at) */
 export async function loadProducts(opts: LoadProductsOptions = {}): Promise<EsgProductRow[]> {
   const { scope = 'all', limit, offset = 0, search, tagId, tagIds, tagGroups, sort = 'reg' } = opts;   // ← [2026-06-24] tagGroups(패싯)
   const statuses: EsgProductStatus[] = scope === 'on_sale_only' ? ['on_sale'] : ['on_sale', 'sold_out'];
@@ -71,15 +71,24 @@ export async function loadProducts(opts: LoadProductsOptions = {}): Promise<EsgP
     .in('status', statuses);
 
   // ── [2026-06-24] 정렬 분기 ─────────────────────────────────────────────
-  //  · reg(기본): 고정 먼저 → sort_order → created_at (기존 동작 보존)
-  //  · price_desc/asc: 가격 우선 정렬(고정 무시), created_at 으로 동순위 타이브레이크
+  //  · reg(기본): 고정 먼저 → (비고정)품절 뒤로 → sort_order → created_at
+  //  · price_desc/asc: (비고정)품절 뒤로 → 가격 → created_at 타이브레이크
+  //  ※ [2026-07-01] list_rank(생성컬럼): 고정=0(제외), 비고정 품절=1, 그 외=0.
+  //    품절 신호=status='sold_out'(결제완료 재고0). 예약중(임시)은 on_sale → 정렬 안정.
   if (sort === 'price_desc') {
-    query = query.order('price', { ascending: false }).order('created_at', { ascending: false });
+    query = query
+      .order('list_rank', { ascending: true })   // ← [2026-07-01] 품절 뒤로
+      .order('price', { ascending: false })
+      .order('created_at', { ascending: false });
   } else if (sort === 'price_asc') {
-    query = query.order('price', { ascending: true }).order('created_at', { ascending: false });
+    query = query
+      .order('list_rank', { ascending: true })   // ← [2026-07-01] 품절 뒤로
+      .order('price', { ascending: true })
+      .order('created_at', { ascending: false });
   } else {
     query = query
       .order('is_pinned', { ascending: false })  // ← [2026-06-17] 고정 상품 맨 앞
+      .order('list_rank', { ascending: true })   // ← [2026-07-01] 고정 제외, 비고정 품절은 판매가능 뒤로
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: false });
   }
