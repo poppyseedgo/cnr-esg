@@ -50,10 +50,10 @@ export function HeroBazaar() {
                 <path d={UNION_D} fill="#000" />
               </g>
 
-              {/* 나무 심는 / 바자회 */}
-              <g fill="#000" textAnchor="middle" fontFamily="'Pretendard Variable', Pretendard, sans-serif" fontWeight={500}>
-                <text x="300" y="180" fontSize="96">나무 심는</text>
-                <text x="300" y="278" fontSize="96">바자회</text>
+              {/* 나무 심는 / 바자회 — Figma 1857:1181: Pretendard Regular(400), leading 1.1 */}
+              <g fill="#000" textAnchor="middle" fontFamily="'Pretendard Variable', Pretendard, sans-serif" fontWeight={400}>
+                <text x="300" y="178" fontSize="96">나무 심는</text>
+                <text x="300" y="284" fontSize="96">바자회</text>
               </g>
 
               {/* NOW OPEN */}
