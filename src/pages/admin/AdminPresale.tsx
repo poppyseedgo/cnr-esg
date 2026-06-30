@@ -3,12 +3,19 @@
 //
 // 변경 이력:
 //   2026-06-26  최초 작성 — 선구매 정책/자격 관리
+//   2026-06-30  [근본·재발방지] 선판매(선구매) 시작 시각 편집 블록(B) 신규.
+//               기존엔 '공개 시작'만 편집 가능하고 '선판매 시작'은 읽기전용 표시뿐이라,
+//               선판매 오픈 시각을 바꾸려면 activity_periods JSON 을 SQL 로 손편집해야 했고
+//               KST→UTC 변환 실수(예: 14:00을 ...T14:00:00Z=23:00 KST로 저장) 위험이 있었음.
+//               → KST 입력 → UTC 저장으로 일원화(공개 시작과 동일한 안전 패턴). 범위 검증 포함.
+
 //
 // 블록:
 //   (A) 판매 타임라인 — 현재 단계(선판매전/선판매/공개/종료) 배지 + 경계 시각
-//   (B) 공개 판매 시작 시각 편집 (KST 입력 → UTC 저장, 범위 검증)
-//   (C) 비상 구매 중단 토글 (purchase_enabled)
-//   (D) 선구매 자격자 명단 — 물품 기부자 OR 기부금 입금확인자 (검색 / CSV / 사유 배지)
+//   (B) 선판매 시작 시각 편집  (KST 입력 → UTC 저장, 범위 검증) // ← [2026-06-30 신규]
+//   (C) 공개 판매 시작 시각 편집 (KST 입력 → UTC 저장, 범위 검증)
+//   (D) 비상 구매 중단 토글 (purchase_enabled)
+//   (E) 선구매 자격자 명단 — 물품 기부자 OR 기부금 입금확인자 (검색 / CSV / 사유 배지)
 //
 // 정책 SSOT 재사용: resolveWindow(bazaarSalePolicy)로 타임라인 판정 → 사용자 화면과 1:1.
 // 자격 SSOT: esg_admin_list_presale_eligible RPC(서버 esg_is_presale_eligible와 동일 기준).
@@ -25,7 +32,7 @@ import {
 import { resolveWindow, type BazaarSaleWindow } from '@/lib/bazaarSalePolicy';
 import { loadPresaleEligible, type EsgPresaleEligibleRow } from '@/lib/adminPresale';
 import { formatKSTFull } from '@/utils/time';
-import type { EsgSettingsValueMap } from '@/types/esg';
+import type { EsgSettingsValueMap, EsgActivityPeriods } from '@/types/esg';
 
 const WINDOW_LABEL: Record<BazaarSaleWindow, { text: string; bg: string; color: string }> = {
   loading: { text: '정책 미구성', bg: '#f0f0f0', color: '#666' },
@@ -98,6 +105,15 @@ export function AdminPresale() {
 
       <TimelineBlock window={window} presaleStartUtc={presaleStartUtc} publicStartUtc={publicStartUtc} endUtc={endUtc} />
 
+      {/* ← [2026-06-30 신규] 선판매(선구매) 시작 시각 편집 — 이게 없어서 SQL 손편집 사고가 났음 */}
+      <PresaleStartBlock
+        activityPeriods={settings.activity_periods}
+        presaleStartUtc={presaleStartUtc}
+        publicStartUtc={publicStartUtc}
+        endUtc={endUtc}
+        onSaved={reload}
+      />
+
       <PublicStartBlock
         publicStartUtc={publicStartUtc}
         presaleStartUtc={presaleStartUtc}
@@ -146,7 +162,106 @@ function TimelineBlock({
   );
 }
 
-// ── (B) 공개 판매 시작 시각 편집 ──────────────────────────────────────────────
+// ── (B) 선판매(선구매) 시작 시각 편집 ─────────────────────────────────────────
+//   [근본] activity_periods.bazaar.starts_at_utc 를 KST 입력 → UTC 저장으로 일원화.
+//   기존 필드(label/ends_at/note 등)는 모두 보존하고 시작 시각 2개 필드만 패치한다.
+function PresaleStartBlock({
+  activityPeriods,
+  presaleStartUtc,
+  publicStartUtc,
+  endUtc,
+  onSaved,
+}: {
+  activityPeriods: EsgActivityPeriods | undefined;
+  presaleStartUtc: string | null;
+  publicStartUtc: string | null;
+  endUtc: string | null;
+  onSaved: () => void;
+}) {
+  const [input, setInput] = useState(presaleStartUtc ? utcIsoToKstInput(presaleStartUtc) : '');
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    setInput(presaleStartUtc ? utcIsoToKstInput(presaleStartUtc) : '');
+  }, [presaleStartUtc]);
+
+  const save = async () => {
+    setMsg(null);
+    if (!input) {
+      setMsg('선판매 시작 시각을 입력하세요.');
+      return;
+    }
+    const bazaar = activityPeriods?.bazaar;
+    if (!bazaar) {
+      setMsg('바자회 기간 설정(activity_periods.bazaar)이 없습니다. 관리자에게 문의하세요.');
+      return;
+    }
+    const iso = kstInputToUtcIso(input); // KST 입력 → UTC ISO
+    const t = new Date(iso).getTime();
+    // 범위 검증: 선판매 시작 < 공개 시작 < 종료
+    if (publicStartUtc && t >= new Date(publicStartUtc).getTime()) {
+      setMsg('선판매 시작은 공개 판매 시작 이전이어야 합니다.');
+      return;
+    }
+    if (endUtc && t >= new Date(endUtc).getTime()) {
+      setMsg('선판매 시작은 바자회 종료 이전이어야 합니다.');
+      return;
+    }
+    try {
+      setSaving(true);
+      // 기존 bazaar 객체 보존 + 시작 시각 2개 필드만 갱신 (utc=저장기준, kst=표시 미러)
+      const kstLabel = `${input.length === 16 ? input : input.slice(0, 16)}:00+09:00`;
+      const nextPeriods: EsgActivityPeriods = {
+        ...activityPeriods,
+        bazaar: { ...bazaar, starts_at_utc: iso, starts_at_kst: kstLabel },
+      };
+      await updateSetting('activity_periods', nextPeriods as never);
+      setMsg('저장되었습니다. (사용자에게 즉시 반영)');
+      onSaved();
+    } catch (e) {
+      console.error('[AdminPresale] save presale start:', e);
+      setMsg(e instanceof Error ? e.message : '저장 실패');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <section style={card}>
+      <h2 style={h2}>선판매(선구매) 시작 시각 (KST)</h2>
+      <p style={{ margin: '0 0 12px', color: '#666', fontSize: 13 }}>
+        이 시각부터 <b>선구매 자격자</b>(물품 기부자 · 기부금 입금확인자)의 구매가 열립니다. 이 시각 이전엔 전 직원이 구경만 할 수 있습니다.
+        <br />
+        <span style={{ color: '#b45309' }}>
+          ※ KST 기준으로 입력하세요. (예: 오후 2시는 14:00) — 시스템이 UTC로 자동 변환해 저장합니다.
+        </span>
+      </p>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <input
+          type="datetime-local"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          style={{ padding: '8px 12px', border: '1px solid #ddd', borderRadius: 8, fontSize: 14 }}
+        />
+        <button
+          type="button"
+          onClick={save}
+          disabled={saving}
+          style={{ padding: '9px 18px', border: 'none', borderRadius: 8, background: '#0f2e20', color: '#fff', fontSize: 14, fontWeight: 600, cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.6 : 1 }}
+        >
+          {saving ? '저장 중…' : '저장'}
+        </button>
+        {presaleStartUtc && (
+          <span style={{ color: '#888', fontSize: 13 }}>현재: {formatKSTFull(presaleStartUtc)}</span>
+        )}
+      </div>
+      {msg && <p style={{ margin: '10px 0 0', fontSize: 13, color: msg.includes('저장되었') ? '#166534' : '#b91c1c' }}>{msg}</p>}
+    </section>
+  );
+}
+
+// ── (C) 공개 판매 시작 시각 편집 ──────────────────────────────────────────────
 function PublicStartBlock({
   publicStartUtc,
   presaleStartUtc,
