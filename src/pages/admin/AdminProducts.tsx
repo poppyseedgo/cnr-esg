@@ -48,6 +48,7 @@ export function AdminProducts() {
 
   const [wishlistCounts, setWishlistCounts] = useState<Map<string, number>>(new Map()); // ← [2026-06-25] product_id→찜 수(전체 1회 집계)
   const [wishlistTarget, setWishlistTarget] = useState<EsgProductRow | null>(null);      // ← [2026-06-25] 찜 명단 모달 대상(null=닫힘)
+  const [editTarget, setEditTarget] = useState<EsgProductRow | null>(null);              // ← [2026-07-01] 수정 모달 대상(null=닫힘). 그리드 전환으로 인라인 폼→모달.
 
   // ← [고정/정렬] 드래그 재정렬 상태
   const dragIndexRef = useRef<number | null>(null);          // 드래그 시작 인덱스 (리렌더 불필요 → ref)
@@ -138,8 +139,8 @@ export function AdminProducts() {
         </button>
       </div>
       <p style={{ fontSize: 12, color: '#888', margin: '0 0 16px' }}>
-        이미지, 가격, 재고를 관리할 수 있습니다. 왼쪽 <strong>⠿ 핸들을 드래그</strong>해 순서를 바꾸면
-        전체 리스트 순서(정렬 순서)가 저장됩니다. 고정(📌) 상품은 공개 페이지에서 맨 앞에 노출됩니다.
+        이미지, 가격, 재고를 관리할 수 있습니다. 카드 좌상단 <strong>⠿ 핸들을 드래그</strong>해 다른 카드 위에 놓으면
+        순서(정렬 순서)가 저장됩니다. 고정(📌) 상품은 공개 페이지에서 맨 앞에 노출됩니다.
         {reordering && <span style={{ color: '#16a34a', marginLeft: 8 }}>· 순서 저장 중…</span>}
       </p>
 
@@ -189,9 +190,17 @@ export function AdminProducts() {
           <p style={{ margin: 0, color: '#888' }}>검색 결과가 없습니다.</p>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        // ← [2026-07-01] 4열 카드 그리드 (어드민 폭 ~1024 기준 4열, 좁아지면 자동 감소)
+        //   드래그: 카드 좌상단 ⠿ 그립이 draggable(드래그 시작), 카드 전체가 드롭 타깃(2D 이동)
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))',
+            gap: 12,
+            alignItems: 'stretch',
+          }}
+        >
           {visibleProducts.map((p, i) => (
-            // ← [고정/정렬] 행 = 드롭 타깃, 왼쪽 ⠿ 핸들만 draggable (검색 중엔 비활성)
             <div
               key={p.id}
               onDragOver={(e) => {
@@ -203,13 +212,14 @@ export function AdminProducts() {
                 if (!searching) handleDrop(i);
               }}
               style={{
-                display: 'flex',
-                gap: 8,
-                alignItems: 'stretch',
-                borderTop: dragOverIndex === i ? '2px solid #16a34a' : '2px solid transparent',
-                borderRadius: 4,
+                position: 'relative',
+                borderRadius: 12,
+                outline: dragOverIndex === i ? '2px solid #16a34a' : '2px solid transparent', // ← 드롭 위치 강조(그리드 링)
+                outlineOffset: 2,
+                transition: 'outline-color 0.1s',
               }}
             >
+              {/* ⠿ 그립: 드래그 시작점(검색 중 비활성). 카드 위에 떠 있는 핸들 */}
               <div
                 draggable={!searching}
                 onDragStart={() => {
@@ -221,31 +231,55 @@ export function AdminProducts() {
                 }}
                 title={searching ? '검색 중에는 순서를 변경할 수 없습니다' : '드래그하여 순서 변경'}
                 style={{
+                  position: 'absolute',
+                  top: 6,
+                  left: 6,
+                  zIndex: 2,
+                  width: 26,
+                  height: 26,
                   display: 'flex',
                   alignItems: 'center',
-                  padding: '0 6px',
-                  cursor: searching ? 'default' : 'grab',
-                  color: '#c4c4c4',
-                  fontSize: 20,
+                  justifyContent: 'center',
+                  background: 'rgba(255,255,255,0.92)',
+                  border: '1px solid #e5e5e5',
+                  borderRadius: 6,
+                  color: '#9a9a9a',
+                  fontSize: 16,
+                  lineHeight: 1,
                   userSelect: 'none',
-                  flexShrink: 0,
+                  cursor: searching ? 'default' : 'grab',
                   opacity: searching ? 0.3 : 1,
                 }}
               >
                 ⠿
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <ProductAdminCard
-                  product={p}
-                  onChange={reload}
-                  pinnedCount={pinnedCount}
-                  wishlistCount={wishlistCounts.get(p.id) ?? 0}   // ← [2026-06-25] 집계 Map에서 O(1) 조회
-                  onShowWishlist={() => setWishlistTarget(p)}      // ← [2026-06-25] 명단 모달 열기
-                />
-              </div>
+              <ProductAdminCard
+                product={p}
+                onChange={reload}
+                wishlistCount={wishlistCounts.get(p.id) ?? 0}   // ← [2026-06-25] 집계 Map에서 O(1) 조회
+                onShowWishlist={() => setWishlistTarget(p)}      // ← [2026-06-25] 명단 모달 열기
+                onEdit={() => setEditTarget(p)}                  // ← [2026-07-01] 수정 모달 열기
+              />
             </div>
           ))}
         </div>
+      )}
+
+      {/* ← [2026-07-01] 상품 수정 모달 (페이지 단일 인스턴스 — 인라인 폼을 모달로 전환) */}
+      {editTarget && (
+        <ProductEditModal
+          product={editTarget}
+          pinnedCount={pinnedCount}
+          onClose={() => setEditTarget(null)}
+          onSaved={() => {
+            setEditTarget(null);
+            void reload();
+          }}
+          onDeleted={() => {
+            setEditTarget(null);
+            void reload();
+          }}
+        />
       )}
 
       {/* ← [2026-06-25] 찜한 사람 명단 모달 (페이지 단일 인스턴스 — 카드 N개와 무관) */}
@@ -261,40 +295,25 @@ export function AdminProducts() {
 }
 
 // ============================================================================
-// 개별 상품 카드 (ProductEditForm 사용)
+// 개별 상품 카드 (세로형, 그리드용). 수정은 페이지 단일 모달(ProductEditModal)로.
 // ============================================================================
 
 function ProductAdminCard({
   product,
   onChange,
-  pinnedCount,
-  wishlistCount = 0,    // ← [2026-06-25] 이 상품 찜 수(배지 표시·0이면 미표시)
+  wishlistCount = 0,    // ← [2026-06-25] 이 상품 찜 수(배지 표시·0이면 회색)
   onShowWishlist,       // ← [2026-06-25] 명단 모달 열기 콜백
+  onEdit,               // ← [2026-07-01] 수정 모달 열기 콜백
 }: {
   product: EsgProductRow;
   onChange: () => void;
-  pinnedCount?: number;   // ← [고정] N/8 표시용 전달
   wishlistCount?: number; // ← [2026-06-25]
   onShowWishlist?: () => void; // ← [2026-06-25]
+  onEdit?: () => void;    // ← [2026-07-01]
 }) {
-  const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);                    // ← [정책㉠] 숨김/해제 처리 중 잠금
-  const cardRef = useRef<HTMLDivElement>(null);               // ← [2026-06-23] 저장 후 중앙 스크롤 타깃
   const statusColor = STATUS_COLORS[product.status];
   const available = getAvailableStock(product);
-
-  // ← [2026-06-23] 수정 저장 완료 → 폼 접기 + 리스트 리로드 + 해당 카드를 화면 중앙으로.
-  //   폼 접힘(setEditing(false))은 동기라 카드의 보기-모드 높이가 즉시 확정됨.
-  //   이중 rAF로 React 커밋/리플로우가 끝난 다음 프레임에 스크롤 → 상단 클램프를 덮어씀.
-  const handleSaved = () => {
-    setEditing(false);
-    onChange();
-    requestAnimationFrame(() =>
-      requestAnimationFrame(() =>
-        cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      )
-    );
-  };
 
   // ← [정책㉠] 숨김 처리 (소프트삭제) — 1-click
   const handleHide = async () => {
@@ -325,157 +344,243 @@ function ProductAdminCard({
 
   return (
     <div
-      ref={cardRef}
       style={{
         background: '#fff',
         borderRadius: 12,
-        padding: 16,
-        boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
         border: '1px solid #eee',
+        boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
+        overflow: 'hidden',
         opacity: product.status === 'hidden' ? 0.6 : 1,
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
       }}
     >
-      {/* 헤더 */}
-      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: editing ? 16 : 0 }}>
-        <Link
-          to={`/bazaar/${product.id}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            width: 56,
-            height: 56,
-            flexShrink: 0,
-            borderRadius: 8,
-            background: product.thumbnail_url ? `url(${product.thumbnail_url}) center / cover` : '#f5f5f5',
-            display: 'block',
-          }}
-          aria-label="사용자 화면으로 보기"
-        />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', gap: 6, marginBottom: 4, alignItems: 'center', flexWrap: 'wrap' }}>
-            <span style={{ padding: '2px 8px', background: statusColor.bg, color: statusColor.color, borderRadius: 4, fontSize: 11, fontWeight: 700 }}>
-              {STATUS_LABELS[product.status]}
+      {/* 썸네일 (클릭=사용자 화면 새 탭). draggable=false: 그립 드래그와 충돌 방지 */}
+      <Link
+        to={`/bazaar/${product.id}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        draggable={false}
+        aria-label="사용자 화면으로 보기"
+        style={{
+          position: 'relative',
+          display: 'block',
+          aspectRatio: '1 / 1',
+          background: product.thumbnail_url ? `url(${product.thumbnail_url}) center / cover` : '#f5f5f5',
+        }}
+      >
+        {/* 고정 배지 (썸네일 우상단) */}
+        {product.is_pinned && (
+          <span style={{ position: 'absolute', top: 6, right: 6, padding: '2px 8px', background: '#fef9c3', color: '#854d0e', borderRadius: 999, fontSize: 11, fontWeight: 700 }}>
+            📌 고정
+          </span>
+        )}
+      </Link>
+
+      {/* 본문 */}
+      <div style={{ padding: '10px 12px 12px', display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+        {/* 상태 + (새 상품) + 찜 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
+          <span style={{ padding: '2px 8px', background: statusColor.bg, color: statusColor.color, borderRadius: 999, fontSize: 11, fontWeight: 700 }}>
+            {STATUS_LABELS[product.status]}
+          </span>
+          {product.is_new && (
+            <span style={{ padding: '2px 8px', background: '#e0f2fe', color: '#075985', borderRadius: 999, fontSize: 11, fontWeight: 700 }}>
+              🆕 새 상품
             </span>
-            {/* ← [고정] 고정 배지 */}
-            {product.is_pinned && (
-              <span style={{ padding: '2px 8px', background: '#fef9c3', color: '#854d0e', borderRadius: 4, fontSize: 11, fontWeight: 700 }}>
-                📌 고정
-              </span>
-            )}
-            {/* ← [2026-06-17] 완전 새 상품 배지 */}
-            {product.is_new && (
-              <span style={{ padding: '2px 8px', background: '#e0f2fe', color: '#075985', borderRadius: 4, fontSize: 11, fontWeight: 700 }}>
-                🆕 새 상품
-              </span>
-            )}
-            <span style={{ fontSize: 11, color: '#bbb', fontFamily: 'monospace' }}>
-              ID: {product.id.slice(0, 8)}
-            </span>
-          </div>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{product.name}</div>
-          <div style={{ fontSize: 12, color: '#666' }}>
-            <strong>{product.price.toLocaleString()}원</strong>
-            <span style={{ marginLeft: 8 }}>
-              재고: <strong>{available}</strong>
-              <span style={{ color: '#aaa' }}> / {product.stock} (선점 {product.reserved_stock})</span>
-            </span>
-          </div>
-          {/* ← [2026-06-25] 찜한 사람 명단 열기. 0명도 클릭 가능(빈 명단 확인 가능). */}
+          )}
+          {/* 찜 명단 열기 (0명도 클릭 가능) */}
           <button
             type="button"
             onClick={onShowWishlist}
             title="이 상품을 찜한 사람 보기"
             style={{
-              marginTop: 8,
+              marginLeft: 'auto',
               display: 'inline-flex',
               alignItems: 'center',
-              gap: 4,
-              padding: '3px 10px',
+              gap: 3,
+              padding: '2px 8px',
               background: wishlistCount > 0 ? '#fff1f2' : '#f5f5f5',
               border: `1px solid ${wishlistCount > 0 ? '#fecdd3' : '#e5e5e5'}`,
               color: wishlistCount > 0 ? '#e11d48' : '#999',
               borderRadius: 999,
               cursor: 'pointer',
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: 600,
             }}
           >
-            {wishlistCount > 0 ? '❤️' : '🤍'} 찜 {wishlistCount}명
+            {wishlistCount > 0 ? '❤️' : '🤍'} {wishlistCount}
           </button>
         </div>
 
-        {!editing && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
+        {/* 상품명 (2줄 클램프) */}
+        <div
+          style={{
+            fontSize: 13,
+            fontWeight: 600,
+            lineHeight: 1.35,
+            color: '#222',
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+            minHeight: 36,
+          }}
+          title={product.name}
+        >
+          {product.name}
+        </div>
+
+        {/* 가격 / 재고 */}
+        <div style={{ marginTop: 6, fontSize: 15, fontWeight: 700, color: '#111' }}>
+          {product.price.toLocaleString()}원
+        </div>
+        <div style={{ marginTop: 2, fontSize: 11, color: '#888' }}>
+          재고 <strong style={{ color: '#555' }}>{available}</strong>
+          <span style={{ color: '#bbb' }}> / {product.stock} · 선점 {product.reserved_stock}</span>
+        </div>
+
+        {/* 액션 (수정 모달 / 숨김·숨김해제) */}
+        <div style={{ display: 'flex', gap: 6, marginTop: 'auto', paddingTop: 10 }}>
+          <button
+            type="button"
+            onClick={onEdit}
+            style={{
+              flex: 1,
+              padding: '6px 0',
+              background: '#fff',
+              border: '1px solid #111',
+              color: '#111',
+              borderRadius: 6,
+              cursor: 'pointer',
+              fontSize: 12,
+              fontWeight: 600,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            ✏️ 수정
+          </button>
+          {product.status === 'hidden' ? (
             <button
               type="button"
-              onClick={() => setEditing(true)}
+              onClick={handleUnhide}
+              disabled={busy}
               style={{
-                padding: '4px 10px',
+                flex: 1,
+                padding: '6px 0',
                 background: '#fff',
-                border: '1px solid #111',
-                color: '#111',
-                borderRadius: 4,
-                cursor: 'pointer',
-                fontSize: 11,
+                border: '1px solid #16a34a',
+                color: '#16a34a',
+                borderRadius: 6,
+                cursor: busy ? 'not-allowed' : 'pointer',
+                fontSize: 12,
+                fontWeight: 600,
                 whiteSpace: 'nowrap',
               }}
             >
-              ✏️ 수정
+              ↩️ 숨김해제
             </button>
-            {/* ← [정책㉠] 숨김/숨김해제 1-click CTA (수정 폼 진입 불필요) */}
-            {product.status === 'hidden' ? (
-              <button
-                type="button"
-                onClick={handleUnhide}
-                disabled={busy}
-                style={{
-                  padding: '4px 10px',
-                  background: '#fff',
-                  border: '1px solid #16a34a',
-                  color: '#16a34a',
-                  borderRadius: 4,
-                  cursor: busy ? 'not-allowed' : 'pointer',
-                  fontSize: 11,
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                ↩️ 숨김 해제
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handleHide}
-                disabled={busy}
-                style={{
-                  padding: '4px 10px',
-                  background: '#fff',
-                  border: '1px solid #999',
-                  color: '#555',
-                  borderRadius: 4,
-                  cursor: busy ? 'not-allowed' : 'pointer',
-                  fontSize: 11,
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                🙈 숨김
-              </button>
-            )}
-          </div>
-        )}
+          ) : (
+            <button
+              type="button"
+              onClick={handleHide}
+              disabled={busy}
+              style={{
+                flex: 1,
+                padding: '6px 0',
+                background: '#fff',
+                border: '1px solid #999',
+                color: '#555',
+                borderRadius: 6,
+                cursor: busy ? 'not-allowed' : 'pointer',
+                fontSize: 12,
+                fontWeight: 600,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              🙈 숨김
+            </button>
+          )}
+        </div>
       </div>
+    </div>
+  );
+}
 
-      {editing && (
-        <ProductEditForm
-          product={product}
-          pinnedCount={pinnedCount}
-          onSuccess={handleSaved}        // ← [2026-06-23] 저장 성공 → 폼 접기 + 중앙 스크롤
-          onCancel={() => setEditing(false)}
-          onDeleted={() => {
-            setEditing(false);           // 삭제는 카드가 사라지므로 스크롤 대상 없음
-            onChange();
-          }}
-        />
-      )}
+// ============================================================================
+// 상품 수정 모달 — 인라인 폼을 그리드 전환에 맞춰 모달로 (ProductEditForm 재사용)
+// ============================================================================
+
+function ProductEditModal({
+  product,
+  pinnedCount,
+  onClose,
+  onSaved,
+  onDeleted,
+}: {
+  product: EsgProductRow;
+  pinnedCount?: number;
+  onClose: () => void;
+  onSaved: () => void;
+  onDeleted: () => void;
+}) {
+  // ESC로 닫기
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.5)',
+        display: 'flex',
+        alignItems: 'flex-start',
+        justifyContent: 'center',
+        zIndex: 1000,
+        padding: 24,
+        overflowY: 'auto',
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: '#fff',
+          borderRadius: 12,
+          width: '100%',
+          maxWidth: 720,
+          margin: 'auto',
+          boxShadow: '0 20px 50px rgba(0,0,0,0.3)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid #eee' }}>
+          <h3 style={{ margin: 0, fontSize: 16, color: '#111' }}>✏️ 상품 수정</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="닫기"
+            style={{ border: 'none', background: 'transparent', fontSize: 22, lineHeight: 1, color: '#999', cursor: 'pointer' }}
+          >
+            ×
+          </button>
+        </div>
+        <div style={{ padding: 20 }}>
+          <ProductEditForm
+            product={product}
+            pinnedCount={pinnedCount}
+            onSuccess={onSaved}
+            onCancel={onClose}
+            onDeleted={onDeleted}
+          />
+        </div>
+      </div>
     </div>
   );
 }
