@@ -36,7 +36,7 @@ export interface LoadAllOrdersFilters {
   statuses?: EsgPaymentStatus[];
   /** 타입 필터 — undefined면 전체 */
   type?: EsgOrderType;
-  /** 검색어 — 주문번호/이메일/이름/입금자명 부분일치 */
+  /** 검색어 — 주문번호/이메일/이름/입금자명/상품명 부분일치 */
   search?: string;
   /** 정렬 — 'newest' (created_at DESC) | 'oldest' */
   sortOrder?: 'newest' | 'oldest';
@@ -65,10 +65,30 @@ export async function loadAllOrders(
   }
   if (filters.search && filters.search.trim()) {
     const s = filters.search.trim();
+
+    // ── [2026-07-01] 상품명 검색 추가 ──────────────────────────────────────
+    //  product_name_snapshot 은 esg_order_items(다른 테이블)에 있으므로,
+    //  먼저 매칭되는 order_id 집합을 구한 뒤 주문 쿼리의 or() 에 id.in 으로 합친다.
+    const { data: pItems, error: pErr } = await supabase
+      .from('esg_order_items')
+      .select('order_id')
+      .ilike('product_name_snapshot', `%${s}%`);
+    if (pErr) throw pErr;
+    const productOrderIds = [
+      ...new Set(((pItems ?? []) as Array<{ order_id: string }>).map((r) => r.order_id)),
+    ];
+
     // PostgREST or() 문법: 필드.연산자.값
-    query = query.or(
-      `order_number.ilike.%${s}%,user_email.ilike.%${s}%,user_name_snapshot.ilike.%${s}%,payer_name.ilike.%${s}%`
-    );
+    const orParts = [
+      `order_number.ilike.%${s}%`,
+      `user_email.ilike.%${s}%`,
+      `user_name_snapshot.ilike.%${s}%`,
+      `payer_name.ilike.%${s}%`,
+    ];
+    if (productOrderIds.length > 0) {
+      orParts.push(`id.in.(${productOrderIds.join(',')})`); // ← [2026-07-01] 상품명 매칭 주문
+    }
+    query = query.or(orParts.join(','));
   }
   query = query.order('created_at', { ascending: filters.sortOrder === 'oldest' });
 

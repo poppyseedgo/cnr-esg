@@ -9,12 +9,12 @@ import { LoadingScreen } from '@/components/routing/LoadingScreen'; // ← [코�
 
 const adminTabs = [
   { to: '/admin/dashboard', label: '대시보드', icon: '📊' },
+  { to: '/admin/orders', label: '주문/입금확인', icon: '💳' }, // ← [2026-07-01] 대시보드 다음(2번째)으로 이동
   { to: '/admin/settings', label: '이벤트 설정', icon: '⚙️' },
   { to: '/admin/auctions', label: '경매 관리', icon: '🔨' },
   { to: '/admin/bazaar-intake', label: '물품 접수', icon: '📦' }, // ← [추가 2026-06-08] 바자회 물품 접수/검수/게시
   { to: '/admin/presale', label: '선구매 관리', icon: '🎫' }, // ← [추가 2026-06-26] 선구매 자격/공개시각/비상토글
   { to: '/admin/products', label: '바자회 상품', icon: '🛍' },
-  { to: '/admin/orders', label: '주문/입금확인', icon: '💳' },
   { to: '/admin/donations', label: '기부 관리', icon: '💚' },
   { to: '/admin/roster', label: '명단 관리', icon: '📋' }, // ← [추가 2026-06-16 버그#5] 통합 명단/CSV
   { to: '/admin/posts', label: '게시글 관리', icon: '📝' },
@@ -76,7 +76,7 @@ export function AdminPage() {
               color: isActive ? '#fff' : '#444',
               border: '1px solid',
               borderColor: isActive ? '#111' : '#ddd',
-              fontSize: 13,
+              fontSize: 16, // ← [2026-07-01] 13 → 16
               fontWeight: 600,
               display: 'inline-flex',
               alignItems: 'center',

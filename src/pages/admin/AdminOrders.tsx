@@ -30,6 +30,16 @@ import { PAYMENT_STATUS_LABELS, PAYMENT_STATUS_COLORS, getOrderTimeLeft, formatT
 import type { OrderWithItems } from '@/lib/orders';
 import type { EsgPaymentStatus, EsgOrderType } from '@/types/esg';
 
+// ← [2026-07-01] 상태 필터 버튼 나열용 (드롭다운 대체)
+const STATUS_TABS: { value: EsgPaymentStatus | 'all'; label: string }[] = [
+  { value: 'all', label: '전체' },
+  { value: 'pending', label: '결제 대기' },
+  { value: 'paid', label: '결제 완료' },
+  { value: 'cancelled', label: '취소됨' },
+  { value: 'expired', label: '만료됨' },
+  { value: 'refunded', label: '환불됨' },
+];
+
 export function AdminOrders() {
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
   const [loading, setLoading] = useState(true);
@@ -117,21 +127,37 @@ export function AdminOrders() {
           boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
         }}
       >
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-          <Field label="상태">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as EsgPaymentStatus | 'all')}
-              style={inputStyle}
-            >
-              <option value="all">전체</option>
-              <option value="pending">결제 대기 (확인 필요)</option>
-              <option value="paid">결제 완료</option>
-              <option value="cancelled">취소됨</option>
-              <option value="expired">만료됨</option>
-              <option value="refunded">환불됨</option>
-            </select>
-          </Field>
+        {/* ← [2026-07-01] 상태: 드롭다운 → 버튼 나열 */}
+        <Field label="상태">
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {STATUS_TABS.map((t) => {
+              const active = statusFilter === t.value;
+              return (
+                <button
+                  key={t.value}
+                  type="button"
+                  onClick={() => setStatusFilter(t.value)}
+                  style={{
+                    padding: '7px 14px',
+                    borderRadius: 8,
+                    border: '1px solid',
+                    borderColor: active ? '#111' : '#ddd',
+                    background: active ? '#111' : '#fff',
+                    color: active ? '#fff' : '#444',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {t.label}
+                </button>
+              );
+            })}
+          </div>
+        </Field>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginTop: 12 }}>
           <Field label="타입">
             <select
               value={typeFilter}
@@ -143,12 +169,12 @@ export function AdminOrders() {
               <option value="auction">🔨 경매</option>
             </select>
           </Field>
-          <Field label="검색 (주문번호/이름/이메일/입금자명)">
+          <Field label="검색 (주문번호/이름/이메일/입금자명/상품명)">
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="예: 홍길동, BZ20260526..."
+              placeholder="예: 홍길동, 텀블러, BZ20260526..."
               style={inputStyle}
             />
           </Field>
@@ -250,8 +276,8 @@ function OrderAdminCard({
   const [busy, setBusy] = useState(false);
   const [memoEditing, setMemoEditing] = useState(false);
   const [memoDraft, setMemoDraft] = useState(order.admin_memo ?? '');
-  // ← [2026-06-30] 구매내역 전체 품목 펼침/접힘 (데이터는 order.items에 이미 전부 있음)
-  const [itemsExpanded, setItemsExpanded] = useState(false);
+  // ← [2026-06-30] 구매내역 전체 품목 모달 열림 상태 (데이터는 order.items에 이미 전부 있음)
+  const [detailOpen, setDetailOpen] = useState(false);
 
   const statusColor = PAYMENT_STATUS_COLORS[order.payment_status];
   const isPending = order.payment_status === 'pending';
@@ -336,6 +362,7 @@ function OrderAdminCard({
   };
 
   return (
+    <>
     <div
       style={{
         background: '#fff',
@@ -410,75 +437,37 @@ function OrderAdminCard({
             <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>
               {firstItem?.product_name_snapshot ?? '(상품 정보 없음)'}
               {extraCount > 0 && (
-                // ← [2026-06-30] "외 N개" 클릭 → 전체 품목 펼침 토글
-                <button
-                  type="button"
-                  onClick={() => setItemsExpanded((v) => !v)}
-                  aria-expanded={itemsExpanded}
-                  style={{
-                    marginLeft: 4, padding: 0, border: 'none', background: 'transparent',
-                    color: '#2563eb', fontWeight: 500, fontSize: 12, cursor: 'pointer',
-                    fontFamily: 'inherit', textDecoration: 'underline', textUnderlineOffset: 2,
-                  }}
-                >
-                  외 {extraCount}개 {itemsExpanded ? '접기 ▴' : '전체보기 ▾'}
-                </button>
+                <span style={{ color: '#888', fontWeight: 400 }}> 외 {extraCount}개</span>
               )}
             </div>
-
-            {/* 접힘 상태: 대표 품목 1개 요약만 표시 */}
-            {!itemsExpanded && (
-              <div style={{ fontSize: 11, color: '#888' }}>
-                {firstItem && (
-                  <>
-                    {firstItem.price_snapshot.toLocaleString()}원
-                    {firstItem.quantity > 1 && <span> × {firstItem.quantity}</span>}
-                  </>
-                )}
-              </div>
-            )}
-
-            {/* ← [2026-06-30] 펼침 상태: 주문에 포함된 전체 품목을 빠짐없이 나열 */}
-            {itemsExpanded && (
-              <ul style={{ listStyle: 'none', margin: '6px 0 0', padding: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {order.items.map((it, idx) => (
-                  <li
-                    key={it.id}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 8,
-                      paddingTop: idx === 0 ? 0 : 6,
-                      borderTop: idx === 0 ? 'none' : '1px solid #f0f0f0',
-                    }}
-                  >
-                    {it.thumbnail_snapshot ? (
-                      <div
-                        style={{
-                          width: 32, height: 32, borderRadius: 4, flexShrink: 0,
-                          background: `url(${it.thumbnail_snapshot}) center / cover`,
-                        }}
-                      />
-                    ) : (
-                      <div style={{ width: 32, height: 32, borderRadius: 4, flexShrink: 0, background: '#f3f3f3' }} />
-                    )}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 12, fontWeight: 500, color: '#222', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {it.product_name_snapshot}
-                      </div>
-                      <div style={{ fontSize: 11, color: '#888' }}>
-                        {it.price_snapshot.toLocaleString()}원 × {it.quantity}개
-                      </div>
-                    </div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: '#111', whiteSpace: 'nowrap' }}>
-                      {(it.price_snapshot * it.quantity).toLocaleString()}원
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-
+            <div style={{ fontSize: 11, color: '#888' }}>
+              {firstItem && (
+                <>
+                  {firstItem.price_snapshot.toLocaleString()}원
+                  {firstItem.quantity > 1 && <span> × {firstItem.quantity}</span>}
+                </>
+              )}
+            </div>
             <div style={{ fontSize: 16, fontWeight: 700, marginTop: 4 }}>
               총 {order.total_amount.toLocaleString()}원
             </div>
+
+            {/* ← [2026-06-30] 전체 품목 보기 — 모달로 크게 표시(카드 좌측 컬럼이 좁아 가독성 개선) */}
+            {order.items.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setDetailOpen(true)}
+                style={{
+                  marginTop: 8, padding: '5px 12px', borderRadius: 6,
+                  border: '1px solid #d1d5db', background: '#fff',
+                  color: '#374151', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                  fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 6,
+                }}
+              >
+                🧾 전체 품목 보기
+                <span style={{ color: '#888', fontWeight: 500 }}>({order.items.length}개)</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -689,6 +678,141 @@ function OrderAdminCard({
           </button>
         </div>
       )}
+    </div>
+    {detailOpen && <OrderItemsModal order={order} onClose={() => setDetailOpen(false)} />}
+    </>
+  );
+}
+
+// ============================================================================
+// 전체 품목 보기 모달  (← 2026-06-30 신규: 카드 좌측 컬럼이 좁아 가독성이 떨어지는 문제 해결)
+//   order.items 는 이미 JOIN으로 전부 로드돼 있으므로 추가 조회 없이 그대로 표시.
+// ============================================================================
+function OrderItemsModal({
+  order,
+  onClose,
+}: {
+  order: OrderWithItems;
+  onClose: () => void;
+}) {
+  const statusColor = PAYMENT_STATUS_COLORS[order.payment_status];
+
+  // ESC로 닫기
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const totalQty = order.items.reduce((sum, it) => sum + it.quantity, 0);
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.5)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1100,
+        padding: 16,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: '#fff',
+          borderRadius: 12,
+          width: '100%',
+          maxWidth: 560,
+          maxHeight: '85vh',
+          display: 'flex',
+          flexDirection: 'column',
+          boxShadow: '0 20px 50px rgba(0,0,0,0.3)',
+          overflow: 'hidden',
+        }}
+      >
+        {/* 헤더 (고정) */}
+        <div style={{ padding: '18px 22px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <span style={{ fontSize: 18, fontWeight: 700 }}>🧾 주문 상세</span>
+              <span
+                style={{
+                  fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 999,
+                  background: statusColor.bg, color: statusColor.color,
+                }}
+              >
+                {PAYMENT_STATUS_LABELS[order.payment_status]}
+              </span>
+            </div>
+            <div style={{ fontSize: 12, color: '#888', fontFamily: 'monospace' }}>{order.order_number}</div>
+            <div style={{ fontSize: 12, color: '#555', marginTop: 4 }}>
+              {order.user_name_snapshot}
+              {order.user_dept_snapshot && <span style={{ color: '#aaa' }}> · {order.user_dept_snapshot}</span>}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="닫기"
+            style={{ border: 'none', background: 'transparent', fontSize: 22, lineHeight: 1, color: '#999', cursor: 'pointer', flexShrink: 0 }}
+          >
+            ×
+          </button>
+        </div>
+
+        {/* 품목 리스트 (스크롤) */}
+        <div style={{ padding: '12px 22px', overflowY: 'auto', flex: 1 }}>
+          <div style={{ fontSize: 12, color: '#888', margin: '4px 0 10px' }}>
+            총 {order.items.length}개 품목 · {totalQty}개 수량
+          </div>
+          <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column' }}>
+            {order.items.map((it, idx) => (
+              <li
+                key={it.id}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 12,
+                  padding: '10px 0',
+                  borderTop: idx === 0 ? 'none' : '1px solid #f0f0f0',
+                }}
+              >
+                {it.thumbnail_snapshot ? (
+                  <div
+                    style={{
+                      width: 48, height: 48, borderRadius: 6, flexShrink: 0,
+                      background: `url(${it.thumbnail_snapshot}) center / cover`,
+                    }}
+                  />
+                ) : (
+                  <div style={{ width: 48, height: 48, borderRadius: 6, flexShrink: 0, background: '#f3f3f3', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: '#ccc' }}>🛍</div>
+                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: '#222' }}>
+                    {it.product_name_snapshot}
+                  </div>
+                  <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>
+                    {it.price_snapshot.toLocaleString()}원 × {it.quantity}개
+                  </div>
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#111', whiteSpace: 'nowrap' }}>
+                  {(it.price_snapshot * it.quantity).toLocaleString()}원
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* 합계 (고정) */}
+        <div style={{ padding: '16px 22px', borderTop: '1px solid #eee', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fafafa' }}>
+          <span style={{ fontSize: 14, color: '#555' }}>총 결제 금액</span>
+          <span style={{ fontSize: 20, fontWeight: 800 }}>{order.total_amount.toLocaleString()}원</span>
+        </div>
+      </div>
     </div>
   );
 }
