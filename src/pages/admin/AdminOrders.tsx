@@ -250,6 +250,8 @@ function OrderAdminCard({
   const [busy, setBusy] = useState(false);
   const [memoEditing, setMemoEditing] = useState(false);
   const [memoDraft, setMemoDraft] = useState(order.admin_memo ?? '');
+  // ← [2026-06-30] 구매내역 전체 품목 펼침/접힘 (데이터는 order.items에 이미 전부 있음)
+  const [itemsExpanded, setItemsExpanded] = useState(false);
 
   const statusColor = PAYMENT_STATUS_COLORS[order.payment_status];
   const isPending = order.payment_status === 'pending';
@@ -408,17 +410,72 @@ function OrderAdminCard({
             <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>
               {firstItem?.product_name_snapshot ?? '(상품 정보 없음)'}
               {extraCount > 0 && (
-                <span style={{ color: '#888', fontWeight: 400 }}> 외 {extraCount}개</span>
+                // ← [2026-06-30] "외 N개" 클릭 → 전체 품목 펼침 토글
+                <button
+                  type="button"
+                  onClick={() => setItemsExpanded((v) => !v)}
+                  aria-expanded={itemsExpanded}
+                  style={{
+                    marginLeft: 4, padding: 0, border: 'none', background: 'transparent',
+                    color: '#2563eb', fontWeight: 500, fontSize: 12, cursor: 'pointer',
+                    fontFamily: 'inherit', textDecoration: 'underline', textUnderlineOffset: 2,
+                  }}
+                >
+                  외 {extraCount}개 {itemsExpanded ? '접기 ▴' : '전체보기 ▾'}
+                </button>
               )}
             </div>
-            <div style={{ fontSize: 11, color: '#888' }}>
-              {firstItem && (
-                <>
-                  {firstItem.price_snapshot.toLocaleString()}원
-                  {firstItem.quantity > 1 && <span> × {firstItem.quantity}</span>}
-                </>
-              )}
-            </div>
+
+            {/* 접힘 상태: 대표 품목 1개 요약만 표시 */}
+            {!itemsExpanded && (
+              <div style={{ fontSize: 11, color: '#888' }}>
+                {firstItem && (
+                  <>
+                    {firstItem.price_snapshot.toLocaleString()}원
+                    {firstItem.quantity > 1 && <span> × {firstItem.quantity}</span>}
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* ← [2026-06-30] 펼침 상태: 주문에 포함된 전체 품목을 빠짐없이 나열 */}
+            {itemsExpanded && (
+              <ul style={{ listStyle: 'none', margin: '6px 0 0', padding: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {order.items.map((it, idx) => (
+                  <li
+                    key={it.id}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      paddingTop: idx === 0 ? 0 : 6,
+                      borderTop: idx === 0 ? 'none' : '1px solid #f0f0f0',
+                    }}
+                  >
+                    {it.thumbnail_snapshot ? (
+                      <div
+                        style={{
+                          width: 32, height: 32, borderRadius: 4, flexShrink: 0,
+                          background: `url(${it.thumbnail_snapshot}) center / cover`,
+                        }}
+                      />
+                    ) : (
+                      <div style={{ width: 32, height: 32, borderRadius: 4, flexShrink: 0, background: '#f3f3f3' }} />
+                    )}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12, fontWeight: 500, color: '#222', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {it.product_name_snapshot}
+                      </div>
+                      <div style={{ fontSize: 11, color: '#888' }}>
+                        {it.price_snapshot.toLocaleString()}원 × {it.quantity}개
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: '#111', whiteSpace: 'nowrap' }}>
+                      {(it.price_snapshot * it.quantity).toLocaleString()}원
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+
             <div style={{ fontSize: 16, fontWeight: 700, marginTop: 4 }}>
               총 {order.total_amount.toLocaleString()}원
             </div>
