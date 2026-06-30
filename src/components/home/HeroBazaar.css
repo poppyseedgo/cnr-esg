@@ -40,104 +40,35 @@
   min-height: min(48.28cqw, 760px);  /* ← [2026-06-23] Figma 760/1574, 상한 760 (히어로 높이) */
 }
 
-/* ── 좌측: 텍스트 / 카운트다운 (솔리드 라임 #9cff6a) ── */
-.hero-bz__left {
+/* ── 좌측 카드: NOW OPEN 텍스트 아트 (카드 전체 = /bazaar 링크) ──
+   [2026-07-01] Figma 1857:1174. 텍스트 영역을 단일 인라인 SVG로 → 카드와 함께
+   통째로 비례 스케일(폰트 로딩/리플로우 영향 없음). 라임 배경 #89ff62(Figma). */
+.hero-bz__cardlink {
   flex: 1 1 0;
   min-width: 0;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  padding: min(2.54cqw, 40px);            /* 40/1574 */
+  justify-content: center;
+  padding: min(2.54cqw, 40px);           /* 40/1574 */
   overflow: clip;
-  background: #9cff6a;          /* ← [2026-06-23] 그라데이션→솔리드 라임 */
-  text-transform: capitalize;  /* ← [2026-06-23] Figma capitalize: min→Min, sec→Sec */
-}
-/* ← [2026-06-29] 좌측 카드 = 바자회 물품 리스트 링크. 앵커 기본 밑줄 제거 + 클릭 어포던스 */
-.hero-bz__left--link {
+  background: #89ff62;                    /* ← [2026-07-01] Figma 라임 */
   text-decoration: none;
-  color: inherit;
+  color: #000;
   cursor: pointer;
-  transition: filter 0.18s ease, transform 0.18s ease;
+  transition: filter 0.15s ease;
 }
-.hero-bz__left--link:hover {
-  filter: brightness(0.97);
+.hero-bz__cardlink:hover { filter: brightness(1.04); }
+.hero-bz__cardlink:focus-visible {
+  outline: 3px solid #004228;            /* 브랜드 딥그린 포커스 링 */
+  outline-offset: -8px;
 }
-.hero-bz__left--link:active {
-  transform: scale(0.997);
-}
-.hero-bz__left--link:focus-visible {
-  outline: 3px solid #00422b;
-  outline-offset: -3px;
-}
-.hero-bz__toprow {
-  display: flex;
-  gap: min(6.16cqw, 97px);               /* 97/1574 */
-  align-items: flex-start;
-  justify-content: center;
-}
-.hero-bz__note {
-  margin: 0;
-  font-family: 'Pretendard', sans-serif;
-  font-size: min(1.02cqw, 16px);         /* 16/1574 */
-  line-height: 1.25;
-  letter-spacing: 0.02em;
-  white-space: nowrap;
-}
-.hero-bz__title {
-  margin: 0;
-  font-family: 'Instrument Sans', 'Pretendard', sans-serif; /* 한글은 Pretendard 폴백 */
-  font-weight: 400;
-  font-size: min(4.45cqw, 70px);         /* 70/1574 */
-  line-height: 1.25;
-  white-space: nowrap;
-}
-
-/* 카운트다운 */
-.hero-bz__cd {
-  display: flex;
-  gap: min(2.03cqw, 32px);              /* 32/1574 */
-  align-items: flex-start;
-  justify-content: center;
-  font-family: 'Instrument Sans', sans-serif;
-}
-.hero-bz__cd-unit {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: min(0.25cqw, 4px);              /* 4/1574 */
-}
-.hero-bz__cd-num {
-  font-size: min(4.38cqw, 69px);        /* 69/1574 */
-  line-height: 1.25;
-  letter-spacing: 0.02em;
-  font-variant-numeric: tabular-nums;   /* 숫자 폭 고정 → 매초 흔들림 방지 */
-}
-.hero-bz__cd-lbl {
-  font-size: min(1.40cqw, 22px);        /* 22/1574 */
-  line-height: 1.25;
-  letter-spacing: 0.02em;
-}
-
-/* 하단 2026 Bazzar & Auction */
-.hero-bz__bottom {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: min(0.64cqw, 10px);             /* 10/1574 */
-  font-family: 'Instrument Sans', sans-serif;
-}
-.hero-bz__bottom-ttl {
-  margin: 0;
-  font-size: min(2.03cqw, 32px);       /* 32/1574 */
-  line-height: 1.25;
-  letter-spacing: 0.02em;
-}
-.hero-bz__bottom-date {
-  margin: 0;
-  font-size: min(2.03cqw, 32px);
-  line-height: 1.25;
-  letter-spacing: 0.06em;   /* 1.92/32 */
+/* SVG 텍스트 아트: viewBox 비율 그대로, 카드 폭에 맞춰 비례 스케일 */
+.hero-bz__art {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: min(640px, 94%);            /* 넓은 화면에서 과확대 방지 */
+  max-height: min(46cqw, 700px);         /* 카드 높이(760-패딩) 내로 제한 */
 }
 
 /* ── 우측: 나무 그리드 + 진행바 ── */
@@ -165,16 +96,9 @@
 /* ── 협폭(≤900cqw): 세로 스택 ── */
 @container (max-width: 900px) {
   .hero-bz__box { flex-direction: column; }
-  .hero-bz__left,
+  .hero-bz__cardlink { padding: 28px 16px; }
+  .hero-bz__art { max-width: min(440px, 86%); max-height: none; }
   .hero-bz__right { padding: 24px 16px; gap: 20px; }
-  .hero-bz__toprow { flex-direction: column; gap: 12px; align-items: center; }
-  .hero-bz__note { font-size: 13px; }
-  .hero-bz__title { font-size: clamp(28px, 9cqw, 56px); }
-  .hero-bz__cd { gap: 14px; }
-  .hero-bz__cd-num { font-size: clamp(28px, 9cqw, 56px); }
-  .hero-bz__cd-lbl { font-size: clamp(12px, 2.6cqw, 18px); }
-  .hero-bz__bottom-ttl,
-  .hero-bz__bottom-date { font-size: clamp(18px, 4.5cqw, 28px); }
   .hero-bz__grid { width: min(560px, 92cqw); }
   .hero-bz__bar { width: min(560px, 92cqw); }
 }
