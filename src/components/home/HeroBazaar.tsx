@@ -18,6 +18,7 @@
 // ============================================================================
 
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom'; // ← [2026-06-29] 좌측 카드 → 바자회 물품 리스트 링크
 import { useEventPhase } from '@/hooks/useEventPhase';
 import { useDonationStatus } from '@/hooks/useDonationStatus';
 import { DonationTreeGrid } from '@/components/donation/DonationTreeGrid';
@@ -61,8 +62,12 @@ export function HeroBazaar() {
     <section className="hero-bz" aria-label="나무 심는 바자회 안내 및 모금 현황">
       <div className="hero-bz__inner">
         <div className="hero-bz__box">
-          {/* ── 좌측: 텍스트 / 카운트다운 ── */}
-          <div className="hero-bz__left">
+          {/* ── 좌측: 텍스트 / 카운트다운 — 클릭 시 바자회 물품 리스트로 (← [2026-06-29]) ── */}
+          <Link
+            to="/bazaar"
+            className="hero-bz__left hero-bz__left--link"
+            aria-label="바자회 물품 리스트 보기"
+          >
             <div className="hero-bz__toprow">
               <p className="hero-bz__note">물건 미리보기<br />Coming Soon</p>
               <h2 className="hero-bz__title">나무 심는<br />바자회</h2>
@@ -82,7 +87,7 @@ export function HeroBazaar() {
               <p className="hero-bz__bottom-ttl">2026<br />Bazzar &amp; Auction</p>
               <p className="hero-bz__bottom-date">6/30 — 7/10</p>
             </div>
-          </div>
+          </Link>
 
           {/* ── 우측: 나무 그리드 + 진행바 ── */}
           <div className="hero-bz__right">
