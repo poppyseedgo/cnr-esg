@@ -2,9 +2,14 @@
 // AdminAuctions — 경매 어드민 페이지
 //
 // 편집 폼은 AuctionEditForm 공통 컴포넌트 사용 (상세 페이지와 코드 공유).
+//
+// [변경이력]
+//   2026-07-06 · 노출 순서 드래그 재정렬 추가(⠿ 그립 드래그 → sort_order 1..N 저장).
+//              reorderAuctions()→reorder_auctions RPC(원자적). 낙관적 갱신 + 실패 시 reload 복구.
+//              공개/어드민 목록 모두 sort_order 순 정렬이라 이 순서가 그대로 노출에 반영됨.
 // ============================================================================
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react'; // ← [2026-07-06] useRef 추가(드래그 인덱스)
 import { Link } from 'react-router-dom';
 import {
   loadAuctions,
@@ -12,7 +17,7 @@ import {
   AUCTION_STATUS_LABELS,
   AUCTION_STATUS_COLORS,
 } from '@/lib/auctions';
-import { deleteAuctionAdmin } from '@/lib/adminAuctions'; // ← [2026-06-23] 경매 영구 삭제
+import { deleteAuctionAdmin, reorderAuctions } from '@/lib/adminAuctions'; // ← [2026-06-23] 삭제 / [2026-07-06] 재정렬
 import { AuctionEditForm } from '@/components/admin/AuctionEditForm';
 import { CreateAuctionForm } from '@/components/admin/CreateAuctionForm';
 import type { EsgAuctionRow } from '@/types/esg';
@@ -22,6 +27,11 @@ export function AdminAuctions() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+
+  // ← [2026-07-06] 드래그 재정렬 상태
+  const dragIndexRef = useRef<number | null>(null);            // 드래그 시작 인덱스(리렌더 불필요 → ref) // ← [2026-07-06]
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null); // 드롭 위치 강조 // ← [2026-07-06]
+  const [reordering, setReordering] = useState(false);         // 순서 저장 중 // ← [2026-07-06]
 
   const reload = async () => {
     try {
@@ -33,6 +43,29 @@ export function AdminAuctions() {
       setError(e instanceof Error ? e.message : '경매를 불러오지 못했습니다.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ← [2026-07-06] 드롭 → 로컬 낙관적 재배열 후 sort_order 일괄 저장(실패 시 서버 상태 복구)
+  const handleDrop = async (targetIndex: number) => {
+    const from = dragIndexRef.current;
+    dragIndexRef.current = null;
+    setDragOverIndex(null);
+    if (from === null || from === targetIndex) return;
+
+    const next = [...auctions];
+    const [moved] = next.splice(from, 1);
+    next.splice(targetIndex, 0, moved);
+    setAuctions(next);                                          // 낙관적 갱신(깜빡임 방지)
+
+    setReordering(true);
+    try {
+      await reorderAuctions(next.map((a) => a.id));             // sort_order 1..N 재할당
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '순서 저장 실패');
+      void reload();                                            // 실패 시 서버 상태로 복구
+    } finally {
+      setReordering(false);
     }
   };
 
@@ -74,6 +107,11 @@ export function AdminAuctions() {
       </div>
       <p style={{ fontSize: 12, color: '#888', margin: '0 0 16px' }}>
         이름, 설명, 이미지, 호가 단위, 시작/종료 시각을 관리. 상세 페이지에서도 편집 가능합니다.
+        {/* ← [2026-07-06] 드래그 재정렬 안내 */}
+        <span style={{ marginLeft: 6, color: '#16a34a' }}>
+          좌측 <strong>⠿</strong> 그립을 드래그하면 노출 순서를 변경할 수 있습니다.
+        </span>
+        {reordering && <span style={{ marginLeft: 8, color: '#16a34a', fontWeight: 600 }}>· 순서 저장 중…</span>}
       </p>
 
       <div
@@ -121,9 +159,54 @@ export function AdminAuctions() {
           </p>
         </div>
       ) : (
+        // ← [2026-07-06] 세로 리스트 드래그 재정렬: 좌측 ⠿ 그립이 draggable, 행 전체가 드롭 타깃
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {auctions.map((a) => (
-            <AuctionAdminCard key={a.id} auction={a} onChange={reload} />
+          {auctions.map((a, i) => (
+            <div
+              key={a.id}
+              onDragOver={(e) => {                              // ← [2026-07-06] 드롭 허용 + 위치 강조
+                e.preventDefault();
+                if (dragOverIndex !== i) setDragOverIndex(i);
+              }}
+              onDrop={() => handleDrop(i)}                      // ← [2026-07-06]
+              style={{
+                display: 'flex',
+                gap: 8,
+                alignItems: 'stretch',
+                borderRadius: 12,
+                outline: dragOverIndex === i ? '2px solid #16a34a' : '2px solid transparent', // ← [2026-07-06] 드롭 위치 링
+                outlineOffset: 2,
+                transition: 'outline-color 0.1s',
+              }}
+            >
+              {/* ⠿ 그립: 드래그 시작점 */}{/* ← [2026-07-06] */}
+              <div
+                draggable
+                onDragStart={() => { dragIndexRef.current = i; }}       // ← [2026-07-06]
+                onDragEnd={() => { dragIndexRef.current = null; setDragOverIndex(null); }} // ← [2026-07-06]
+                title="드래그하여 노출 순서 변경"
+                style={{
+                  flexShrink: 0,
+                  width: 30,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: '#fafafa',
+                  border: '1px solid #eee',
+                  borderRadius: 10,
+                  color: '#9a9a9a',
+                  fontSize: 18,
+                  lineHeight: 1,
+                  userSelect: 'none',
+                  cursor: 'grab',
+                }}
+              >
+                ⠿
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <AuctionAdminCard auction={a} onChange={reload} />
+              </div>
+            </div>
           ))}
         </div>
       )}

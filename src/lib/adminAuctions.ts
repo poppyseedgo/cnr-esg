@@ -6,6 +6,7 @@
 //   - updateAuction(id, patch)             : 경매 필드 수정 (호가 단위, 종료 시각, 이름, 설명, 이미지 등)
 //   - cancelAuctionAdmin(id, reason)       : 경매 강제 취소 (status='cancelled')
 //   - finalizeAuctionAdmin(id)             : 경매 강제 종료 (낙찰 처리)
+//   - reorderAuctions(orderedIds)          : 노출 순서 재정렬(sort_order 1..N 일괄, reorder_auctions RPC)  // ← [2026-07-06]
 //
 // 어드민 RLS:
 //   - esg_auctions.UPDATE는 esg_is_admin()만 통과
@@ -158,4 +159,20 @@ export async function finalizeAuctionAdmin(id: string): Promise<{
     orderNumber: r.order_number,
     finalPrice: r.winner_final_price,
   };
+}
+
+/**
+ * 어드민 경매 노출 순서 재정렬.                                          // ← [2026-07-06 신규]
+ * 받은 id 순서대로 sort_order = 1..N 원자적 재할당 (reorder_auctions RPC, 관리자만).
+ * 공개/어드민 목록 모두 sort_order ASC, starts_at ASC 정렬이므로 이 순서가 그대로 노출에 반영됨.
+ */
+export async function reorderAuctions(orderedIds: string[]): Promise<void> {
+  const { data, error } = await supabase.rpc('reorder_auctions', { p_ids: orderedIds }); // ← [2026-07-06]
+  if (error) throw new Error(error.message ?? '순서 저장에 실패했습니다.'); // ← [2026-07-06]
+  const res = data as { success: boolean; error?: string }; // ← [2026-07-06]
+  if (!res?.success) { // ← [2026-07-06]
+    if (res?.error === 'NOT_ADMIN') throw new Error('관리자만 순서를 변경할 수 있습니다.'); // ← [2026-07-06]
+    if (res?.error === 'STALE_LIST') throw new Error('목록이 변경되었습니다. 새로고침 후 다시 시도해 주세요.'); // ← [2026-07-06]
+    throw new Error(res?.error ?? '순서 저장에 실패했습니다.'); // ← [2026-07-06]
+  }
 }
