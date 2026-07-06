@@ -271,10 +271,13 @@ export function AuctionDetailPage() {
       <style>{`
         .auction-detail-grid { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 40px; }
         .auction-detail-media { min-width: 0; }
+        .auction-detail-side { min-width: 0; }              /* ← [2026-07-07] 근본수정: 우측 패널(grid item)에 min-width:0 누락 → 입찰 폼/버튼의 min-content가 1fr 열을 뷰포트 밖으로 밀어 입찰영역이 잘리던 원인 차단 */
+        .auction-detail-side > div { min-width: 0; }         /* ← [2026-07-07] StickyPanel 내부 translate 래퍼도 축소 허용 */
         .auction-detail-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
         .auction-detail-actions > button { flex: 1 1 auto; min-width: 80px; }
         @media (max-width: 1023px) {
           .auction-detail-grid { grid-template-columns: 1fr; gap: 24px; }
+          .auction-jump-btn { display: none; }              /* ← [2026-07-07] 근본수정: 모바일 1열에선 우측 점프버튼(입찰내역/상품수령/Q&A)이 바로 아래 실제 탭과 중복 → 숨김(찜 버튼은 유지). 데스크톱은 그대로 노출 */
         }
       `}</style>
 
@@ -660,13 +663,14 @@ export function AuctionDetailPage() {
 
           {/* ← [2026-07-06] 우측 액션 버튼: 입찰내역 / 상품 수령 안내 / Q&A(스크롤) / 찜(토글) */}
           <div className="auction-detail-actions">
-            <button type="button" onClick={() => goToTab('bids')} style={actionBtnStyle(true)}>
+            {/* ← [2026-07-07] 점프버튼: active=현재 detailTab 반영(하드코딩 true 제거) + .auction-jump-btn(모바일 숨김) */}
+            <button type="button" className="auction-jump-btn" onClick={() => goToTab('bids')} style={actionBtnStyle(detailTab === 'bids')}>
               입찰내역
             </button>
-            <button type="button" onClick={() => goToTab('delivery')} style={actionBtnStyle(false)}>
+            <button type="button" className="auction-jump-btn" onClick={() => goToTab('delivery')} style={actionBtnStyle(detailTab === 'delivery')}>
               상품 수령 안내
             </button>
-            <button type="button" onClick={() => goToTab('qa')} style={actionBtnStyle(false)}>
+            <button type="button" className="auction-jump-btn" onClick={() => goToTab('qa')} style={actionBtnStyle(detailTab === 'qa')}>
               Q&amp;A
             </button>
             <button
@@ -921,6 +925,7 @@ function BidForm({
           disabled={loading}
           style={{
             flex: 1,
+            minWidth: 0, // ← [2026-07-07] number input 기본 intrinsic min-width 제거 → 좁은 모바일 패널에서 정상 축소(가로 오버플로우 방지)
             padding: '10px 12px',
             border: '1px solid #ddd',
             borderRadius: 6,

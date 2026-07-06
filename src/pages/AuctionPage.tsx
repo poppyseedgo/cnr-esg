@@ -332,8 +332,10 @@ function AuctionCard({ auction, bidStatus }: { auction: EsgAuctionRow; bidStatus
             <div
               style={{
                 background: '#e8ff68', color: '#111',
-                padding: '8px 32px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 14, lineHeight: 1.4, whiteSpace: 'nowrap', overflow: 'hidden',
+                padding: '6px 10px', // ← [2026-07-07] 32px→10px: 167px 카드에 과한 좌우 패딩 축소(타이머 표시 공간 확보)
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 'clamp(10px, 5.4cqi, 14px)', // ← [2026-07-07] 카드폭 비례 축소(.pcard container). 좁은 2열=10px, 넓은 데스크톱=14px → 어떤 타이머 길이도 안 잘림
+                lineHeight: 1.4, whiteSpace: 'nowrap', overflow: 'hidden',
               }}
             >
               ⌛ {formatTimeLeft(targetMs)} 남음

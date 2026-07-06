@@ -283,6 +283,8 @@ button {
   text-decoration: none;
   color: inherit;
   position: relative;
+  min-width: 0;               /* ← [2026-07-07] 근본수정: grid item 기본 min-width:auto 제거. 카드 내부 nowrap(카운트다운 바)의 min-content가 1fr 열을 뷰포트 밖으로 밀어 리스트가 잘리던 원인 차단(모바일 2열) */
+  container-type: inline-size; /* ← [2026-07-07] 카드 폭 기준 컨테이너 쿼리 → 카운트다운 폰트가 좁은 카드에서 비례 축소(어떤 타이머든 안 잘림). .pcard-img(중첩 컨테이너)의 .pcard-btn cqi에는 영향 없음 */
 }
 /* 이미지 래퍼 = 컨테이너 쿼리 기준(카드 폭). 액션 버튼이 이 폭에 비례 축소 */
 .pcard-img {
