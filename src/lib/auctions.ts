@@ -83,11 +83,13 @@ export interface LoadAuctionsOptions {
   limit?: number;  // ← [2026-06-04] 무한 스크롤 페이징
   offset?: number; // ← [2026-06-04]
   sort?: 'reg' | 'price_desc' | 'price_asc'; // ← [2026-07-06] 정렬(등록순 / 높은가격 / 낮은가격)
+  /** 기부자 필터(사이드바 칩 선택). key = donor_id(uuid) 또는 'name:<이름>'(외부). 여럿=OR. */ // ← [2026-07-06]
+  donorKeys?: string[];
 }
 
 /** 경매 목록 (sort 지정 없으면 등록순=sort_order). status 필터 없으면 cancelled 제외하고 전부 노출 */
 export async function loadAuctions(opts: LoadAuctionsOptions = {}): Promise<EsgAuctionRow[]> {
-  const { statuses, limit, offset = 0, sort = 'reg' } = opts; // ← [2026-07-06] sort 기본 등록순
+  const { statuses, limit, offset = 0, sort = 'reg', donorKeys } = opts; // ← [2026-07-06] sort/donorKeys
   let query = supabase
     .from('esg_auctions')
     .select('*');
@@ -105,6 +107,19 @@ export async function loadAuctions(opts: LoadAuctionsOptions = {}): Promise<EsgA
     query = query.in('status', statuses);
   } else {
     query = query.in('status', ['scheduled', 'active', 'ended']);
+  }
+
+  // ← [2026-07-06] 기부자 필터: 선택된 기부자(들) OR 조건. key = donor_id(uuid) 또는 'name:<이름>'
+  if (donorKeys && donorKeys.length > 0) {
+    const ids = donorKeys.filter((k) => !k.startsWith('name:'));
+    const names = donorKeys.filter((k) => k.startsWith('name:')).map((k) => k.slice(5));
+    const parts: string[] = [];
+    if (ids.length > 0) parts.push(`donor_id.in.(${ids.join(',')})`);
+    if (names.length > 0) {
+      const quoted = names.map((n) => `"${n.replace(/"/g, '')}"`).join(',');
+      parts.push(`donor_name_snapshot.in.(${quoted})`);
+    }
+    if (parts.length > 0) query = query.or(parts.join(',')); // status AND (donor_id IN … OR name IN …)
   }
 
   if (typeof limit === 'number') query = query.range(offset, offset + limit - 1); // ← [2026-06-04] 페이징

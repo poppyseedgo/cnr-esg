@@ -16,7 +16,7 @@
 // ============================================================================
 
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom'; // ← [2026-07-06] 기부자 필터 URL(?donor=)
 import { loadAuctionDonors, type AuctionDonor } from '@/lib/auctions';
 
 interface AuctionSidebarProps {
@@ -37,6 +37,20 @@ export function AuctionSidebar({ variant, mainCollapsed = false }: AuctionSideba
   const isMobile = variant === 'mobile';
   const [donors, setDonors] = useState<AuctionDonor[]>([]);
   const [donorsOpen, setDonorsOpen] = useState(true); // ← [2026-07-06] 펼침/접힘(기본 펼침) — 아이콘이 상태 반영
+
+  // ── [2026-07-06] 기부자 필터 = URL 파라미터(?donor=key1,key2) 단일 소스 ──
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedKeys = (searchParams.get('donor') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  const isSelected = (key: string) => selectedKeys.includes(key);
+  const toggleDonor = (key: string) => {
+    setSearchParams((prev) => {
+      const p = new URLSearchParams(prev);
+      const cur = (p.get('donor') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+      const next = cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key];
+      if (next.length === 0) p.delete('donor'); else p.set('donor', next.join(','));
+      return p;
+    }, { replace: true });
+  };
 
   useEffect(() => {
     let alive = true;
@@ -82,11 +96,26 @@ export function AuctionSidebar({ variant, mainCollapsed = false }: AuctionSideba
             className={isMobile ? 'chip-scroll-row' : undefined}
             style={isMobile ? undefined : { display: 'flex', flexWrap: 'wrap', gap: 8 }}
           >
-            {donors.map((d) => (
-              <span key={d.key} style={donorChipStyle}>
-                {d.name}
-              </span>
-            ))}
+            {donors.map((d) => {
+              const sel = isSelected(d.key);
+              return (
+                <button
+                  key={d.key}
+                  type="button"
+                  onClick={() => toggleDonor(d.key)}
+                  aria-pressed={sel}
+                  title={sel ? `${d.name} 필터 해제` : `${d.name}님 기부 물품만 보기`}
+                  style={{
+                    ...donorChipStyle,
+                    cursor: 'pointer',
+                    background: sel ? '#000' : '#fff', // 선택=검정 채움(Figma), 미선택=테두리
+                    color: sel ? '#fff' : '#111',
+                  }}
+                >
+                  {d.name}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
@@ -112,10 +141,11 @@ export function AuctionSidebar({ variant, mainCollapsed = false }: AuctionSideba
   );
 }
 
-// 기부자 칩 (Figma: border 1px #000, rounded 999, px16 py4, 14px)
+// 기부자 칩 (Figma: border 1px #000, rounded 999, px16 py4, 14px). 클릭=필터 토글.
 const donorChipStyle: React.CSSProperties = {
   border: '1px solid #000', borderRadius: 999, padding: '4px 16px',
   fontSize: 14, lineHeight: 1.4, color: '#111', background: '#fff', whiteSpace: 'nowrap',
+  fontFamily: 'inherit',
 };
 
 // 펼침/접힘 마커 (Figma 2215:77, 20px). 열림=− / 닫힘=+ 로 상태를 반영.

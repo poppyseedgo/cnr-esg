@@ -58,10 +58,17 @@ export function AuctionPage() {
     }, { replace: true });
   };
 
-  // 무한 스크롤 — 12개씩 누적 로드 (정렬 변경 시 리셋)
+  // ── [2026-07-06] 기부자 필터 = URL 파라미터(?donor=key1,key2) — 사이드바 칩과 동일 소스 ──
+  const donorParam = (searchParams.get('donor') ?? '').trim(); // 안정 dep(문자열)
+  const donorActive = donorParam.length > 0;
+
+  // 무한 스크롤 — 12개씩 누적 로드 (정렬/기부자필터 변경 시 리셋)
   const fetchPage = useCallback(
-    (offset: number, limit: number) => loadAuctions({ offset, limit, sort }),
-    [sort]
+    (offset: number, limit: number) => {
+      const donorKeys = donorParam.split(',').map((s) => s.trim()).filter(Boolean);
+      return loadAuctions({ offset, limit, sort, donorKeys });
+    },
+    [sort, donorParam]
   );
   const {
     items: auctions,
@@ -71,7 +78,7 @@ export function AuctionPage() {
     sentinelRef,
     reload,
     refresh,
-  } = useInfiniteScroll<EsgAuctionRow>(fetchPage, { pageSize: 12, deps: [sort] });
+  } = useInfiniteScroll<EsgAuctionRow>(fetchPage, { pageSize: 12, deps: [sort, donorParam] });
 
   // ── [2026-07-06] 내가 입찰한 경매 id 집합(로그인 시 1회 로드) → 카드 배지 판정 ──
   const [myBidIds, setMyBidIds] = useState<Set<string>>(new Set());
@@ -118,9 +125,25 @@ export function AuctionPage() {
 
       {/* ← [2026-07-06] 정렬 행 (높은 가격 순 / 낮은 가격 순) — '등록 순' 라디오 제거(요청).
           기본 정렬은 등록순 유지(라디오 미선택 상태). 우측 정렬 */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginTop: 16 }}>
-        <SortOption label="높은 가격 순" active={sort === 'price_desc'} onClick={() => setSort('price_desc')} />
-        <SortOption label="낮은 가격 순" active={sort === 'price_asc'} onClick={() => setSort('price_asc')} />
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginTop: 16 }}>
+        {/* 기부자 필터 활성 시: 안내 + 해제 (사이드바 칩이 접혀 있어도 여기서 해제 가능) */}
+        {donorActive ? (
+          <button
+            type="button"
+            onClick={() => setSearchParams((prev) => { const p = new URLSearchParams(prev); p.delete('donor'); return p; }, { replace: true })}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '6px 12px', borderRadius: 999, border: '1px solid #ddd',
+              background: '#f3f4f6', color: '#111', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit',
+            }}
+          >
+            기부자 필터 {donorParam.split(',').filter(Boolean).length}명 · 해제 ✕
+          </button>
+        ) : <span />}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          <SortOption label="높은 가격 순" active={sort === 'price_desc'} onClick={() => setSort('price_desc')} />
+          <SortOption label="낮은 가격 순" active={sort === 'price_asc'} onClick={() => setSort('price_asc')} />
+        </div>
       </div>
 
       {/* 그리드 */}
@@ -129,7 +152,7 @@ export function AuctionPage() {
       ) : error && auctions.length === 0 ? (
         <ErrorBox message={error} onRetry={reload} />
       ) : auctions.length === 0 ? (
-        <EmptyState />
+        <EmptyState filtered={donorActive} />
       ) : (
         <div className="shop-grid" style={{ marginTop: 24, display: 'grid', gap: 16 }}>
           {auctions.map((a) => (
@@ -359,7 +382,7 @@ function AuctionSkeleton() {
   );
 }
 
-function EmptyState() {
+function EmptyState({ filtered = false }: { filtered?: boolean }) {
   return (
     <div
       style={{
@@ -372,7 +395,9 @@ function EmptyState() {
       }}
     >
       <div style={{ fontSize: 48, marginBottom: 12, opacity: 0.5 }}>🔨</div>
-      <p style={{ margin: 0, color: '#888' }}>아직 등록된 경매가 없습니다.</p>
+      <p style={{ margin: 0, color: '#888' }}>
+        {filtered ? '선택한 기부자의 경매가 없습니다.' : '아직 등록된 경매가 없습니다.'}
+      </p>
     </div>
   );
 }
