@@ -41,7 +41,9 @@ import { formatKSTFull } from '@/utils/time';
 import { signInWithMicrosoft } from '@/lib/auth';
 import { Avatar } from '@/components/Avatar';
 import { AuctionEditForm } from '@/components/admin/AuctionEditForm';
-import { ProductDetailTabs } from '@/components/ProductDetailTabs';
+import { ProductDetailTabs, type TabKey } from '@/components/ProductDetailTabs'; // ← [2026-07-06] 제어형 탭
+import { StickyPanel } from '@/components/StickyPanel'; // ← [2026-07-06] 양방향 sticky 우측 패널
+import { useAuctionWishlist } from '@/hooks/useWishlist'; // ← [2026-07-06] 경매 찜
 import { MarkdownRenderer } from '@/components/MarkdownRenderer'; // ← [2026-07-06] 상세설명 상단(기부자 아래) 렌더용
 import { CustomLabel } from '@/components/CustomLabel'; // ← [2026-07-06] 커스텀 라벨
 import type { EsgAuctionRow } from '@/types/esg';
@@ -65,6 +67,16 @@ export function AuctionDetailPage() {
   );
   const [, setTick] = useState(0);
   const [adminEditing, setAdminEditing] = useState(false);
+  const [detailTab, setDetailTab] = useState<TabKey>('bids'); // ← [2026-07-06] 우측 버튼 ↔ 하단 탭 제어
+  const wishlist = useAuctionWishlist(auction?.id ?? '');       // ← [2026-07-06] 경매 찜(로드 전엔 '' → false)
+
+  // 우측 액션 버튼 → 해당 탭 활성 + 하단 탭 영역으로 부드럽게 스크롤
+  const goToTab = (t: TabKey) => {
+    setDetailTab(t);
+    requestAnimationFrame(() => {
+      document.getElementById('auction-detail-tabs')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
 
   const reloadAuction = async () => {
     if (!auctionId) return;
@@ -254,15 +266,26 @@ export function AuctionDetailPage() {
   };
 
   return (
-    <article style={{ maxWidth: 960, margin: '0 auto' }}>
-      {/* Breadcrumb */}
-      <div style={{ marginBottom: 16, fontSize: 13 }}>
-        <Link to="/auction" style={{ color: '#888', textDecoration: 'none' }}>
-          🔨 경매
-        </Link>
-        <span style={{ color: '#bbb', margin: '0 6px' }}>›</span>
-        <span style={{ color: '#444' }}>{auction.product_name}</span>
-      </div>
+    <article style={{ maxWidth: 1360, margin: '0 auto' }}>
+      {/* 반응형: 데스크톱=넓은 2열(좌 이미지 크게 / 우 정보) · 모바일(<1024)=단일열 */}
+      <style>{`
+        .auction-detail-grid { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 40px; }
+        .auction-detail-media { min-width: 0; }
+        .auction-detail-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+        .auction-detail-actions > button { flex: 1 1 auto; min-width: 80px; }
+        @media (max-width: 1023px) {
+          .auction-detail-grid { grid-template-columns: 1fr; gap: 24px; }
+        }
+      `}</style>
+
+      {/* Breadcrumb (Home › Auction › 제목) */}
+      <nav aria-label="breadcrumb" style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8, fontSize: 16, lineHeight: 1.4, flexWrap: 'wrap' }}>
+        <Link to="/" style={{ color: '#848484', textDecoration: 'none' }}>Home</Link>
+        <span style={{ color: '#b8b8b8' }}>›</span>
+        <Link to="/auction" style={{ color: '#848484', textDecoration: 'none' }}>Auction</Link>
+        <span style={{ color: '#b8b8b8' }}>›</span>
+        <span style={{ color: '#111', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{auction.product_name}</span>
+      </nav>
 
       {/* 어드민 편집 도구 */}
       {isAdmin && (
@@ -342,31 +365,26 @@ export function AuctionDetailPage() {
         </div>
       )}
 
-      <div
-        style={{
-          background: '#fff',
-          borderRadius: 12,
-          overflow: 'hidden',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-        }}
-      >
-        {/* 이미지: 세로 스크롤 (썸네일+상세이미지 원본비율 스택) */}{/* ← [2026-07-06] 캐러셀→스크롤 */}
-        <ImageScroll images={images} />
+      {/* ← [2026-07-06] 넓은 2열: 좌 이미지 크게 / 우 정보(양방향 sticky). 모바일=단일열 */}
+      <div className="auction-detail-grid">
+        {/* 이미지: 세로 스크롤 (썸네일+상세이미지 원본비율 스택) */}
+        <div className="auction-detail-media">
+          <ImageScroll images={images} />
+        </div>
 
-        {/* 정보 */}
-        <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {/* 정보 (StickyPanel: 뷰포트보다 길어도 스크롤 방향에 맞춰 top↔bottom 고정) */}
+        <StickyPanel className="auction-detail-side" offsetTop={24} offsetBottom={24}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
               <span
                 style={{
-                  padding: '3px 10px',
+                  padding: '4px 10px',
                   background: statusColor.bg,
                   color: statusColor.color,
-                  borderRadius: 4,
-                  fontSize: 12,
-                  fontWeight: 700,
+                  borderRadius: 6,
+                  fontSize: 13,
+                  fontWeight: 600,
                 }}
               >
                 {AUCTION_STATUS_LABELS[auction.status]}
@@ -374,11 +392,11 @@ export function AuctionDetailPage() {
               {auction.bid_count > 0 && (
                 <span
                   style={{
-                    padding: '3px 10px',
+                    padding: '4px 10px',
                     background: '#1a1a1a',
                     color: '#fff',
-                    borderRadius: 4,
-                    fontSize: 12,
+                    borderRadius: 6,
+                    fontSize: 13,
                     fontWeight: 600,
                   }}
                 >
@@ -392,10 +410,17 @@ export function AuctionDetailPage() {
                 <CustomLabel text={auction.label_text} bg={auction.label_bg} color={auction.label_color} />
               </div>
             )}
-            <h1 style={{ margin: 0, fontSize: 22, lineHeight: 1.4 }}>{auction.product_name}</h1>
-            {/* ← [2026-06-23] 물품 기부자 (이름 + 아바타) */}
+            <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, lineHeight: 1.35, color: '#111', letterSpacing: '-0.2px' }}>
+              {auction.product_name}
+            </h1>
+            {/* ← [2026-06-23] 물품 기부자 (이름 + 아바타) — 하단 구분선 */}
             {auction.donor && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
+              <div
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  marginTop: 12, paddingBottom: 16, borderBottom: '1px solid #eee',
+                }}
+              >
                 <Avatar name={auction.donor.name} avatarUrl={auction.donor.avatar_url} size={28} />
                 <span style={{ fontSize: 14, color: '#555' }}>
                   <strong style={{ color: '#222' }}>{auction.donor.name}</strong> 님 기부
@@ -403,9 +428,9 @@ export function AuctionDetailPage() {
               </div>
             )}
 
-            {/* ← [2026-07-06] 상세설명을 기부자 바로 아래로 이동 (기존 하단 '상세설명' 탭에서 이관) */}
+            {/* ← [2026-07-06] 상세설명(작품 정보 등) — 기부자 아래 */}
             {auction.description?.trim() && (
-              <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid #f0f0f0' }}>
+              <div style={{ marginTop: 16 }}>
                 <MarkdownRenderer content={auction.description} />
               </div>
             )}
@@ -415,18 +440,20 @@ export function AuctionDetailPage() {
           {auction.status === 'active' && timeLeftMs > 0 && (
             <div
               style={{
-                padding: 16,
-                background: timeLeftMs < 3600 * 1000 ? '#fee2e2' : '#fef3c7',
-                color: timeLeftMs < 3600 * 1000 ? '#991b1b' : '#92400e',
-                borderRadius: 8,
+                padding: 20,
+                background: '#fbf4d9',
+                color: '#5c4a1a',
+                borderRadius: 10,
                 textAlign: 'center',
               }}
             >
-              <div style={{ fontSize: 11, opacity: 0.8, marginBottom: 2 }}>경매 종료까지</div>
-              <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 4 }}>
+              <div style={{ fontSize: 12, color: '#8a7238', marginBottom: 2 }}>경매 종료까지</div>
+              <div style={{ fontSize: 12, color: '#a08a52', marginBottom: 8 }}>
                 {formatKstEndDate(auction.ends_at)}
               </div>
-              <div style={{ fontSize: 20, fontWeight: 700 }}>{formatTimeLeft(timeLeftMs)}</div>
+              <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: '0.2px', color: timeLeftMs < 3600 * 1000 ? '#b91c1c' : '#4b3f1e' }}>
+                {formatTimeLeft(timeLeftMs)}
+              </div>
             </div>
           )}
           {auction.status === 'scheduled' && (
@@ -466,31 +493,31 @@ export function AuctionDetailPage() {
           {/* 현재가 + 최고 입찰자 */}
           <div
             style={{
-              padding: 16,
-              background: '#f9fafb',
-              borderRadius: 8,
+              padding: 20,
+              background: '#f6f6f6',
+              borderRadius: 10,
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-              <span style={{ fontSize: 12, color: '#888' }}>시작가</span>
-              <span style={{ fontSize: 13 }}>{auction.start_price.toLocaleString()}원</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+              <span style={{ fontSize: 13, color: '#8a8a8a' }}>시작가</span>
+              <span style={{ fontSize: 14, color: '#333' }}>{auction.start_price.toLocaleString()}원</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-              <span style={{ fontSize: 12, color: '#888' }}>호가 단위</span>
-              <span style={{ fontSize: 13 }}>{auction.bid_unit.toLocaleString()}원</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 13, color: '#8a8a8a' }}>호가 단위</span>
+              <span style={{ fontSize: 14, color: '#333' }}>{auction.bid_unit.toLocaleString()}원</span>
             </div>
             <div
               style={{
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                marginTop: 8,
-                paddingTop: 8,
-                borderTop: '1px solid #e5e7eb',
+                marginTop: 14,
+                paddingTop: 14,
+                borderTop: '1px solid #e3e3e3',
               }}
             >
-              <span style={{ fontSize: 13, color: '#666' }}>현재 최고가</span>
-              <span style={{ fontSize: 24, fontWeight: 700, color: '#222' }}>
+              <span style={{ fontSize: 14, color: '#555' }}>현재 최고가</span>
+              <span style={{ fontSize: 26, fontWeight: 700, color: '#111' }}>
                 {auction.current_price.toLocaleString()}원
               </span>
             </div>
@@ -631,16 +658,43 @@ export function AuctionDetailPage() {
             </div>
           )}
 
-          {/* 설명은 하단 탭 영역에서 마크다운으로 표시 */}
-        </div>
+          {/* ← [2026-07-06] 우측 액션 버튼: 입찰내역 / 상품 수령 안내 / Q&A(스크롤) / 찜(토글) */}
+          <div className="auction-detail-actions">
+            <button type="button" onClick={() => goToTab('bids')} style={actionBtnStyle(true)}>
+              입찰내역
+            </button>
+            <button type="button" onClick={() => goToTab('delivery')} style={actionBtnStyle(false)}>
+              상품 수령 안내
+            </button>
+            <button type="button" onClick={() => goToTab('qa')} style={actionBtnStyle(false)}>
+              Q&amp;A
+            </button>
+            <button
+              type="button"
+              onClick={() => { void wishlist.toggle(); }}
+              aria-pressed={wishlist.wishlisted}
+              style={{
+                ...actionBtnStyle(false),
+                background: wishlist.wishlisted ? '#beff9b' : '#f3f4f6',
+                color: '#111',
+              }}
+            >
+              {wishlist.wishlisted ? '♥ 찜' : '♡ 찜'}
+            </button>
+          </div>
+          </div>
+        </StickyPanel>
       </div>
 
-      {/* 하단 탭 영역 (입찰내역 / 상세설명 / 상품수령 / Q&A) */}
+      {/* 하단 탭 영역 (입찰내역 / 상품수령 / Q&A) — 우측 버튼과 제어 연동 + 스크롤 앵커 */}
       <ProductDetailTabs
+        id="auction-detail-tabs"
         productType="auction"
         productId={auction.id}
         description={auction.description}
         showDescriptionTab={false} // ← [2026-07-06] 상세설명은 상단(기부자 아래)으로 이동
+        activeTab={detailTab}                 // ← [2026-07-06] 우측 버튼과 동기
+        onActiveTabChange={setDetailTab}       // ← [2026-07-06]
         bidsContent={
           bids.length === 0 ? (
             <div style={{ padding: 24, textAlign: 'center', color: '#bbb', fontSize: 13 }}>
@@ -778,6 +832,23 @@ export function AuctionDetailPage() {
 }
 
 // ============================================================================
+// 우측 액션 버튼 스타일 (primary=검정 / 보조=회색)  // ← [2026-07-06]
+// ============================================================================
+function actionBtnStyle(primary: boolean): React.CSSProperties {
+  return {
+    padding: '12px 8px',
+    borderRadius: 10,
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: 14,
+    fontWeight: 600,
+    whiteSpace: 'nowrap',
+    background: primary ? '#111' : '#f3f4f6',
+    color: primary ? '#fff' : '#111',
+  };
+}
+
+// ============================================================================
 // 입찰 폼
 // ============================================================================
 
@@ -813,8 +884,8 @@ function BidForm({
       style={{
         padding: 16,
         background: '#fff',
-        border: '2px solid #1a1a1a',
-        borderRadius: 8,
+        border: '1px solid #e5e7eb',
+        borderRadius: 12,
       }}
     >
       <div style={{ fontSize: 12, color: '#666', marginBottom: 6 }}>

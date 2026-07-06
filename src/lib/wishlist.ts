@@ -30,6 +30,11 @@ let cacheUserId: string | null = null;         // ← 캐시가 속한 유저(�
 let inflight: Promise<Set<string>> | null = null; // ← 동시 호출 1회 fetch 공유
 const EMPTY: Set<string> = new Set();          // ← 미로딩/비로그인 시 안정 참조
 
+// ── [2026-07-06] 경매(auction) 찜: 상품과 분리된 '병렬' 캐시(상품 경로 무영향, 무회귀) ──
+let auctionCache: Set<string> | null = null;
+let auctionCacheUserId: string | null = null;
+let auctionInflight: Promise<Set<string>> | null = null;
+
 // ── 변경 알림(window 이벤트 단일 신호 — cart.ts와 동일 패턴) ──────────────────
 function emit(): void {
   if (typeof window !== 'undefined') {
@@ -168,7 +173,67 @@ export function subscribeWishlist(cb: () => void): () => void {
   return () => window.removeEventListener(WISHLIST_CHANGED_EVENT, cb);
 }
 
-/** 로그아웃 등으로 캐시 무효화(다음 로드 시 재조회). */
+/** 로그아웃 등으로 캐시 무효화(다음 로드 시 재조회). 상품+경매 캐시 모두 초기화. */
 export function resetWishlistCache(): void {
-  cache = null; cacheUserId = null; emit();
+  cache = null; cacheUserId = null;
+  auctionCache = null; auctionCacheUserId = null; // ← [2026-07-06] 경매 캐시도 함께 초기화
+  emit();
+}
+
+// ============================================================================
+// [2026-07-06] 경매(auction) 찜 — 상품 경로와 동일 패턴의 병렬 구현
+//   · esg_wishlists.target_type='auction' 사용(테이블/RLS 기존 완비 → DB 변경 없음).
+//   · 상품용 cache/함수는 그대로 두고 경매 전용 캐시/함수만 추가 → 상품 찜 무영향.
+// ============================================================================
+
+/** 본인 경매 찜 id Set 로드(유저별 1회 캐시). */
+export async function loadMyWishlistAuctionIds(userId: string | null): Promise<Set<string>> {
+  if (auctionCache && auctionCacheUserId === userId) return auctionCache;
+  if (auctionInflight) return auctionInflight;
+  auctionInflight = (async () => {
+    if (!userId) { auctionCache = new Set(); auctionCacheUserId = null; emit(); return auctionCache; }
+    const { data, error } = await supabase
+      .from('esg_wishlists')
+      .select('target_id')
+      .eq('target_type', 'auction');                            // RLS가 본인 row만 노출
+    if (error) {
+      console.error('[wishlist] auction load error:', error);
+      auctionCache = new Set(); auctionCacheUserId = userId; emit(); return auctionCache;
+    }
+    auctionCache = new Set((data ?? []).map((r: { target_id: string }) => r.target_id));
+    auctionCacheUserId = userId; emit(); return auctionCache;
+  })();
+  try { return await auctionInflight; } finally { auctionInflight = null; }
+}
+
+/** 특정 경매 찜 여부(동기). useSyncExternalStore getSnapshot용. */
+export function isAuctionWishlistedSync(auctionId: string): boolean {
+  return (auctionCache ?? EMPTY).has(auctionId);
+}
+
+/** 경매 찜 토글(낙관적 + 서버 반영). @returns 토글 후 찜 여부 */
+export async function toggleAuctionWishlist(
+  userId: string,
+  userEmail: string,
+  auctionId: string,
+): Promise<boolean> {
+  const currently = isAuctionWishlistedSync(auctionId);
+  const owns = auctionCache && auctionCacheUserId === userId;
+  if (currently) {
+    if (owns) auctionCache!.delete(auctionId); // 낙관적
+    emit();
+    const { error } = await supabase
+      .from('esg_wishlists').delete().eq('target_type', 'auction').eq('target_id', auctionId);
+    if (error) { if (owns) auctionCache!.add(auctionId); emit(); throw error; } // 롤백
+    return false;
+  } else {
+    if (owns) auctionCache!.add(auctionId); // 낙관적
+    emit();
+    const { error } = await supabase.from('esg_wishlists').upsert(
+      { user_id: userId, user_email: userEmail, target_type: 'auction', target_id: auctionId },
+      { onConflict: 'user_id,target_type,target_id', ignoreDuplicates: true },
+    );
+    if (error) { if (owns) auctionCache!.delete(auctionId); emit(); throw error; } // 롤백
+    return true;
+  }
 }

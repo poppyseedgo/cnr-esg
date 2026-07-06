@@ -20,6 +20,9 @@ import {
   isWishlistedSync,
   toggleWishlist,
   resetWishlistCache,
+  loadMyWishlistAuctionIds,   // ← [2026-07-06] 경매 찜
+  isAuctionWishlistedSync,    // ← [2026-07-06]
+  toggleAuctionWishlist,      // ← [2026-07-06]
 } from '@/lib/wishlist';
 
 interface UseWishlistResult {
@@ -52,6 +55,38 @@ export function useWishlist(productId: string): UseWishlistResult {
       console.error('[useWishlist] toggle error:', e);
     }
   }, [currentUser?.id, currentUser?.email, productId]);
+
+  return { wishlisted, toggle, loggedIn: !!currentUser };
+}
+
+// ============================================================================
+// useAuctionWishlist — 경매 상세 찜 상태 + 토글 훅 (useWishlist의 경매판)
+//   · 상품용 useWishlist와 동일 패턴. 경매 전용 캐시(lib/wishlist)를 구독.
+//   · 비로그인 토글 시 Microsoft 로그인 유도(상세 페이지와 동일 UX).
+// ============================================================================
+export function useAuctionWishlist(auctionId: string): UseWishlistResult {
+  const { currentUser } = useCurrentUser();
+  const userId = currentUser?.id ?? null;
+
+  useEffect(() => {
+    if (userId) loadMyWishlistAuctionIds(userId).catch(console.error);
+    else resetWishlistCache();
+  }, [userId]);
+
+  const wishlisted = useSyncExternalStore(
+    subscribeWishlist,
+    () => isAuctionWishlistedSync(auctionId),
+    () => false,
+  );
+
+  const toggle = useCallback(async () => {
+    if (!currentUser) { signInWithMicrosoft().catch(console.error); return; }
+    try {
+      await toggleAuctionWishlist(currentUser.id, currentUser.email, auctionId);
+    } catch (e) {
+      console.error('[useAuctionWishlist] toggle error:', e);
+    }
+  }, [currentUser?.id, currentUser?.email, auctionId]);
 
   return { wishlisted, toggle, loggedIn: !!currentUser };
 }

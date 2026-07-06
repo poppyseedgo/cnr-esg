@@ -53,9 +53,14 @@ interface ProductDetailTabsProps {
   bidsContent?: ReactNode;
   /** 상세설명 탭 노출 여부 (기본 true). 경매 상세는 설명을 상단으로 옮겨 false. */ // ← [2026-07-06]
   showDescriptionTab?: boolean; // ← [2026-07-06]
+  /** 외부 제어(경매 상세의 우측 버튼에서 탭 전환). 미지정 시 내부 상태 사용(하위호환). */ // ← [2026-07-06]
+  activeTab?: TabKey;
+  onActiveTabChange?: (t: TabKey) => void;
+  /** 스크롤 앵커용 컨테이너 id. */ // ← [2026-07-06]
+  id?: string;
 }
 
-type TabKey = 'bids' | 'description' | 'delivery' | 'qa';
+export type TabKey = 'bids' | 'description' | 'delivery' | 'qa';
 
 export function ProductDetailTabs({
   productType,
@@ -63,11 +68,19 @@ export function ProductDetailTabs({
   description,
   bidsContent,
   showDescriptionTab = true, // ← [2026-07-06] 기본 true(하위호환). 경매만 false로 상세설명 탭 숨김
+  activeTab: controlledTab,   // ← [2026-07-06] 제어형(우측 버튼)
+  onActiveTabChange,          // ← [2026-07-06]
+  id,                         // ← [2026-07-06] 스크롤 앵커
 }: ProductDetailTabsProps) {
   // 경매면 입찰내역 탭부터, 바자회면 상세설명부터
-  const [activeTab, setActiveTab] = useState<TabKey>(
+  const [internalTab, setInternalTab] = useState<TabKey>(
     productType === 'auction' ? 'bids' : 'description',
   );
+  const activeTab = controlledTab ?? internalTab; // ← [2026-07-06] 제어형이면 외부값 우선
+  const setActiveTab = (t: TabKey) => {           // ← [2026-07-06] 외부/내부 동기
+    onActiveTabChange?.(t);
+    if (controlledTab === undefined) setInternalTab(t);
+  };
 
   const tabs: Array<{ key: TabKey; label: string; show: boolean }> = [
     { key: 'bids', label: '입찰내역', show: productType === 'auction' },
@@ -77,7 +90,7 @@ export function ProductDetailTabs({
   ];
 
   return (
-    <div style={{ marginTop: 32 }}>
+    <div id={id} style={{ marginTop: 32, scrollMarginTop: 24 }}>
       {/* 탭 헤더 */}
       <div
         style={{
