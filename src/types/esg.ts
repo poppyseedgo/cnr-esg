@@ -569,10 +569,13 @@ export interface EsgAuctionRow {
   winner_order_id: string | null;
   sort_order: number;
   is_new: boolean;            // ← [2026-06-09] "새 상품" 라벨(수동)
+  donor_id: string | null;            // ← [2026-07-06] 경매 물품 기부자(임직원 profiles.id, 외부/미지정 null)
+  donor_name_snapshot: string | null; // ← [2026-07-06] 기부자 이름 스냅샷(표시 SSOT, null=미지정)
+  donor_dept_snapshot: string | null; // ← [2026-07-06] 기부자 부서 스냅샷
   created_at: string;
   updated_at: string;
-  /** 클라이언트 보강(서버 컬럼 아님) — 공개 뷰 esg_auction_donor_public 에서 주입.
-   *  물품 기부자 표시용(이름+아바타). 외부 기부자는 avatar_url=null. // ← [2026-06-23] */
+  /** 클라이언트 보강(서버 컬럼 아님) — esg_auctions 기부자 컬럼 + esg_profile_public 아바타로 주입.
+   *  물품 기부자 표시용(이름+아바타). 외부/미지정은 null. // ← [2026-07-06 뷰 의존 제거] */
   donor?: { name: string; avatar_url: string | null } | null;
 }
 

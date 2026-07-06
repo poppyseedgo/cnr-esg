@@ -6,6 +6,10 @@
 //   2. AuctionDetailPage 어드민 편집 모드
 //
 // 내부에서 updateAuction / cancelAuctionAdmin / finalizeAuctionAdmin 호출.
+//
+// [변경이력]
+//   2026-07-06 · 기부자(기증자) 선택/변경 필드 추가(DonorPicker + setAuctionDonor RPC).
+//              물품등록(BazaarIntakeForm)과 동일한 DonorPicker 재사용.
 // ============================================================================
 
 import { useState } from 'react';
@@ -13,11 +17,13 @@ import {
   updateAuction,
   cancelAuctionAdmin,
   finalizeAuctionAdmin,
+  setAuctionDonor,          // ← [2026-07-06] 기부자 설정/변경
   type AuctionPatch,
 } from '@/lib/adminAuctions';
 import { kstInputToUtcIso, utcIsoToKstInput } from '@/lib/settings';
 import { ThumbnailUploader, DetailImagesUploader } from '@/components/ImageUploader';
 import { RichEditor } from '@/components/RichEditor';
+import { DonorPicker, type DonorValue } from '@/components/admin/DonorPicker'; // ← [2026-07-06] 기부자 검색·선택(공용)
 import type { EsgAuctionRow, EsgAuctionStatus } from '@/types/esg';
 
 interface AuctionEditFormProps {
@@ -50,6 +56,17 @@ export function AuctionEditForm({
   const [status, setStatus] = useState<EsgAuctionStatus>(auction.status);
   const [sortOrder, setSortOrder] = useState(auction.sort_order);
   const [isNew, setIsNew] = useState(auction.is_new);   // ← [2026-06-09] "새 상품" 라벨
+  // ← [2026-07-06] 기부자: 경매 컬럼 스냅샷으로 초기화(아바타는 client-augment donor 에서)
+  const [donor, setDonor] = useState<DonorValue | null>(
+    auction.donor_name_snapshot
+      ? {
+          id: auction.donor_id,
+          name: auction.donor_name_snapshot,
+          dept: auction.donor_dept_snapshot,
+          avatar_url: auction.donor?.avatar_url ?? null,
+        }
+      : null,
+  );
 
   const save = async () => {
     if (!productName.trim()) {
@@ -98,14 +115,21 @@ export function AuctionEditForm({
     if (sortOrder !== auction.sort_order) patch.sort_order = sortOrder;
     if (isNew !== auction.is_new) patch.is_new = isNew;   // ← [2026-06-09]
 
-    if (Object.keys(patch).length === 0) {
+    // ← [2026-07-06] 기부자 변경 감지 (id/이름/부서 중 하나라도 달라지면 변경)
+    const donorChanged =
+      (donor?.id ?? null) !== (auction.donor_id ?? null) ||
+      (donor?.name ?? null) !== (auction.donor_name_snapshot ?? null) ||
+      (donor?.dept ?? null) !== (auction.donor_dept_snapshot ?? null);
+
+    if (Object.keys(patch).length === 0 && !donorChanged) { // ← [2026-07-06] 변경 없음 판정에 기부자 포함
       onCancel();
       return;
     }
 
     setBusy(true);
     try {
-      await updateAuction(auction.id, patch);
+      if (Object.keys(patch).length > 0) await updateAuction(auction.id, patch); // ← [2026-07-06] 필드 변경 시에만
+      if (donorChanged) await setAuctionDonor(auction.id, donor);                 // ← [2026-07-06] 기부자 변경 시에만
       onSuccess();
     } catch (e) {
       alert(e instanceof Error ? e.message : '저장 실패');
@@ -167,6 +191,13 @@ export function AuctionEditForm({
           disabled={busy}
           style={inputStyle}
         />
+      </Field>
+      {/* ← [2026-07-06] 기부자(기증자) 선택/변경 — 물품등록과 동일한 DonorPicker */}
+      <Field label="기부자 (기증자)">
+        <DonorPicker value={donor} onChange={setDonor} disabled={busy} />
+        <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>
+          임직원 이름으로 검색해 선택하세요. 변경 시 연결된 접수대장에도 자동 반영됩니다.
+        </div>
       </Field>
       <Field label="상세 설명">
         <RichEditor

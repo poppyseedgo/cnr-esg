@@ -106,30 +106,42 @@ export async function loadAuctions(opts: LoadAuctionsOptions = {}): Promise<EsgA
   return attachDonors((data ?? []) as EsgAuctionRow[]); // ← [2026-06-23] 기부자 이름·아바타 주입
 }
 
-// ── [2026-06-23] 기부자 보강 ──────────────────────────────────────────────
-// esg_auction_donor_public(공개 뷰)에서 auction_id별 기부자 이름·아바타를 일괄 조회해 주입.
-// best-effort: 뷰 미적용/오류여도 경매 표시는 정상(기부자만 생략).
-interface AuctionDonorPublicRow {
-  auction_id: string;
-  donor_name: string;
-  donor_avatar_url: string | null;
-}
+// ── [2026-07-06] 기부자 보강 (뷰 의존 제거) ──────────────────────────────
+// 경매가 기부자를 직접 소유(esg_auctions.donor_*)하므로, 이름/부서는 경매 컬럼
+// 스냅샷을 그대로 쓰고, 아바타만 esg_profile_public 에서 donor_id 로 일괄 조회해 주입.
+//   · 직접등록/접수발행 모든 경매에서 동작하고, 기부자 변경이 즉시 반영됨.
+//   · best-effort: 아바타 조회 실패해도 이름 표시는 정상(아바타만 생략).
 async function attachDonors(auctions: EsgAuctionRow[]): Promise<EsgAuctionRow[]> {
   if (auctions.length === 0) return auctions;
-  const ids = auctions.map((a) => a.id);
-  const { data, error } = await supabase
-    .from('esg_auction_donor_public')
-    .select('auction_id, donor_name, donor_avatar_url')
-    .in('auction_id', ids);
-  if (error) {
-    console.warn('[attachDonors] 기부자 조회 실패:', error.message);
-    return auctions;
+
+  const donorIds = Array.from(
+    new Set(auctions.map((a) => a.donor_id).filter((v): v is string => !!v)),
+  );
+
+  const avatarMap = new Map<string, string | null>();
+  if (donorIds.length > 0) {
+    const { data, error } = await supabase
+      .from('esg_profile_public')
+      .select('id, avatar_url')
+      .in('id', donorIds);
+    if (error) {
+      console.warn('[attachDonors] 아바타 조회 실패:', error.message);
+    } else {
+      for (const r of (data ?? []) as { id: string; avatar_url: string | null }[]) {
+        avatarMap.set(r.id, r.avatar_url);
+      }
+    }
   }
-  const map = new Map<string, { name: string; avatar_url: string | null }>();
-  for (const r of (data ?? []) as AuctionDonorPublicRow[]) {
-    map.set(r.auction_id, { name: r.donor_name, avatar_url: r.donor_avatar_url });
-  }
-  return auctions.map((a) => ({ ...a, donor: map.get(a.id) ?? null }));
+
+  return auctions.map((a) => ({
+    ...a,
+    donor: a.donor_name_snapshot
+      ? {
+          name: a.donor_name_snapshot,
+          avatar_url: a.donor_id ? avatarMap.get(a.donor_id) ?? null : null,
+        }
+      : null,
+  }));
 }
 
 /** 단일 경매 */

@@ -7,6 +7,7 @@
 //   - cancelAuctionAdmin(id, reason)       : 경매 강제 취소 (status='cancelled')
 //   - finalizeAuctionAdmin(id)             : 경매 강제 종료 (낙찰 처리)
 //   - reorderAuctions(orderedIds)          : 노출 순서 재정렬(sort_order 1..N 일괄, reorder_auctions RPC)  // ← [2026-07-06]
+//   - setAuctionDonor(id, donor)           : 경매 기부자 설정/변경(esg_set_auction_donor RPC, 접수대장 동기화)  // ← [2026-07-06]
 //
 // 어드민 RLS:
 //   - esg_auctions.UPDATE는 esg_is_admin()만 통과
@@ -174,5 +175,30 @@ export async function reorderAuctions(orderedIds: string[]): Promise<void> {
     if (res?.error === 'NOT_ADMIN') throw new Error('관리자만 순서를 변경할 수 있습니다.'); // ← [2026-07-06]
     if (res?.error === 'STALE_LIST') throw new Error('목록이 변경되었습니다. 새로고침 후 다시 시도해 주세요.'); // ← [2026-07-06]
     throw new Error(res?.error ?? '순서 저장에 실패했습니다.'); // ← [2026-07-06]
+  }
+}
+
+/**
+ * 경매 기부자 설정/변경.                                                 // ← [2026-07-06 신규]
+ * esg_set_auction_donor RPC 호출: esg_auctions.donor_* 갱신 + 연결 접수대장이 있으면 동기화
+ * (선판매 자격/기부자 명단이 접수대장을 SSOT로 읽으므로 정합성 자동 유지).
+ * donor=null 이면 기부자 미지정(esg_auctions 만 비움, 접수대장은 그대로).
+ */
+export async function setAuctionDonor(
+  auctionId: string,
+  donor: { id: string | null; name: string; dept: string | null } | null,
+): Promise<void> {
+  const { data, error } = await supabase.rpc('esg_set_auction_donor', { // ← [2026-07-06]
+    p_auction_id: auctionId,        // ← [2026-07-06]
+    p_donor_id: donor?.id ?? null,  // ← [2026-07-06]
+    p_donor_name: donor?.name ?? null, // ← [2026-07-06]
+    p_donor_dept: donor?.dept ?? null, // ← [2026-07-06]
+  });
+  if (error) throw new Error(error.message ?? '기부자 저장 실패'); // ← [2026-07-06]
+  const res = data as { success: boolean; error?: string };       // ← [2026-07-06]
+  if (!res?.success) {                                             // ← [2026-07-06]
+    if (res?.error === 'NOT_ADMIN') throw new Error('관리자만 기부자를 변경할 수 있습니다.'); // ← [2026-07-06]
+    if (res?.error === 'AUCTION_NOT_FOUND') throw new Error('경매를 찾을 수 없습니다.'); // ← [2026-07-06]
+    throw new Error(res?.error ?? '기부자 저장 실패'); // ← [2026-07-06]
   }
 }
