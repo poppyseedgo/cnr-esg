@@ -43,6 +43,7 @@ import { Avatar } from '@/components/Avatar';
 import { AuctionEditForm } from '@/components/admin/AuctionEditForm';
 import { ProductDetailTabs } from '@/components/ProductDetailTabs';
 import { MarkdownRenderer } from '@/components/MarkdownRenderer'; // ← [2026-07-06] 상세설명 상단(기부자 아래) 렌더용
+import { CustomLabel } from '@/components/CustomLabel'; // ← [2026-07-06] 커스텀 라벨
 import type { EsgAuctionRow } from '@/types/esg';
 
 export function AuctionDetailPage() {
@@ -385,6 +386,12 @@ export function AuctionDetailPage() {
                 </span>
               )}
             </div>
+            {/* ← [2026-07-06] 커스텀 라벨 (제목 위). 텍스트 없으면 미표시 */}
+            {auction.label_text && auction.label_text.trim() && (
+              <div style={{ marginBottom: 8 }}>
+                <CustomLabel text={auction.label_text} bg={auction.label_bg} color={auction.label_color} />
+              </div>
+            )}
             <h1 style={{ margin: 0, fontSize: 22, lineHeight: 1.4 }}>{auction.product_name}</h1>
             {/* ← [2026-06-23] 물품 기부자 (이름 + 아바타) */}
             {auction.donor && (

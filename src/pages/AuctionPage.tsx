@@ -35,6 +35,7 @@ import { formatTimeLeft } from '@/lib/orders';
 import { InfiniteScrollFooter } from '@/components/InfiniteScrollFooter'; // ← [2026-06-04]
 import { BlurImage } from '@/components/BlurImage'; // ← [2026-06-19] 썸네일 lazy+블러업
 import { Avatar } from '@/components/Avatar'; // ← [2026-07-06] 기부자 아바타(카드 기부자 라인 복구)
+import { CustomLabel } from '@/components/CustomLabel'; // ← [2026-07-06] 커스텀 라벨(좌상단 오버레이)
 import { AuctionSidebar } from '@/components/auction/AuctionSidebar'; // ← [2026-07-06] 모바일 상단 사이드바 섹션
 import type { EsgAuctionRow } from '@/types/esg';
 
@@ -188,6 +189,7 @@ function AuctionCard({ auction, bidStatus }: { auction: EsgAuctionRow; bidStatus
   const isScheduled = auction.status === 'scheduled';
   const isEnded = auction.status === 'ended';
   const hasBids = auction.bid_count > 0;
+  const hasCustomLabel = !!(auction.label_text && auction.label_text.trim()); // ← [2026-07-06] 커스텀 라벨 유무
 
   // 카운트다운: 진행중=종료까지, 예정=시작까지
   const targetMs = isScheduled
@@ -209,8 +211,8 @@ function AuctionCard({ auction, bidStatus }: { auction: EsgAuctionRow; bidStatus
           </div>
         )}
 
-        {/* 상단 오버레이: [입찰상태 좌] [🔥 N명 입찰 우] — 클릭 통과 */}
-        {(bidStatus || hasBids) && (
+        {/* 상단 오버레이: [커스텀 라벨 + 입찰상태(세로 스택) 좌] [🔥 N회 입찰 우] — 클릭 통과 */}
+        {(hasCustomLabel || bidStatus || hasBids) && (
           <div
             style={{
               position: 'absolute', top: 8, left: 8, right: 8,
@@ -218,13 +220,12 @@ function AuctionCard({ auction, bidStatus }: { auction: EsgAuctionRow; bidStatus
               gap: 8, pointerEvents: 'none',
             }}
           >
-            {bidStatus === 'highest' ? (
-              <span style={overlayBadge('#99f75d', '#000')}>내가 최고가 입찰 중</span>
-            ) : bidStatus === 'outbid' ? (
-              <span style={overlayBadge('#c9f75d', '#000')}>입찰에서 밀려남</span>
-            ) : (
-              <span />
-            )}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6 }}>
+              {/* 커스텀 라벨 (텍스트 없으면 null) */}
+              <CustomLabel text={auction.label_text} bg={auction.label_bg} color={auction.label_color} />
+              {bidStatus === 'highest' && <span style={overlayBadge('#99f75d', '#000')}>내가 최고가 입찰 중</span>}
+              {bidStatus === 'outbid' && <span style={overlayBadge('#c9f75d', '#000')}>입찰에서 밀려남</span>}
+            </div>
             {hasBids && (
               <span style={{ ...overlayBadge('rgba(0,0,0,0.55)', '#fff'), display: 'inline-flex', gap: 4, alignItems: 'center' }}>
                 <span aria-hidden>🔥</span>{auction.bid_count}회 입찰

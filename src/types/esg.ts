@@ -347,6 +347,9 @@ export interface EsgProductRow {
   is_pinned: boolean;         // ← [2026-06-17] 상품 고정(리스트 맨 앞). 최대 8개.
   is_new: boolean;            // ← [2026-06-09] "새 상품" 라벨(수동)
   sale_price: number | null;  // ← [2026-06-09] 세일가(수동). NULL=세일 아님. 앱에서 sale_price<price 일 때만 세일
+  label_text: string | null;  // ← [2026-07-06] 커스텀 라벨 문구(NULL/공백=미표시)
+  label_bg: string | null;    // ← [2026-07-06] 커스텀 라벨 배경색 HEX
+  label_color: string | null; // ← [2026-07-06] 커스텀 라벨 폰트색 HEX
   created_at: string;
   updated_at: string;
   /** 클라이언트 보강(서버 컬럼 아님) — 리스트/상세에서 태그 표시용. // ← [2026-06-23] */
@@ -572,6 +575,9 @@ export interface EsgAuctionRow {
   donor_id: string | null;            // ← [2026-07-06] 경매 물품 기부자(임직원 profiles.id, 외부/미지정 null)
   donor_name_snapshot: string | null; // ← [2026-07-06] 기부자 이름 스냅샷(표시 SSOT, null=미지정)
   donor_dept_snapshot: string | null; // ← [2026-07-06] 기부자 부서 스냅샷
+  label_text: string | null;  // ← [2026-07-06] 커스텀 라벨 문구(NULL/공백=미표시)
+  label_bg: string | null;    // ← [2026-07-06] 커스텀 라벨 배경색 HEX
+  label_color: string | null; // ← [2026-07-06] 커스텀 라벨 폰트색 HEX
   created_at: string;
   updated_at: string;
   /** 클라이언트 보강(서버 컬럼 아님) — esg_auctions 기부자 컬럼 + esg_profile_public 아바타로 주입.

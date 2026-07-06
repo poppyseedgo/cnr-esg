@@ -36,6 +36,7 @@ import { addToCart } from '@/lib/cart';
 import { signInWithMicrosoft } from '@/lib/auth';
 import { ProductEditForm } from '@/components/admin/ProductEditForm';
 import { ProductDetailTabs } from '@/components/ProductDetailTabs';
+import { CustomLabel } from '@/components/CustomLabel'; // ← [2026-07-06] 커스텀 라벨
 import { getProductTags, splitTagsByKind } from '@/lib/tags'; // ← [2026-06-23] 상세 태그
 import type { EsgProductRow, EsgTagRow } from '@/types/esg';
 
@@ -341,6 +342,12 @@ export function BazaarProductPage() {
               >
                 🆕 새 상품
               </span>
+            )}
+            {/* ← [2026-07-06] 커스텀 라벨 (제목 위). 텍스트 없으면 미표시 */}
+            {product.label_text && product.label_text.trim() && (
+              <div style={{ marginBottom: 8 }}>
+                <CustomLabel text={product.label_text} bg={product.label_bg} color={product.label_color} />
+              </div>
             )}
             <h1 style={{ margin: 0, fontSize: 22, lineHeight: 1.4 }}>{product.name}</h1>
 

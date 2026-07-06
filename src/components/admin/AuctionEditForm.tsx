@@ -24,6 +24,7 @@ import { kstInputToUtcIso, utcIsoToKstInput } from '@/lib/settings';
 import { ThumbnailUploader, DetailImagesUploader } from '@/components/ImageUploader';
 import { RichEditor } from '@/components/RichEditor';
 import { DonorPicker, type DonorValue } from '@/components/admin/DonorPicker'; // ← [2026-07-06] 기부자 검색·선택(공용)
+import { CustomLabelEditor, type CustomLabelValue } from '@/components/admin/CustomLabelEditor'; // ← [2026-07-06] 커스텀 라벨
 import type { EsgAuctionRow, EsgAuctionStatus } from '@/types/esg';
 
 interface AuctionEditFormProps {
@@ -56,6 +57,12 @@ export function AuctionEditForm({
   const [status, setStatus] = useState<EsgAuctionStatus>(auction.status);
   const [sortOrder, setSortOrder] = useState(auction.sort_order);
   const [isNew, setIsNew] = useState(auction.is_new);   // ← [2026-06-09] "새 상품" 라벨
+  // ← [2026-07-06] 커스텀 라벨(텍스트+배경/폰트색). 문자열로 보관(빈 문자열=미지정).
+  const [label, setLabel] = useState<CustomLabelValue>({
+    text: auction.label_text ?? '',
+    bg: auction.label_bg ?? '',
+    color: auction.label_color ?? '',
+  });
   // ← [2026-07-06] 기부자: 경매 컬럼 스냅샷으로 초기화(아바타는 client-augment donor 에서)
   const [donor, setDonor] = useState<DonorValue | null>(
     auction.donor_name_snapshot
@@ -114,6 +121,14 @@ export function AuctionEditForm({
     if (status !== auction.status) patch.status = status;
     if (sortOrder !== auction.sort_order) patch.sort_order = sortOrder;
     if (isNew !== auction.is_new) patch.is_new = isNew;   // ← [2026-06-09]
+
+    // ← [2026-07-06] 커스텀 라벨 diff. 텍스트 없으면 색까지 모두 null(미표시).
+    const lt = label.text.trim() || null;
+    const lb = lt ? (label.bg.trim() || null) : null;
+    const lc = lt ? (label.color.trim() || null) : null;
+    if (lt !== (auction.label_text ?? null)) patch.label_text = lt;
+    if (lb !== (auction.label_bg ?? null)) patch.label_bg = lb;
+    if (lc !== (auction.label_color ?? null)) patch.label_color = lc;
 
     // ← [2026-07-06] 기부자 변경 감지 (id/이름/부서 중 하나라도 달라지면 변경)
     const donorChanged =
@@ -309,6 +324,11 @@ export function AuctionEditForm({
           <input type="checkbox" checked={isNew} onChange={(e) => setIsNew(e.target.checked)} disabled={busy} style={{ width: 16, height: 16 }} />
           "새 상품" 뱃지 표시
         </label>
+      </Field>
+
+      {/* ← [2026-07-06] 커스텀 라벨 — 리스트/상세 이미지 좌상단 오버레이 배지 */}
+      <Field label="커스텀 라벨 (텍스트를 비우면 표시 안 됨)">
+        <CustomLabelEditor value={label} onChange={setLabel} disabled={busy} />
       </Field>
 
       <div style={{ display: 'flex', gap: 6, marginTop: 16, flexWrap: 'wrap' }}>

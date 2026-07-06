@@ -40,6 +40,7 @@ import { addToCart } from '@/lib/cart'; // ← [2026-06-24] 카드 빠른 담기
 import { signInWithMicrosoft } from '@/lib/auth'; // ← [2026-06-24] 비로그인 가드
 import { useCurrentUser } from '@/hooks/useCurrentUser'; // ← [2026-06-24]
 import { useWishlist } from '@/hooks/useWishlist'; // ← [2026-06-24] 찜 토글
+import { CustomLabel } from '@/components/CustomLabel'; // ← [2026-07-06] 커스텀 라벨(좌상단 오버레이)
 import type { EsgProductRow } from '@/types/esg';
 
 // 호버 액션바/카드 스타일은 전역 index.css(.pcard*)로 이관됨 (런타임 주입 제거).
@@ -107,6 +108,13 @@ export function ProductCard({ product, canQuickAdd = true, quickAddBlockReason =
         {product.thumbnail_url && (
           <div style={{ position: 'absolute', inset: 0 }}>
             <BlurImage url={product.thumbnail_url} width={680} />
+          </div>
+        )}
+
+        {/* ← [2026-07-06] 커스텀 라벨 (이미지 좌상단 오버레이). 텍스트 없으면 CustomLabel 이 null */}
+        {product.label_text && product.label_text.trim() && (
+          <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 1, pointerEvents: 'none' }}>
+            <CustomLabel text={product.label_text} bg={product.label_bg} color={product.label_color} />
           </div>
         )}
 

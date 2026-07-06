@@ -17,6 +17,7 @@ import { getProductTags, setProductTags, splitTagsByKind } from '@/lib/tags'; //
 import { TagInput } from '@/components/admin/TagInput'; // ← [2026-06-22] 태그 입력 UI
 import { ThumbnailUploader, DetailImagesUploader } from '@/components/ImageUploader';
 import { RichEditor } from '@/components/RichEditor';
+import { CustomLabelEditor, type CustomLabelValue } from '@/components/admin/CustomLabelEditor'; // ← [2026-07-06] 커스텀 라벨
 import type { EsgProductRow, EsgProductStatus, EsgTagRow } from '@/types/esg'; // ← [2026-06-22] EsgTagRow
 
 interface ProductEditFormProps {
@@ -72,6 +73,12 @@ export function ProductEditForm({
   const [isNew, setIsNew] = useState(product.is_new);                                  // ← [2026-06-09]
   const [isPinned, setIsPinned] = useState(product.is_pinned);                         // ← [2026-06-17] 상품 고정
   const [salePrice, setSalePrice] = useState<number | ''>(product.sale_price ?? '');   // ← [2026-06-09]
+  // ← [2026-07-06] 커스텀 라벨(텍스트+배경/폰트색). 문자열로 보관(빈 문자열=미지정).
+  const [label, setLabel] = useState<CustomLabelValue>({
+    text: product.label_text ?? '',
+    bg: product.label_bg ?? '',
+    color: product.label_color ?? '',
+  });
 
   // ── [2026-06-22 → 2026-06-23] 상품 태그(카테고리/브랜드 분리) ──────────────
   const [categoryTags, setCategoryTags] = useState<EsgTagRow[]>([]); // ← #유아용품 #식품
@@ -134,6 +141,14 @@ export function ProductEditForm({
       if (isNew !== product.is_new) patch.is_new = isNew;
       if (isPinned !== product.is_pinned) patch.is_pinned = isPinned;   // ← [2026-06-17] 고정 diff
       if (nextSale !== product.sale_price) patch.sale_price = nextSale;
+
+      // ← [2026-07-06] 커스텀 라벨 diff. 텍스트 없으면 색까지 모두 null(미표시).
+      const lt = label.text.trim() || null;
+      const lb = lt ? (label.bg.trim() || null) : null;
+      const lc = lt ? (label.color.trim() || null) : null;
+      if (lt !== (product.label_text ?? null)) patch.label_text = lt;
+      if (lb !== (product.label_bg ?? null)) patch.label_bg = lb;
+      if (lc !== (product.label_color ?? null)) patch.label_color = lc;
 
       // ← [2026-06-23] 카테고리+브랜드 합쳐서 변경 감지(정렬 후 비교). RPC는 patch와 별개로 호출.
       const allTags = [...categoryTags, ...brandTags];
@@ -371,6 +386,11 @@ export function ProductEditForm({
           </div>
         </Field>
       </div>
+
+      {/* ← [2026-07-06] 커스텀 라벨 — 리스트/상세 이미지 좌상단 오버레이 배지 */}
+      <Field label="커스텀 라벨 (텍스트를 비우면 표시 안 됨)">
+        <CustomLabelEditor value={label} onChange={setLabel} disabled={busy} />
+      </Field>
 
       <div style={{ display: 'flex', gap: 6, marginTop: 16 }}>
         <button
