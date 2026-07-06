@@ -15,7 +15,7 @@
 //                 미사용 → in-place fixed 모달 영향 0). index.css .app-shell 규칙 동반.
 // ============================================================================
 
-import { Suspense, useState, useEffect, useRef } from 'react'; // ← [코드 스플리팅] lazy 경계 / [2026-06-23] 접힘 상태 / [2026-06-24] 2-tier 진입 접힘
+import { Suspense, useState, useEffect } from 'react'; // ← [코드 스플리팅] lazy 경계 / [2026-06-23] 접힘 상태 / [2026-07-06] 2-tier 이동 접힘
 import { Outlet, ScrollRestoration, useLocation } from 'react-router-dom';
 import { EsgSideNav } from './EsgSideNav'; // ← [2026-06-23] 상단 Header 대체(좌측 사이드바)
 import { SecondarySidebar } from './SecondarySidebar'; // ← [2026-06-24] 두 단계 사이드바 2차 패널(바자회/경매)
@@ -41,13 +41,16 @@ export function AppLayout() {
   const [manualCollapsed, setManualCollapsed] = useState<boolean>(() => {
     try { return localStorage.getItem('esg_sidebar_collapsed') === '1'; } catch { return false; }
   });
-  // 2-tier 라우트 전용 접힘(세션 한정, localStorage 미오염). 진입 1회 강제 접힘 → 이후 수동 토글 존중.
+  // 2-tier 라우트 전용 접힘(세션 한정, localStorage 미오염).
   const [twoTierCollapsed, setTwoTierCollapsed] = useState<boolean>(true);
-  const wasTwoTier = useRef<boolean>(false);
+  // ← [2026-07-06] 2-tier(바자회/경매)로 '이동할 때마다' 1차 사이드바 자동 접힘.
+  //    (기존: 비2tier→2tier '진입 순간'에만 접힘 → 경매↔바자회 등 2tier 간 이동/2tier 내 이동 시 안 접혔음)
+  //    pathname 기준으로 교체 → 페이지 이동 시 접힘. 같은 페이지 내 필터(쿼리 파라미터 변경)는
+  //    pathname 이 안 바뀌므로 접히지 않음(수동 펼침은 다음 페이지 이동 전까지 유지).
   useEffect(() => {
-    if (isTwoTier && !wasTwoTier.current) setTwoTierCollapsed(true); // ← 2-tier 진입 순간에만 자동 접힘
-    wasTwoTier.current = isTwoTier;
-  }, [isTwoTier]);
+    if (isTwoTier) setTwoTierCollapsed(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
 
   // 현재 적용 접힘 상태 + 토글(라우트 종류에 따라 분기)
   const collapsed = isTwoTier ? twoTierCollapsed : manualCollapsed;

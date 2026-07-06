@@ -36,6 +36,7 @@ const AUCTION_NAV: Array<{ to: string; label: string }> = [
 export function AuctionSidebar({ variant, mainCollapsed = false }: AuctionSidebarProps) {
   const isMobile = variant === 'mobile';
   const [donors, setDonors] = useState<AuctionDonor[]>([]);
+  const [donorsOpen, setDonorsOpen] = useState(true); // ← [2026-07-06] 펼침/접힘(기본 펼침) — 아이콘이 상태 반영
 
   useEffect(() => {
     let alive = true;
@@ -47,26 +48,36 @@ export function AuctionSidebar({ variant, mainCollapsed = false }: AuctionSideba
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, width: '100%', fontFamily: "'Pretendard', system-ui, sans-serif" }}>
-      {/* ── 타이틀 "나무심는 경매" (Figma 56px) ── */}
+      {/* ── 타이틀 "나무심는 경매" (Figma 56px) — 경매 리스트(/auction) 링크 ── */}
       <h1
         style={{
           margin: 0, fontWeight: 400, color: '#111', letterSpacing: '-0.5px',
           fontSize: isMobile ? 'clamp(36px, 11vw, 56px)' : 56, lineHeight: 1.2,
         }}
       >
-        나무심는<br />경매
+        <Link to="/auction" style={{ color: 'inherit', textDecoration: 'none' }}>
+          나무심는<br />경매
+        </Link>
       </h1>
 
-      {/* ── 경매 물품 기부자 ── */}
+      {/* ── 경매 물품 기부자 (펼침/접힘 토글) ── */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '8px 0' }}>
-          <PlusMark />
+        <button
+          type="button"
+          onClick={() => setDonorsOpen((v) => !v)}
+          aria-expanded={donorsOpen}
+          style={{
+            display: 'flex', gap: 12, alignItems: 'center', padding: '8px 0', width: '100%',
+            background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+          }}
+        >
+          <ToggleMark open={donorsOpen} />
           <span style={{ fontSize: 24, lineHeight: 1.4, color: '#111', whiteSpace: 'nowrap' }}>
             경매 물품 기부자
           </span>
-        </div>
+        </button>
 
-        {donors.length > 0 && (
+        {donorsOpen && donors.length > 0 && (
           <div
             className={isMobile ? 'chip-scroll-row' : undefined}
             style={isMobile ? undefined : { display: 'flex', flexWrap: 'wrap', gap: 8 }}
@@ -107,11 +118,12 @@ const donorChipStyle: React.CSSProperties = {
   fontSize: 14, lineHeight: 1.4, color: '#111', background: '#fff', whiteSpace: 'nowrap',
 };
 
-// "+" 마커 (Figma 2215:77, 20px). 단순 플러스 — 커스텀 SVG 교체 가능.
-function PlusMark() {
+// 펼침/접힘 마커 (Figma 2215:77, 20px). 열림=− / 닫힘=+ 로 상태를 반영.
+function ToggleMark({ open }: { open: boolean }) {
   return (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden style={{ flexShrink: 0 }}>
-      <path d="M10 3v14M3 10h14" stroke="#111" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M3 10h14" stroke="#111" strokeWidth="1.6" strokeLinecap="round" />
+      {!open && <path d="M10 3v14" stroke="#111" strokeWidth="1.6" strokeLinecap="round" />}
     </svg>
   );
 }
