@@ -231,11 +231,13 @@ button {
    [2026-06-24] 두 단계 사이드바 — 2차 패널/모바일 필터 반응형
    · .secondary-sidebar : 데스크톱(≥1024)만 노출(2차 패널). 모바일 숨김.
    · .bazaar-mobile-filters : 모바일(<1024)만 노출(페이지 최상단 필터). 데스크톱 숨김.
+   · .auction-mobile-side : 모바일(<1024)만 노출(경매 페이지 상단 제목+기부자). 데스크톱 숨김. // ← [2026-07-06]
    ============================================================================ */
 .secondary-sidebar { display: none; }            /* 모바일 기본: 2차 패널 숨김 */
 @media (min-width: 1024px) {
   .secondary-sidebar { display: flex; }          /* 데스크톱: 2차 패널 노출 */
   .bazaar-mobile-filters { display: none; }      /* 데스크톱: 모바일 필터 숨김(사이드바가 대신) */
+  .auction-mobile-side { display: none; }        /* ← [2026-07-06] 데스크톱: 사이드바가 대신 표시 */
 }
 
 /* ── [2026-06-24] 바자회 타이틀 "나무 심는 바자회" (BazaarFilters 최상단) ──────

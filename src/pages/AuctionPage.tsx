@@ -22,7 +22,6 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom'; // ← [2026-07-06] 정렬 URL(sort)
-import { useEventPhase } from '@/hooks/useEventPhase';
 import { useCurrentUser } from '@/hooks/useCurrentUser'; // ← [2026-07-06] 입찰상태 배지(내 입찰)
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll'; // ← [2026-06-04] 무한 스크롤
 import {
@@ -33,17 +32,16 @@ import {
   getAuctionTimeLeft,
 } from '@/lib/auctions';
 import { formatTimeLeft } from '@/lib/orders';
-import { formatKSTDate } from '@/utils/time';
 import { InfiniteScrollFooter } from '@/components/InfiniteScrollFooter'; // ← [2026-06-04]
 import { BlurImage } from '@/components/BlurImage'; // ← [2026-06-19] 썸네일 lazy+블러업
+import { Avatar } from '@/components/Avatar'; // ← [2026-07-06] 기부자 아바타(카드 기부자 라인 복구)
+import { AuctionSidebar } from '@/components/auction/AuctionSidebar'; // ← [2026-07-06] 모바일 상단 사이드바 섹션
 import type { EsgAuctionRow } from '@/types/esg';
 
 type SortKey = 'reg' | 'price_desc' | 'price_asc';
 type BidStatus = 'highest' | 'outbid' | null; // ← 내가 최고가 / 입찰에서 밀려남 / 해당없음
 
 export function AuctionPage() {
-  const { getActivity } = useEventPhase();
-  const { period, status } = getActivity('auction');
   const { currentUser } = useCurrentUser();
 
   // ── [2026-07-06] 정렬 = URL 파라미터(sort) 단일 소스 (바자회와 동일 계약) ──
@@ -102,7 +100,13 @@ export function AuctionPage() {
 
   return (
     <div>
-      {/* ← [2026-07-06] 브레드크럼(Home › Auction) — 바자회와 동일 패턴 */}
+      {/* ← [2026-07-06] 모바일(<1024) 전용 상단 섹션: 제목 + 경매 물품 기부자(가로 스크롤 칩).
+          데스크톱은 SecondarySidebar(좌측 2차 패널)가 대신 표시 → .auction-mobile-side 로 표시 제어 */}
+      <div className="auction-mobile-side" style={{ marginBottom: 8 }}>
+        <AuctionSidebar variant="mobile" />
+      </div>
+
+      {/* 브레드크럼(Home › Auction) — 바자회와 동일 패턴 */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <nav aria-label="breadcrumb" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 16, lineHeight: 1.4 }}>
           <Link to="/" style={{ color: '#848484', textDecoration: 'none' }}>Home</Link>
@@ -111,39 +115,9 @@ export function AuctionPage() {
         </nav>
       </div>
 
-      {/* 상태 안내 (Figma 미표기 — 현행 유지) */}
-      {period && (
-        <div
-          style={{
-            marginTop: 16,
-            padding: 16,
-            background:
-              status === 'active' ? '#dcfce7' : status === 'before' ? '#fef3c7' : '#f0f0f0',
-            color:
-              status === 'active' ? '#166534' : status === 'before' ? '#92400e' : '#666',
-            borderRadius: 8,
-            fontSize: 13,
-            lineHeight: 1.6,
-          }}
-        >
-          {status === 'active' && (
-            <>
-              ✅ <strong>경매 진행 중</strong> · {formatKSTDate(period.ends_at_utc)}까지
-            </>
-          )}
-          {status === 'before' && (
-            <>⏳ {formatKSTDate(period.starts_at_utc)}부터 입찰 가능합니다 (구경은 가능)</>
-          )}
-          {status === 'closed' && '🏁 경매 기간이 종료되었습니다. 낙찰자에게는 별도 안내됩니다.'}
-          {period.note && (
-            <div style={{ marginTop: 6, fontSize: 12, opacity: 0.8 }}>{period.note}</div>
-          )}
-        </div>
-      )}
-
-      {/* ← [2026-07-06] 정렬 행 (Figma: 등록 순 / 높은 가격 순 / 낮은 가격 순) — 우측 정렬 */}
+      {/* ← [2026-07-06] 정렬 행 (높은 가격 순 / 낮은 가격 순) — '등록 순' 라디오 제거(요청).
+          기본 정렬은 등록순 유지(라디오 미선택 상태). 우측 정렬 */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginTop: 16 }}>
-        <SortOption label="등록 순" active={sort === 'reg'} onClick={() => setSort('reg')} />
         <SortOption label="높은 가격 순" active={sort === 'price_desc'} onClick={() => setSort('price_desc')} />
         <SortOption label="낮은 가격 순" active={sort === 'price_asc'} onClick={() => setSort('price_asc')} />
       </div>
@@ -253,7 +227,7 @@ function AuctionCard({ auction, bidStatus }: { auction: EsgAuctionRow; bidStatus
             )}
             {hasBids && (
               <span style={{ ...overlayBadge('rgba(0,0,0,0.55)', '#fff'), display: 'inline-flex', gap: 4, alignItems: 'center' }}>
-                <span aria-hidden>🔥</span>{auction.bid_count}명 입찰
+                <span aria-hidden>🔥</span>{auction.bid_count}회 입찰
               </span>
             )}
           </div>
@@ -319,13 +293,23 @@ function AuctionCard({ auction, bidStatus }: { auction: EsgAuctionRow; bidStatus
             </div>
           </div>
 
+          {/* ← [2026-07-06] 물품 기부자 라인 복구 (Figma 미표기 — 현행 유지, 상세와 동일 정보) */}
+          {auction.donor && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+              <Avatar name={auction.donor.name} avatarUrl={auction.donor.avatar_url} size={20} />
+              <span style={{ fontSize: 12, color: '#666', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {auction.donor.name} 기부
+              </span>
+            </div>
+          )}
+
           {/* 카운트다운 바 (#e8ff68) — 진행중=종료까지 / 예정=시작까지 */}
           {showCountdown && (
             <div
               style={{
                 background: '#e8ff68', color: '#111',
                 padding: '8px 32px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 16, lineHeight: 1.4, whiteSpace: 'nowrap', overflow: 'hidden',
+                fontSize: 14, lineHeight: 1.4, whiteSpace: 'nowrap', overflow: 'hidden',
               }}
             >
               ⌛ {formatTimeLeft(targetMs)} 남음

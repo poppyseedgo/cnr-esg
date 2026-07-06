@@ -22,8 +22,9 @@
 // [Figma SSOT] node 1563:252 — pt24 pl24 pr40 pb20, gap24 / 보조내비 text 24px #848484
 // ============================================================================
 
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom'; // ← [2026-07-06] 라우트별 분기(경매/바자회)
 import { BazaarFilters } from '@/components/bazaar/BazaarFilters';
+import { AuctionSidebar } from '@/components/auction/AuctionSidebar'; // ← [2026-07-06] 경매 전용 사이드바
 import { useNavCounts } from '@/hooks/useNavCounts'; // ← [2026-06-24] 1차 사이드바와 동일 카운트 공유
 import { useMyPendingOrders } from '@/hooks/useMyPendingOrders'; // ← [2026-06-25] 결제대기 dot
 
@@ -40,6 +41,9 @@ const SECONDARY_NAV: Array<{ to: string; label: string }> = [
 ];
 
 export function SecondarySidebar({ mainCollapsed }: SecondarySidebarProps) {
+  const location = useLocation(); // ← [2026-07-06] /auction → 경매 사이드바, 그 외(/bazaar) → 바자회 필터
+  const isAuction = /^\/auction(\/|$)/.test(location.pathname);
+
   const { cartCount, unread, wishlistCount } = useNavCounts(); // ← [2026-06-24] 1차 사이드바와 동일 소스
   const { expiries } = useMyPendingOrders();                    // ← [2026-06-25] 결제대기 주문
   const hasPendingOrder = expiries.length > 0;                  // ← [2026-06-25] My Account dot
@@ -65,41 +69,48 @@ export function SecondarySidebar({ mainCollapsed }: SecondarySidebarProps) {
         fontFamily: "'Pretendard', system-ui, sans-serif",
       }}
     >
-      {/* 필터(타이틀 포함) */}
-      <BazaarFilters showTitle />
+      {/* ← [2026-07-06] 경매 라우트: 경매 전용 사이드바(제목+기부자+보조내비) / 그 외: 바자회 필터 */}
+      {isAuction ? (
+        <AuctionSidebar variant="sidebar" mainCollapsed={mainCollapsed} />
+      ) : (
+        <>
+          {/* 필터(타이틀 포함) */}
+          <BazaarFilters showTitle />
 
-      {/* 보조내비 — 메인 사이드바 접힘일 때만(펼치면 1차 패널이 가짐) */}
-      {mainCollapsed && (
-        <nav style={{ display: 'flex', flexDirection: 'column', marginTop: 8 }}>
-          {SECONDARY_NAV.map((item) => {
-            const count = countFor(item.label); // ← [2026-06-24] 1차와 동일 카운트
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 8,
-                  padding: '8px 0', fontSize: 24, lineHeight: 1.25, color: '#848484',
-                  textDecoration: 'none', whiteSpace: 'nowrap',
-                }}
-              >
-                {item.label}
-                {/* ← [2026-06-25] My Account 결제대기 빨간 점(깜빡임) */}
-                {item.label === 'My Account' && hasPendingOrder && (
-                  <span
-                    aria-label="결제 대기 중인 주문 있음"
+          {/* 보조내비 — 메인 사이드바 접힘일 때만(펼치면 1차 패널이 가짐) */}
+          {mainCollapsed && (
+            <nav style={{ display: 'flex', flexDirection: 'column', marginTop: 8 }}>
+              {SECONDARY_NAV.map((item) => {
+                const count = countFor(item.label); // ← [2026-06-24] 1차와 동일 카운트
+                return (
+                  <Link
+                    key={item.to}
+                    to={item.to}
                     style={{
-                      width: 7, height: 7, borderRadius: '50%', background: '#EF4444',
-                      display: 'inline-block', alignSelf: 'flex-start', marginTop: 2,
-                      animation: 'cnrPendingBlink 1s ease-in-out infinite',
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '8px 0', fontSize: 24, lineHeight: 1.25, color: '#848484',
+                      textDecoration: 'none', whiteSpace: 'nowrap',
                     }}
-                  />
-                )}
-                {typeof count === 'number' && count > 0 && <CountBadge n={count} />}
-              </Link>
-            );
-          })}
-        </nav>
+                  >
+                    {item.label}
+                    {/* ← [2026-06-25] My Account 결제대기 빨간 점(깜빡임) */}
+                    {item.label === 'My Account' && hasPendingOrder && (
+                      <span
+                        aria-label="결제 대기 중인 주문 있음"
+                        style={{
+                          width: 7, height: 7, borderRadius: '50%', background: '#EF4444',
+                          display: 'inline-block', alignSelf: 'flex-start', marginTop: 2,
+                          animation: 'cnrPendingBlink 1s ease-in-out infinite',
+                        }}
+                      />
+                    )}
+                    {typeof count === 'number' && count > 0 && <CountBadge n={count} />}
+                  </Link>
+                );
+              })}
+            </nav>
+          )}
+        </>
       )}
     </aside>
   );
