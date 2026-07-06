@@ -14,6 +14,11 @@
 //     description={...}   // 상세설명 markdown
 //     bids={...}          // 경매 전용
 //   />
+//
+// [변경이력]
+//   2026-07-06 · showDescriptionTab prop 추가(기본 true, 하위호환).
+//              경매 상세는 상세설명을 상단(기부자 아래)으로 옮기며 이 탭을 false로 숨김.
+//              바자회 등 기존 호출부는 prop 미전달 → 기존과 100% 동일 동작.
 // ============================================================================
 
 import { useEffect, useState, type ReactNode } from 'react';
@@ -46,6 +51,8 @@ interface ProductDetailTabsProps {
   description: string | null | undefined;
   /** 경매: 입찰내역 렌더링 함수 (이미 페이지에 그려진 내용 그대로 옮길 수 있도록 자유롭게) */
   bidsContent?: ReactNode;
+  /** 상세설명 탭 노출 여부 (기본 true). 경매 상세는 설명을 상단으로 옮겨 false. */ // ← [2026-07-06]
+  showDescriptionTab?: boolean; // ← [2026-07-06]
 }
 
 type TabKey = 'bids' | 'description' | 'delivery' | 'qa';
@@ -55,6 +62,7 @@ export function ProductDetailTabs({
   productId,
   description,
   bidsContent,
+  showDescriptionTab = true, // ← [2026-07-06] 기본 true(하위호환). 경매만 false로 상세설명 탭 숨김
 }: ProductDetailTabsProps) {
   // 경매면 입찰내역 탭부터, 바자회면 상세설명부터
   const [activeTab, setActiveTab] = useState<TabKey>(
@@ -63,7 +71,7 @@ export function ProductDetailTabs({
 
   const tabs: Array<{ key: TabKey; label: string; show: boolean }> = [
     { key: 'bids', label: '입찰내역', show: productType === 'auction' },
-    { key: 'description', label: '상세설명', show: true },
+    { key: 'description', label: '상세설명', show: showDescriptionTab }, // ← [2026-07-06] true→prop(경매는 상단 이동으로 숨김)
     { key: 'delivery', label: '상품수령', show: true },
     { key: 'qa', label: 'Q&A', show: true },
   ];

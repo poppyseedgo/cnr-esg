@@ -2,12 +2,19 @@
 // AuctionDetailPage — 경매 상세 + 실시간 비딩
 //
 // 기능:
-//   - 이미지 캐러셀
+//   - 이미지 세로 스크롤 (썸네일+상세이미지 원본비율로 스택)  // ← [2026-07-06] 캐러셀→스크롤
 //   - 카운트다운 (1초 갱신)
 //   - 현재가 + 입찰 횟수 + 최고 입찰자 (실시간)
 //   - 입찰 폼 (호가 단위로 +/- 또는 직접 입력)
 //   - 입찰 이력 (실시간 갱신)
 //   - 활동 active + bids_enabled + 경매 status='active'일 때만 입찰 가능
+//
+// [변경이력]
+//   2026-07-06 · (UI만) 이미지 캐러셀 → 세로 스크롤 이미지로 변경(ImageScroll).
+//                → imageIdx state / ImageCarousel / arrowStyle 제거(캐러셀 전용, 미사용화 방지).
+//              · 상세설명(markdown)을 하단 탭에서 상단 "기부자 아래"로 이동.
+//                → ProductDetailTabs 는 showDescriptionTab={false} 로 상세설명 탭 숨김.
+//              ※ 입찰/상태/데이터 로직·props·API 호출 불변. 마크업/스타일만 변경.
 // ============================================================================
 
 import { useEffect, useMemo, useState } from 'react';
@@ -35,6 +42,7 @@ import { signInWithMicrosoft } from '@/lib/auth';
 import { Avatar } from '@/components/Avatar';
 import { AuctionEditForm } from '@/components/admin/AuctionEditForm';
 import { ProductDetailTabs } from '@/components/ProductDetailTabs';
+import { MarkdownRenderer } from '@/components/MarkdownRenderer'; // ← [2026-07-06] 상세설명 상단(기부자 아래) 렌더용
 import type { EsgAuctionRow } from '@/types/esg';
 
 export function AuctionDetailPage() {
@@ -48,7 +56,6 @@ export function AuctionDetailPage() {
   const [bids, setBids] = useState<BidWithProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [imageIdx, setImageIdx] = useState(0);
   const [bidAmount, setBidAmount] = useState<number | ''>('');
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [bidLoading, setBidLoading] = useState(false);
@@ -344,8 +351,8 @@ export function AuctionDetailPage() {
           gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
         }}
       >
-        {/* 이미지 */}
-        <ImageCarousel images={images} currentIdx={imageIdx} onChange={setImageIdx} />
+        {/* 이미지: 세로 스크롤 (썸네일+상세이미지 원본비율 스택) */}{/* ← [2026-07-06] 캐러셀→스크롤 */}
+        <ImageScroll images={images} />
 
         {/* 정보 */}
         <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -386,6 +393,13 @@ export function AuctionDetailPage() {
                 <span style={{ fontSize: 14, color: '#555' }}>
                   <strong style={{ color: '#222' }}>{auction.donor.name}</strong> 님 기부
                 </span>
+              </div>
+            )}
+
+            {/* ← [2026-07-06] 상세설명을 기부자 바로 아래로 이동 (기존 하단 '상세설명' 탭에서 이관) */}
+            {auction.description?.trim() && (
+              <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid #f0f0f0' }}>
+                <MarkdownRenderer content={auction.description} />
               </div>
             )}
           </div>
@@ -619,6 +633,7 @@ export function AuctionDetailPage() {
         productType="auction"
         productId={auction.id}
         description={auction.description}
+        showDescriptionTab={false} // ← [2026-07-06] 상세설명은 상단(기부자 아래)으로 이동
         bidsContent={
           bids.length === 0 ? (
             <div style={{ padding: 24, textAlign: 'center', color: '#bbb', fontSize: 13 }}>
@@ -915,22 +930,12 @@ function BidForm({
 }
 
 // ============================================================================
-// 이미지 캐러셀 (BazaarProductPage와 동일 — 추후 공통화 가능)
+// 이미지 세로 스크롤 — 썸네일+상세이미지를 원본 비율로 위→아래 스택   // ← [2026-07-06] 캐러셀 대체
+//   - 갤러리 화살표/인디케이터 없음. 모든 이미지를 세로로 나열해 스크롤로 감상.
+//   - BlurImage intrinsic 모드로 원본 비율 유지 + lazy/블러업 로딩(기존 로직 재사용).
 // ============================================================================
 
-function ImageCarousel({
-  images,
-  currentIdx,
-  onChange,
-}: {
-  images: string[];
-  currentIdx: number;
-  onChange: (idx: number) => void;
-}) {
-  const single = images.length <= 1;
-  const goPrev = () => onChange((currentIdx - 1 + images.length) % images.length);
-  const goNext = () => onChange((currentIdx + 1) % images.length);
-
+function ImageScroll({ images }: { images: string[] }) {
   if (images.length === 0) {
     return (
       <div
@@ -950,75 +955,10 @@ function ImageCarousel({
   }
 
   return (
-    <div
-      style={{
-        position: 'relative',
-        background: '#000',
-        aspectRatio: '1 / 1',
-        overflow: 'hidden',
-      }}
-    >
-      <div style={{ position: 'absolute', inset: 0 }}>
-        <BlurImage url={images[currentIdx]} width={1080} quality={78} alt={`이미지 ${currentIdx + 1}`} />
-      </div>
-      {!single && (
-        <>
-          <button type="button" onClick={goPrev} style={{ ...arrowStyle, left: 12 }} aria-label="이전">
-            <img src="/icons/arrow-back.svg" alt="" aria-hidden="true" width={16} height={16} style={{ display: 'block' }} />
-          </button>
-          <button type="button" onClick={goNext} style={{ ...arrowStyle, right: 12 }} aria-label="다음">
-            <img src="/icons/arrow-forward.svg" alt="" aria-hidden="true" width={16} height={16} style={{ display: 'block' }} />
-          </button>
-          <div
-            style={{
-              position: 'absolute',
-              bottom: 12,
-              left: '50%',
-              transform: 'translateX(-50%)',
-              display: 'flex',
-              gap: 6,
-            }}
-          >
-            {images.map((_, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => onChange(i)}
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 4,
-                  border: 'none',
-                  padding: 0,
-                  background: i === currentIdx ? '#fff' : 'rgba(255,255,255,0.5)',
-                  cursor: 'pointer',
-                }}
-                aria-label={`이미지 ${i + 1}로 이동`}
-              />
-            ))}
-          </div>
-        </>
-      )}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, background: '#fff' }}>
+      {images.map((url, i) => (
+        <BlurImage key={i} url={url} width={1080} quality={78} intrinsic alt={`이미지 ${i + 1}`} />
+      ))}
     </div>
   );
 }
-
-// [2026-06-10] 갤러리 화살표: 64×64 글래스 버튼 (Figma 1307:578/582)
-//   bg rgba(255,255,255,0.1) + backdrop-blur(글래스) + 미세 테두리. 아이콘은 24px SVG.
-const arrowStyle: React.CSSProperties = {
-  position: 'absolute',
-  top: '50%',
-  transform: 'translateY(-50%)',
-  width: 40,                                 // ← [2026-06-10] Figma 1308:615
-  height: 40,
-  borderRadius: '50%',
-  border: '1px solid rgb(241 241 241 / 25%)',               // Figma 1308:615
-  background: 'rgba(255, 255, 255, 0.1)',    // 10% 화이트 글래스
-  backdropFilter: 'blur(12px)',              // glass 효과
-  WebkitBackdropFilter: 'blur(12px)',        // Safari
-  cursor: 'pointer',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: 0,
-};
