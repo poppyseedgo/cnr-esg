@@ -296,9 +296,9 @@ function AuctionCard({ auction, bidStatus }: { auction: EsgAuctionRow; bidStatus
 
           {/* ← [2026-07-06] 물품 기부자 라인 복구 (Figma 미표기 — 현행 유지, 상세와 동일 정보) */}
           {auction.donor && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-              <Avatar name={auction.donor.name} avatarUrl={auction.donor.avatar_url} size={20} />
-              <span style={{ fontSize: 12, color: '#666', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2, paddingBottom: 16 }}>
+              <Avatar name={auction.donor.name} avatarUrl={auction.donor.avatar_url} size={24} />
+              <span style={{ fontSize: 14, color: '#666', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {auction.donor.name} 기부
               </span>
             </div>
