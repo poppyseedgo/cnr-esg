@@ -1,41 +1,68 @@
 // ============================================================================
-// AuctionPage — 경매 목록
+// AuctionPage — 경매 목록 (Figma 리스트 리디자인)
+//
+// [Figma SSOT] node 2215:55 (product list) / 카드: 2215:181·2222:817·2215:240
+//   (file ydfT0xP6nc83VxFd7GyEx4)
 //
 // 기능:
-//   - 경매 카드 그리드 (sort_order 순)
-//   - 상태 배지 (예정 / 진행 중 / 종료)
-//   - 진행 중인 경매: 카운트다운, 현재가
-//   - Realtime (현재가 / 상태 변경 즉시 반영)
-//   - 활동 기간 안내
+//   - 브레드크럼(Home › Auction) + 정렬 행(등록순 / 높은 가격 순 / 낮은 가격 순, URL sort)
+//   - 경매 카드 그리드(.shop-grid 2/3/4열, .pcard 공용 chassis — 바자회와 통일)
+//   - 카드 상태별 요소:
+//       · 상단 좌: 입찰상태 배지(내가 최고가 #99f75d / 밀려남 #c9f75d) — 내가 입찰한 진행중 경매만
+//       · 상단 우: 🔥 N명 입찰 (bid_count>0)
+//       · 본문 배지행: [예정(검정)] [새 제품]
+//       · 가격행: 시작가(입찰 있으면 취소선) + 현재가(빨강 라벨, 입찰 있을 때만)
+//       · 카운트다운 바(#e8ff68): 진행중=종료까지 / 예정=시작까지
+//       · 호버 CTA(.pcard-actions): 경매 물품 보기 / 내가 최고가 입찰중 / 입찰에서 밀려남
+//   - Realtime(현재가/상태 즉시 반영) + 1초 카운트다운 틱
+//
+// [보류/요청] 카드 하트+찜 카운트("♥ 15")는 (1) 신규 커스텀 SVG, (2) 경매용 찜 토글+카운트
+//   백엔드가 필요하여 이 단계에서는 제외(가짜 표기 금지). 별도 단계로 진행.
 // ============================================================================
 
 import { useEffect, useState, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom'; // ← [2026-07-06] 정렬 URL(sort)
 import { useEventPhase } from '@/hooks/useEventPhase';
+import { useCurrentUser } from '@/hooks/useCurrentUser'; // ← [2026-07-06] 입찰상태 배지(내 입찰)
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll'; // ← [2026-06-04] 무한 스크롤
 import {
   loadAuctions,
+  loadMyBidAuctionIds, // ← [2026-07-06] 내 입찰 경매 id 집합
   subscribeAuctions,
   onAuctionChanged,
   getAuctionTimeLeft,
-  AUCTION_STATUS_LABELS,
-  AUCTION_STATUS_COLORS,
 } from '@/lib/auctions';
 import { formatTimeLeft } from '@/lib/orders';
-import { formatKSTDate, formatKSTFull } from '@/utils/time';
+import { formatKSTDate } from '@/utils/time';
 import { InfiniteScrollFooter } from '@/components/InfiniteScrollFooter'; // ← [2026-06-04]
 import { BlurImage } from '@/components/BlurImage'; // ← [2026-06-19] 썸네일 lazy+블러업
-import { Avatar } from '@/components/Avatar'; // ← [2026-06-23] 기부자 아바타
 import type { EsgAuctionRow } from '@/types/esg';
+
+type SortKey = 'reg' | 'price_desc' | 'price_asc';
+type BidStatus = 'highest' | 'outbid' | null; // ← 내가 최고가 / 입찰에서 밀려남 / 해당없음
 
 export function AuctionPage() {
   const { getActivity } = useEventPhase();
   const { period, status } = getActivity('auction');
+  const { currentUser } = useCurrentUser();
 
-  // 무한 스크롤 — 12개씩 누적 로드 (sort_order, starts_at)
+  // ── [2026-07-06] 정렬 = URL 파라미터(sort) 단일 소스 (바자회와 동일 계약) ──
+  const [searchParams, setSearchParams] = useSearchParams();
+  const sortParam = searchParams.get('sort');
+  const sort: SortKey =
+    sortParam === 'price_desc' ? 'price_desc' : sortParam === 'price_asc' ? 'price_asc' : 'reg';
+  const setSort = (next: SortKey) => {
+    setSearchParams((prev) => {
+      const p = new URLSearchParams(prev);
+      if (next === 'reg') p.delete('sort'); else p.set('sort', next);
+      return p;
+    }, { replace: true });
+  };
+
+  // 무한 스크롤 — 12개씩 누적 로드 (정렬 변경 시 리셋)
   const fetchPage = useCallback(
-    (offset: number, limit: number) => loadAuctions({ offset, limit }),
-    []
+    (offset: number, limit: number) => loadAuctions({ offset, limit, sort }),
+    [sort]
   );
   const {
     items: auctions,
@@ -45,22 +72,26 @@ export function AuctionPage() {
     sentinelRef,
     reload,
     refresh,
-  } = useInfiniteScroll<EsgAuctionRow>(fetchPage, { pageSize: 12 });
+  } = useInfiniteScroll<EsgAuctionRow>(fetchPage, { pageSize: 12, deps: [sort] });
+
+  // ── [2026-07-06] 내가 입찰한 경매 id 집합(로그인 시 1회 로드) → 카드 배지 판정 ──
+  const [myBidIds, setMyBidIds] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (!currentUser) { setMyBidIds(new Set()); return; }
+    let alive = true;
+    loadMyBidAuctionIds(currentUser.id)
+      .then((s) => { if (alive) setMyBidIds(s); })
+      .catch(console.error);
+    return () => { alive = false; };
+  }, [currentUser?.id]);
 
   const [, setTick] = useState(0);
 
   // Realtime + 같은 탭 즉시 신호 — 조용히 제자리 갱신(깜빡임 없음)
   useEffect(() => {
-    const cleanupRT = subscribeAuctions(() => {
-      refresh();
-    });
-    const cleanupEvent = onAuctionChanged(() => {
-      refresh();
-    });
-    return () => {
-      cleanupRT();
-      cleanupEvent();
-    };
+    const cleanupRT = subscribeAuctions(() => refresh());
+    const cleanupEvent = onAuctionChanged(() => refresh());
+    return () => { cleanupRT(); cleanupEvent(); };
   }, [refresh]);
 
   // 카운트다운 갱신 (1초)
@@ -71,15 +102,16 @@ export function AuctionPage() {
 
   return (
     <div>
+      {/* ← [2026-07-06] 브레드크럼(Home › Auction) — 바자회와 동일 패턴 */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <h1 style={{ margin: 0 }}>🔨 ESG 온라인 경매</h1>
-          <p style={{ color: '#666', margin: '4px 0 0' }}>실시간 비딩으로 한정 굿즈를 낙찰받으세요.</p>
-        </div>
-        {/* ← [2026-06-26] 어드민 '새 경매 등록' CTA·모달 제거(요청) — 경매 등록은 어드민 관리 탭에서 */}
+        <nav aria-label="breadcrumb" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 16, lineHeight: 1.4 }}>
+          <Link to="/" style={{ color: '#848484', textDecoration: 'none' }}>Home</Link>
+          <span style={{ color: '#b8b8b8' }}>›</span>
+          <span style={{ color: '#111' }}>Auction</span>
+        </nav>
       </div>
 
-      {/* 상태 안내 */}
+      {/* 상태 안내 (Figma 미표기 — 현행 유지) */}
       {period && (
         <div
           style={{
@@ -109,6 +141,13 @@ export function AuctionPage() {
         </div>
       )}
 
+      {/* ← [2026-07-06] 정렬 행 (Figma: 등록 순 / 높은 가격 순 / 낮은 가격 순) — 우측 정렬 */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginTop: 16 }}>
+        <SortOption label="등록 순" active={sort === 'reg'} onClick={() => setSort('reg')} />
+        <SortOption label="높은 가격 순" active={sort === 'price_desc'} onClick={() => setSort('price_desc')} />
+        <SortOption label="낮은 가격 순" active={sort === 'price_asc'} onClick={() => setSort('price_asc')} />
+      </div>
+
       {/* 그리드 */}
       {initialLoading ? (
         <AuctionSkeleton />
@@ -117,12 +156,9 @@ export function AuctionPage() {
       ) : auctions.length === 0 ? (
         <EmptyState />
       ) : (
-        <div
-          className="shop-grid"
-          style={{ marginTop: 24, display: 'grid', gap: 16 }}
-        >
+        <div className="shop-grid" style={{ marginTop: 24, display: 'grid', gap: 16 }}>
           {auctions.map((a) => (
-            <AuctionCard key={a.id} auction={a} />
+            <AuctionCard key={a.id} auction={a} bidStatus={bidStatusOf(a, currentUser?.id ?? null, myBidIds)} />
           ))}
         </div>
       )}
@@ -138,167 +174,199 @@ export function AuctionPage() {
   );
 }
 
-function AuctionCard({ auction }: { auction: EsgAuctionRow }) {
-  const statusColor = AUCTION_STATUS_COLORS[auction.status];
-  const timeLeftMs = getAuctionTimeLeft(auction.ends_at);
+// 내 입찰 관계 판정: 진행중 경매 중 내가 입찰했으면 최고가/밀려남, 아니면 없음
+function bidStatusOf(a: EsgAuctionRow, myUserId: string | null, myBidIds: Set<string>): BidStatus {
+  if (a.status !== 'active') return null;
+  if (!myUserId || !myBidIds.has(a.id)) return null;
+  return a.current_bidder_id === myUserId ? 'highest' : 'outbid';
+}
+
+// ── [2026-06-24] 정렬 옵션 (Figma: 14px 라디오 + 라벨 16px). 선택=검은 점 — 바자회와 동일 ──
+function SortOption({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 8,
+        background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px 0', fontFamily: 'inherit',
+      }}
+    >
+      <span style={{
+        width: 14, height: 14, flexShrink: 0, borderRadius: 999, border: '1px solid #000',
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        {active && <span style={{ width: 8, height: 8, borderRadius: 999, background: '#000' }} />}
+      </span>
+      <span style={{ fontSize: 16, lineHeight: 1.4, color: active ? '#111' : '#848484', whiteSpace: 'nowrap' }}>
+        {label}
+      </span>
+    </button>
+  );
+}
+
+// ============================================================================
+// 경매 카드 (Figma 2215:181 / 2222:817 / 2215:240)
+// ============================================================================
+function AuctionCard({ auction, bidStatus }: { auction: EsgAuctionRow; bidStatus: BidStatus }) {
   const isActive = auction.status === 'active';
-  const showCountdown = isActive && timeLeftMs > 0;
+  const isScheduled = auction.status === 'scheduled';
+  const isEnded = auction.status === 'ended';
+  const hasBids = auction.bid_count > 0;
+
+  // 카운트다운: 진행중=종료까지, 예정=시작까지
+  const targetMs = isScheduled
+    ? new Date(auction.starts_at).getTime() - Date.now()
+    : getAuctionTimeLeft(auction.ends_at);
+  const showCountdown = (isActive || isScheduled) && targetMs > 0;
 
   return (
     <Link
       to={`/auction/${auction.id}`}
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        background: '#fff',
-        borderRadius: 12,
-        overflow: 'hidden',
-        border: '1px solid #eee',
-        boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
-        textDecoration: 'none',
-        color: 'inherit',
-        opacity: auction.status === 'cancelled' ? 0.5 : 1,
-      }}
+      className="pcard"
+      style={{ opacity: auction.status === 'cancelled' ? 0.5 : 1 }}
     >
-      {/* 썸네일 */}
-      <div
-        style={{
-          width: '100%',
-          aspectRatio: '4 / 3',
-          background: auction.thumbnail_url
-            ? '#f2f2f2'
-            : 'linear-gradient(135deg, #fef3c7, #fed7aa)',
-          position: 'relative',
-          overflow: 'hidden', // 블러 레이어 가장자리 비침 클립 (scale 미사용 — 6/19 제거됨)
-        }}
-      >
-        {/* 썸네일 이미지 — lazy + LQIP 블러업 (배지보다 먼저 = 아래) */}
+      {/* ── 이미지(정사각 full-bleed #d7d7d7, 공용 chassis) ── */}
+      <div className="pcard-img">
         {auction.thumbnail_url && (
           <div style={{ position: 'absolute', inset: 0 }}>
-            <BlurImage url={auction.thumbnail_url} width={640} />
+            <BlurImage url={auction.thumbnail_url} width={680} />
           </div>
         )}
-        <span
-          style={{
-            position: 'absolute',
-            top: 8,
-            left: 8,
-            padding: '3px 8px',
-            background: statusColor.bg,
-            color: statusColor.color,
-            borderRadius: 4,
-            fontSize: 11,
-            fontWeight: 700,
-          }}
-        >
-          {AUCTION_STATUS_LABELS[auction.status]}
-        </span>
-        {auction.bid_count > 0 && (
-          <span
+
+        {/* 상단 오버레이: [입찰상태 좌] [🔥 N명 입찰 우] — 클릭 통과 */}
+        {(bidStatus || hasBids) && (
+          <div
             style={{
-              position: 'absolute',
-              top: 8,
-              right: 8,
-              padding: '3px 8px',
-              background: 'rgba(0,0,0,0.6)',
-              color: '#fff',
-              borderRadius: 4,
-              fontSize: 11,
-              fontWeight: 600,
+              position: 'absolute', top: 8, left: 8, right: 8,
+              display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+              gap: 8, pointerEvents: 'none',
             }}
           >
-            🔥 {auction.bid_count}회 입찰
-          </span>
+            {bidStatus === 'highest' ? (
+              <span style={overlayBadge('#99f75d', '#000')}>내가 최고가 입찰 중</span>
+            ) : bidStatus === 'outbid' ? (
+              <span style={overlayBadge('#c9f75d', '#000')}>입찰에서 밀려남</span>
+            ) : (
+              <span />
+            )}
+            {hasBids && (
+              <span style={{ ...overlayBadge('rgba(0,0,0,0.55)', '#fff'), display: 'inline-flex', gap: 4, alignItems: 'center' }}>
+                <span aria-hidden>🔥</span>{auction.bid_count}명 입찰
+              </span>
+            )}
+          </div>
         )}
-      </div>
 
-      {/* 본문 */}
-      <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
-        <h3
-          style={{
-            margin: 0,
-            fontSize: 14,
-            fontWeight: 600,
-            lineHeight: 1.4,
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-            minHeight: 'calc(1.4em * 2)',
-          }}
-        >
-          {auction.product_name}
-        </h3>
-
-        {/* ← [2026-06-23] 물품 기부자 (이름 + 아바타) */}
-        {auction.donor && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
-            <Avatar name={auction.donor.name} avatarUrl={auction.donor.avatar_url} size={20} />
-            <span style={{ fontSize: 12, color: '#666', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {auction.donor.name} 기부
+        {/* 호버 CTA(.pcard-actions) — 상태별 라벨/색 (취소 경매 제외) */}
+        {auction.status !== 'cancelled' && (
+          <div className="pcard-actions">
+            <span className="pcard-btn" style={{ ...ctaStyle(bidStatus), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {ctaLabel(bidStatus)}
             </span>
           </div>
         )}
+      </div>
 
-        <div style={{ marginTop: 'auto' }}>
-          <div style={{ fontSize: 11, color: '#888' }}>
-            {auction.bid_count > 0 ? '현재가' : '시작가'}
+      {/* ── 본문(좌우 패딩 0 = Figma full-bleed) ── */}
+      <div style={{ background: '#fff', padding: '16px 0 20px 0', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {/* 배지행: [예정(검정)] [새 제품] */}
+          {(isScheduled || auction.is_new) && (
+            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+              {isScheduled && (
+                <span style={{ background: '#000', color: '#fff', border: '1px solid #000', fontSize: 14, lineHeight: 1.3, padding: '4px 8px', whiteSpace: 'nowrap' }}>
+                  예정
+                </span>
+              )}
+              {auction.is_new && (
+                <span style={{ background: '#fff', color: '#000', border: '1px solid #000', fontSize: 14, lineHeight: 1.3, padding: '4px 8px', whiteSpace: 'nowrap', textTransform: 'capitalize' }}>
+                  새 제품
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* 제목 + 가격 */}
+          <div style={{ display: 'flex', flexDirection: 'column', padding: '8px 0' }}>
+            <p
+              style={{
+                margin: 0, fontSize: 20, fontWeight: 500, lineHeight: 1.4, color: '#111',
+                letterSpacing: '-0.2px',
+                display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+              }}
+            >
+              {auction.product_name}
+            </p>
+
+            {/* 가격행: 시작가(입찰 시 취소선) + 현재가(빨강 라벨, 입찰 있을 때만) */}
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 4 }}>
+              <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}>
+                <span style={{ fontSize: 16, color: '#9f9f9f', letterSpacing: '0.16px', lineHeight: 1.4 }}>시작가</span>
+                <span style={{ fontSize: 20, color: '#000', letterSpacing: '0.2px', lineHeight: 1.4, textDecoration: hasBids ? 'line-through' : 'none' }}>
+                  {auction.start_price.toLocaleString()}원
+                </span>
+              </span>
+              {hasBids && (
+                <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}>
+                  <span style={{ fontSize: 16, color: '#ff2e2e', letterSpacing: '0.16px', lineHeight: 1.4 }}>현재가</span>
+                  <span style={{ fontSize: 20, color: '#000', letterSpacing: '0.2px', lineHeight: 1.4 }}>
+                    {auction.current_price.toLocaleString()}원
+                  </span>
+                </span>
+              )}
+            </div>
           </div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: '#222' }}>
-            {auction.current_price.toLocaleString()}원
-          </div>
+
+          {/* 카운트다운 바 (#e8ff68) — 진행중=종료까지 / 예정=시작까지 */}
+          {showCountdown && (
+            <div
+              style={{
+                background: '#e8ff68', color: '#111',
+                padding: '8px 32px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 16, lineHeight: 1.4, whiteSpace: 'nowrap', overflow: 'hidden',
+              }}
+            >
+              ⌛ {formatTimeLeft(targetMs)} 남음
+            </div>
+          )}
+          {/* 종료 낙찰가 (Figma 미표기 — 현행 유지) */}
+          {isEnded && auction.winner_final_price && (
+            <div style={{ fontSize: 13, color: '#10b981', fontWeight: 600, marginTop: 4 }}>
+              🏆 낙찰가 {auction.winner_final_price.toLocaleString()}원
+            </div>
+          )}
         </div>
-
-        {showCountdown && (
-          <div
-            style={{
-              padding: '6px 8px',
-              background: timeLeftMs < 3600 * 1000 ? '#fee2e2' : '#fef3c7',
-              color: timeLeftMs < 3600 * 1000 ? '#991b1b' : '#92400e',
-              borderRadius: 4,
-              fontSize: 11,
-              textAlign: 'center',
-              fontWeight: 600,
-            }}
-          >
-            ⏰ {formatTimeLeft(timeLeftMs)} 남음
-          </div>
-        )}
-        {auction.status === 'scheduled' && (
-          <div style={{ fontSize: 11, color: '#888' }}>
-            🗓 {formatKSTFull(auction.starts_at)} 시작
-          </div>
-        )}
-        {auction.status === 'ended' && auction.winner_final_price && (
-          <div style={{ fontSize: 11, color: '#10b981', fontWeight: 600 }}>
-            🏆 낙찰가 {auction.winner_final_price.toLocaleString()}원
-          </div>
-        )}
       </div>
     </Link>
   );
 }
 
+// 오버레이 배지 공통 스타일 (Pretendard 14px, px8 py4, leading 1.3)
+function overlayBadge(bg: string, color: string): React.CSSProperties {
+  return { padding: '4px 8px', background: bg, color, fontSize: 14, lineHeight: 1.3, fontWeight: 400, whiteSpace: 'nowrap', textAlign: 'center' };
+}
+
+// 호버 CTA 라벨/스타일 (상태별)
+function ctaLabel(s: BidStatus): string {
+  return s === 'highest' ? '내가 최고가 입찰중' : s === 'outbid' ? '입찰에서 밀려남' : '경매 물품 보기';
+}
+function ctaStyle(s: BidStatus): React.CSSProperties {
+  if (s === 'highest') return { background: '#99f75d', color: '#111' };
+  if (s === 'outbid') return { background: '#e8ff68', color: '#111' };
+  return { background: '#000', color: '#fff', textTransform: 'capitalize' };
+}
+
 function AuctionSkeleton() {
   return (
-    <div
-      className="shop-grid"
-      style={{ marginTop: 24, display: 'grid', gap: 16 }}
-    >
+    <div className="shop-grid" style={{ marginTop: 24, display: 'grid', gap: 16 }}>
       {[1, 2, 3].map((i) => (
-        <div
-          key={i}
-          style={{
-            background: '#fff',
-            borderRadius: 12,
-            border: '1px solid #eee',
-            overflow: 'hidden',
-          }}
-        >
-          <div style={{ aspectRatio: '4 / 3', background: '#f5f5f5' }} />
-          <div style={{ padding: 16 }}>
-            <div style={{ height: 14, background: '#f0f0f0', borderRadius: 4, marginBottom: 8 }} />
-            <div style={{ height: 18, background: '#f0f0f0', borderRadius: 4, width: '50%' }} />
+        <div key={i} style={{ background: '#fff', overflow: 'hidden' }}>
+          <div style={{ aspectRatio: '1 / 1', background: '#f5f5f5' }} />
+          <div style={{ padding: '16px 0' }}>
+            <div style={{ height: 20, background: '#f0f0f0', borderRadius: 4, marginBottom: 8 }} />
+            <div style={{ height: 20, background: '#f0f0f0', borderRadius: 4, width: '50%' }} />
           </div>
         </div>
       ))}

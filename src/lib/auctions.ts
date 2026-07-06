@@ -82,16 +82,24 @@ export interface LoadAuctionsOptions {
   statuses?: EsgAuctionStatus[];
   limit?: number;  // ← [2026-06-04] 무한 스크롤 페이징
   offset?: number; // ← [2026-06-04]
+  sort?: 'reg' | 'price_desc' | 'price_asc'; // ← [2026-07-06] 정렬(등록순 / 높은가격 / 낮은가격)
 }
 
-/** 경매 목록 (sort_order 순). status 필터 없으면 cancelled 제외하고 전부 노출 */
+/** 경매 목록 (sort 지정 없으면 등록순=sort_order). status 필터 없으면 cancelled 제외하고 전부 노출 */
 export async function loadAuctions(opts: LoadAuctionsOptions = {}): Promise<EsgAuctionRow[]> {
-  const { statuses, limit, offset = 0 } = opts;
+  const { statuses, limit, offset = 0, sort = 'reg' } = opts; // ← [2026-07-06] sort 기본 등록순
   let query = supabase
     .from('esg_auctions')
-    .select('*')
-    .order('sort_order', { ascending: true })
-    .order('starts_at', { ascending: true });
+    .select('*');
+
+  // ← [2026-07-06] 정렬: 높은/낮은 가격 순은 current_price 기준, 동가일 땐 sort_order 유지
+  if (sort === 'price_desc') {
+    query = query.order('current_price', { ascending: false }).order('sort_order', { ascending: true });
+  } else if (sort === 'price_asc') {
+    query = query.order('current_price', { ascending: true }).order('sort_order', { ascending: true });
+  } else {
+    query = query.order('sort_order', { ascending: true }).order('starts_at', { ascending: true });
+  }
 
   if (statuses && statuses.length > 0) {
     query = query.in('status', statuses);
@@ -227,6 +235,20 @@ export function buildAnonymousNumberMap(bids: BidWithProfile[]): Map<string, num
 // ============================================================================
 // 내 입찰 관련
 // ============================================================================
+
+/** 내가 입찰한 경매 id 집합 (리스트 카드 배지: 최고가/밀려남 판정용). // ← [2026-07-06]
+ *  비로그인/오류 시 빈 Set. RLS: 본인 입찰만 SELECT 허용(loadMyBidAuctions와 동일). */
+export async function loadMyBidAuctionIds(userId: string): Promise<Set<string>> {
+  const { data, error } = await supabase
+    .from('esg_auction_bids')
+    .select('auction_id')
+    .eq('user_id', userId);
+  if (error) {
+    console.warn('[loadMyBidAuctionIds]', error.message);
+    return new Set();
+  }
+  return new Set((data ?? []).map((r: { auction_id: string }) => r.auction_id));
+}
 
 export interface MyBidAuction {
   auction: EsgAuctionRow;
