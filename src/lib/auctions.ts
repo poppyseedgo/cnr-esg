@@ -250,6 +250,54 @@ export async function loadMyBidAuctionIds(userId: string): Promise<Set<string>> 
   return new Set((data ?? []).map((r: { auction_id: string }) => r.auction_id));
 }
 
+// ── [2026-07-06] 경매 물품 기부자 명단(사이드바용) ─────────────────────────────
+export interface AuctionDonor {
+  key: string;          // 중복 제거 키(donor_id 우선, 없으면 이름)
+  id: string | null;    // 임직원 profiles.id
+  name: string;
+  dept: string | null;
+}
+
+// 근거리 중복 호출(데스크톱 사이드바 + 모바일 상단 동시 마운트) 방지용 캐시.
+let _auctionDonorsCache: AuctionDonor[] | null = null;
+let _auctionDonorsInflight: Promise<AuctionDonor[]> | null = null;
+
+/** 경매 물품 기부자(중복 제거). 취소 경매 제외. esg_auctions.donor_name_snapshot(경매 기부자 SSOT) 기준.
+ *  ※ 20260706_auction_donor 마이그레이션 적용 후 값이 채워짐. 미적용/오류 시 빈 배열(안전). */
+export async function loadAuctionDonors(): Promise<AuctionDonor[]> {
+  if (_auctionDonorsCache) return _auctionDonorsCache;
+  if (_auctionDonorsInflight) return _auctionDonorsInflight;
+  _auctionDonorsInflight = (async () => {
+    try {
+      const { data, error } = await supabase
+        .from('esg_auctions')
+        .select('donor_id, donor_name_snapshot, donor_dept_snapshot')
+        .not('donor_name_snapshot', 'is', null)
+        .neq('status', 'cancelled')
+        .order('sort_order', { ascending: true });
+      if (error) {
+        console.warn('[loadAuctionDonors]', error.message);
+        return [];
+      }
+      const seen = new Set<string>();
+      const out: AuctionDonor[] = [];
+      for (const r of (data ?? []) as Array<{ donor_id: string | null; donor_name_snapshot: string | null; donor_dept_snapshot: string | null }>) {
+        const name = (r.donor_name_snapshot ?? '').trim();
+        if (!name) continue;
+        const key = r.donor_id ?? `name:${name}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push({ key, id: r.donor_id, name, dept: r.donor_dept_snapshot });
+      }
+      _auctionDonorsCache = out; // 성공 시에만 캐시(오류는 캐시 안 함)
+      return out;
+    } finally {
+      _auctionDonorsInflight = null;
+    }
+  })();
+  return _auctionDonorsInflight;
+}
+
 export interface MyBidAuction {
   auction: EsgAuctionRow;
   myMaxBid: number;
