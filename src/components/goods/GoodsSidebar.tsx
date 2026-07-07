@@ -96,9 +96,9 @@ export function GoodsSidebar({ variant }: GoodsSidebarProps) {
   );
 }
 
-// 카테고리 칩 (Figma: border 1px #000, rounded 999, px16 py4, 14px). 클릭=필터 토글.
+// 카테고리 칩 (Figma 2292-56: border 1px #000, rounded 999, px16 py4, 20px). 클릭=필터 토글.
 const chipStyle: React.CSSProperties = {
   border: '1px solid #000', borderRadius: 999, padding: '4px 16px',
-  fontSize: 14, lineHeight: 1.4, color: '#111', background: '#fff', whiteSpace: 'nowrap',
+  fontSize: 20, lineHeight: 1.4, color: '#111', background: '#fff', whiteSpace: 'nowrap', // ← [2026-07-08] 14→20px
   fontFamily: 'inherit',
 };
