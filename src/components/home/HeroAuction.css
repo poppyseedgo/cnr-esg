@@ -109,18 +109,19 @@
 }
 .hero-au__fund-bar { width: 100%; max-width: 697px; }
 
-/* ── 협폭(≤900cqw): 세로 스택 ── */
+/* ── 협폭(≤900cqw): 세로 스택 — 어떤 기기든 딱 맞게(폭 비례 cqw) ── */
 @container (max-width: 900px) {
-  .hero-au__box { grid-template-columns: 1fr; }
-  .hero-au__auction { padding: 28px 16px; } /* ← [2026-07-08] gap 제거: 정사각형 안에서 space-between로 분배 */
-  .hero-au__deco { width: min(440px, 86%); }
-  .hero-au__nowopen { font-size: 56px; }
-  .hero-au__subtitle { font-size: 24px; }
-  .hero-au__dates { font-size: 22px; gap: 16px; }
-  .hero-au__dline { width: 72px; }
-  /* ← [2026-07-08] 카드1·카드2 동일한 정사각형 높이(세로 스택 시 높이=너비) */
-  .hero-au__auction, .hero-au__goods { aspect-ratio: 1 / 1; align-self: stretch; }
-  .hero-au__goods-txt { top: 28px; font-size: 32px; }
+  /* align-items:start → aspect-ratio가 높이를 지배(굿즈 카드 접힘 방지). align-self:stretch 금지 */
+  .hero-au__box { grid-template-columns: 1fr; align-items: start; }
+  /* 카드1·카드2 동일한 정사각형(높이=너비). 콘텐츠는 정사각형 안에서 space-between 분배 */
+  .hero-au__auction, .hero-au__goods { aspect-ratio: 1 / 1; }
+  .hero-au__auction { padding: 7cqw 4cqw; }              /* 폭 비례 패딩 */
+  .hero-au__deco { width: 86%; }
+  .hero-au__nowopen { font-size: clamp(40px, 14cqw, 64px); }   /* 폭 비례, 소/대 상한 */
+  .hero-au__subtitle { font-size: clamp(18px, 6cqw, 26px); }
+  .hero-au__dates { font-size: clamp(16px, 5.6cqw, 24px); gap: 4cqw; }
+  .hero-au__dline { width: clamp(48px, 18cqw, 80px); }
+  .hero-au__goods-txt { top: 7cqw; font-size: clamp(24px, 8cqw, 36px); }
   .hero-au__fund { padding: 24px 16px; gap: 20px; }
   .hero-au__fund-grid { width: min(560px, 92cqw); }
   .hero-au__fund-bar { width: min(560px, 92cqw); }
