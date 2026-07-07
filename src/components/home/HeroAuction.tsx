@@ -50,14 +50,14 @@ export function HeroAuction() {
             </div>
           </Link>
 
-          {/* ── 카드 2: C&R Goods Coming soon ── */}
-          <div className="hero-au__goods" aria-label="C&R Goods 준비 중">
+          {/* ── 카드 2: C&R Goods Coming soon (링크 → /goods) ── */}
+          <Link to="/goods" className="hero-au__goods" aria-label="C&R Goods 보러가기">
             <img className="hero-au__goods-bg" src="/home/goods-coming.jpg" alt="" aria-hidden="true" />
             <div className="hero-au__goods-txt">
               <p>C&amp;R Goods</p>
               <p>Coming soon</p>
             </div>
-          </div>
+          </Link>
 
           {/* ── 카드 3: 펀딩 진행률 (기존 컴포넌트 재사용, 8열로 확대) ── */}
           <div className="hero-au__fund">

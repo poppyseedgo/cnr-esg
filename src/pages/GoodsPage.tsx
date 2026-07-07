@@ -67,6 +67,9 @@ export function GoodsPage() {
     items: products, initialLoading, loadingMore, error, sentinelRef, reload, refresh,
   } = useInfiniteScroll<EsgProductRow>(fetchPage, { pageSize: 12, deps: [search, catKey, sort] });
 
+  // ← [2026-07-08] 검색/필터 없이 등록 굿즈가 0이면 "Coming soon" 화면(Figma 2292-56)
+  const showComingSoon = !initialLoading && !error && products.length === 0 && !search && !anyActive;
+
   // Realtime — 재고/신규 상품 제자리 갱신
   useEffect(() => {
     void loadReservationStatus();
@@ -92,27 +95,36 @@ export function GoodsPage() {
         <span style={{ color: '#111' }}>Goods</span>
       </nav>
 
-      {/* 정렬 행 */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginTop: 16 }}>
-        <SortOption label="등록 순" active={sort === 'reg'} onClick={() => setSort('reg')} />
-        <SortOption label="높은 가격 순" active={sort === 'price_desc'} onClick={() => setSort('price_desc')} />
-        <SortOption label="낮은 가격 순" active={sort === 'price_asc'} onClick={() => setSort('price_asc')} />
-      </div>
+      {/* 정렬 행 (Coming soon 상태에선 숨김) */}
+      {!showComingSoon && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginTop: 16 }}>
+          <SortOption label="등록 순" active={sort === 'reg'} onClick={() => setSort('reg')} />
+          <SortOption label="높은 가격 순" active={sort === 'price_desc'} onClick={() => setSort('price_desc')} />
+          <SortOption label="낮은 가격 순" active={sort === 'price_asc'} onClick={() => setSort('price_asc')} />
+        </div>
+      )}
 
-      {/* 그리드 */}
+      {/* 그리드 / Coming soon */}
       {initialLoading ? (
         <GoodsSkeleton />
       ) : error && products.length === 0 ? (
         <ErrorBox message={error} onRetry={reload} />
+      ) : showComingSoon ? (
+        // ← [2026-07-08] 아직 등록된 굿즈가 없으면 "C&R Goods / Coming soon"(Figma 2292:126)
+        <div className="goods-coming">
+          <img className="goods-coming__bg" src="/home/goods-comingsoon.jpg" alt="" aria-hidden="true" />
+          <div className="goods-coming__txt">
+            <p>C&amp;R Goods</p>
+            <p>Coming soon</p>
+          </div>
+        </div>
       ) : products.length === 0 ? (
         <div style={{ background: '#fff', borderRadius: 12, padding: 48, textAlign: 'center', border: '1px dashed #ddd', marginTop: 24 }}>
           <div style={{ fontSize: 48, marginBottom: 12, opacity: 0.5 }}>🎁</div>
           <p style={{ margin: 0, color: '#888' }}>
             {search
               ? '검색 결과가 없습니다.'
-              : anyActive
-                ? `${catTagsSel.map((t) => `#${t.name}`).join(' ')} 조건의 굿즈가 없습니다.`
-                : '아직 등록된 굿즈가 없습니다.'}
+              : `${catTagsSel.map((t) => `#${t.name}`).join(' ')} 조건의 굿즈가 없습니다.`}
           </p>
         </div>
       ) : (
@@ -140,6 +152,31 @@ export function GoodsPage() {
       <style>{`
         @media (min-width: 768px) {
           .goods-grid { grid-template-columns: repeat(3, 1fr) !important; }
+        }
+        /* ← [2026-07-08] Coming soon (Figma 2292:126): 풀블리드 사진 + 흰 텍스트 상단 중앙 */
+        .goods-coming {
+          position: relative;
+          overflow: clip;
+          background: #fff;
+          margin-top: 24px;
+          border-radius: 12px;
+          min-height: min(72vh, 1013px);
+        }
+        .goods-coming__bg {
+          position: absolute; inset: 0; width: 100%; height: 100%;
+          object-fit: cover; pointer-events: none;
+        }
+        .goods-coming__txt {
+          position: absolute; top: 51px; left: 0; right: 0;
+          text-align: center; color: #fff;
+          font-family: 'Instrument Sans', sans-serif; font-weight: 400;
+          font-size: 44px; line-height: 1; text-transform: uppercase;
+        }
+        .goods-coming__txt p { margin: 0; }
+        .goods-coming__txt p + p { margin-top: 0; }
+        @media (max-width: 767px) {
+          .goods-coming { min-height: 60vh; }
+          .goods-coming__txt { top: 32px; font-size: 30px; }
         }
       `}</style>
     </div>

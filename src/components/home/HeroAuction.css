@@ -82,8 +82,10 @@
 }
 .hero-au__dline { width: min(5.84cqw, 92px); height: 2px; background: #000; flex: 0 0 auto; } /* 92 */
 
-/* ── 카드 2: C&R Goods (배경 사진 + 흰 텍스트) ── */
-.hero-au__goods { position: relative; overflow: clip; background: #fff; }
+/* ── 카드 2: C&R Goods (배경 사진 + 흰 텍스트, 링크 → /goods) ── */
+.hero-au__goods { position: relative; overflow: clip; background: #fff; display: block; text-decoration: none; cursor: pointer; transition: filter 0.15s ease; }
+.hero-au__goods:hover { filter: brightness(1.03); }
+.hero-au__goods:focus-visible { outline: 3px solid #004228; outline-offset: -8px; }
 .hero-au__goods-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
 .hero-au__goods-txt {
   position: absolute; top: min(3.37cqw, 53px); left: 0; right: 0;

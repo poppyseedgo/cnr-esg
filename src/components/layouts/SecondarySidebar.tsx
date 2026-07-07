@@ -90,7 +90,7 @@ export function SecondarySidebar({ mainCollapsed }: SecondarySidebarProps) {
                     to={item.to}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 8,
-                      padding: '8px 0', fontSize: isGoods ? 28 : 24, lineHeight: 1.25, color: '#848484', // ← [2026-07-07] 굿즈=28(Figma 메뉴 버튼 사이즈 차이)
+                      padding: '8px 0', fontSize: isGoods ? 20 : 24, lineHeight: 1.25, color: '#848484', // ← [2026-07-08] 굿즈=20px
                       textDecoration: 'none', whiteSpace: 'nowrap',
                     }}
                   >
