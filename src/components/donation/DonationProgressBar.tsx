@@ -22,14 +22,18 @@
 
 const TRACK = '#000000';     // ← 트랙(목표) 색
 const ACHIEVED = '#0CFF39';  // ← 달성 색 (Figma 진행바 추출)
+const FADE = 56;             // ← [2026-07-08] 채움 오른쪽 끝 페이드(글로우) 거리(px)
 
-// 달성 영역 shimmer(일렁임) — 흐르는 sheen + 접근성(reduced-motion) 정지
+// 달성 영역 shimmer(일렁임) + 오른쪽 끝 그라데이션 페이드(초록→검정 글로우)
 const BAR_CSS = `
 .donbar__fill {
   background: linear-gradient(100deg,
     ${ACHIEVED} 0%, #63FF85 42%, #B0FFC2 50%, #63FF85 58%, ${ACHIEVED} 100%);
   background-size: 220% 100%;
   animation: esgBarShimmer 2.4s linear infinite;
+  /* ← [2026-07-08] 채움 우측 끝 ${FADE}px 를 투명으로 → 검정 트랙 위에서 초록이 부드럽게 페이드 */
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - ${FADE}px), transparent 100%);
+          mask-image: linear-gradient(to right, #000 calc(100% - ${FADE}px), transparent 100%);
 }
 @keyframes esgBarShimmer {
   0%   { background-position: 120% 0; }
@@ -77,10 +81,10 @@ export function DonationProgressBar({ current, goal }: DonationProgressBarProps)
         aria-valuemax={goal}
         aria-valuenow={Math.min(current, goal)}
       >
-        {/* 달성 채움 (shimmer) */}
+        {/* 달성 채움 (shimmer + 우측 끝 페이드). 폭 = 비율 + FADE → 마스크가 끝 FADE를 페이드하므로 solid=비율 */}
         <div
-          className="donbar__fill"   // ← 일렁이는 sheen (BAR_CSS)
-          style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: pct }}
+          className="donbar__fill"   // ← 일렁이는 sheen + 페이드 (BAR_CSS)
+          style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: ratio > 0 ? `calc(${pct} + ${FADE}px)` : 0 }}
         />
         {/* 목표 라벨 (바 우측 안쪽) */}
         <span
