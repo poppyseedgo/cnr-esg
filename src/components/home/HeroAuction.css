@@ -1,44 +1,37 @@
 /* ============================================================================
-   HeroAuction.css — 경매 오픈 히어로 3분할 (Figma 2287-1463 실측 1:1)
-
-   전략: HeroBazaar와 동일 — 풀블리드(--sidebar-w) + container-type:inline-size
-         + min(cqw, Figma px). 환산 = Figma_px / 1574 × 100 (1574=콘텐츠영역 폭).
-         협폭(≤900cqw) 세로 스택.
-   [2026-07-08] 신규.
+   HeroAuction.css — 경매 오픈 히어로 3분할 (Figma 2287-1463 / 카드1 2290-56 실측 1:1)
+   전략: 풀블리드(--sidebar-w) + container-type + min(cqw, Figma px). 환산 = px/1574×100.
+   [2026-07-08] 재작성 — 폭 균등(grid 1fr) · 카드1 justify-between 정밀 · 펀딩 8열 확대.
    ============================================================================ */
 
-/* ── 풀블리드 래퍼 (사이드바 보정) ── */
 .hero-au {
   width: auto;
   margin-left: calc(50% - 50vw + var(--sidebar-w, 0px) / 2);
   margin-right: calc(50% - 50vw + var(--sidebar-w, 0px) / 2);
-  margin-top: -24px;      /* 래퍼 상단 padding(24) 상쇄 */
+  margin-top: -24px;
   margin-bottom: 24px;
 }
-.hero-au__inner {
-  max-width: 2600px;
-  margin: 0 auto;
-  container-type: inline-size;
-}
+.hero-au__inner { max-width: 2600px; margin: 0 auto; container-type: inline-size; }
 
-/* ── 3분할 박스 ── */
+/* ── 3분할 박스: Grid 1fr ×3 = 폭 완전 동일(#1) ── */
 .hero-au__box {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   align-items: stretch;
   background: #fff;
   color: #000;
   text-align: center;
-  min-height: min(48.28cqw, 760px);  /* 760/1574 */
+  min-height: min(48.28cqw, 760px);   /* 760/1574 */
 }
+.hero-au__box > * { min-width: 0; }    /* 1fr 균등 보장 */
 
-/* ── 카드 1: 경매 (라임 #E2FF54, 링크→/auction) ── */
+/* ── 카드 1: 경매 (라임 #E2FF54, 링크→/auction) — Figma 2290-56 ── */
 .hero-au__auction {
-  flex: 1 1 0;
-  min-width: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: min(2.54cqw, 40px);   /* 40/1574 */
+  justify-content: space-between;      /* deco / NOW OPEN / (부제+날짜) */
+  padding: min(2.54cqw, 40px);         /* 40 */
   overflow: clip;
   background: #e2ff54;
   text-decoration: none;
@@ -48,72 +41,81 @@
 }
 .hero-au__auction:hover { filter: brightness(1.03); }
 .hero-au__auction:focus-visible { outline: 3px solid #004228; outline-offset: -8px; }
-.hero-au__art {
-  display: block;
-  width: 100%;
-  height: auto;
-  max-width: min(600px, 96%);
-  max-height: min(46cqw, 700px);
-}
 
-/* ── 카드 2: C&R Goods (배경 사진 + 흰 텍스트) ── */
-.hero-au__goods {
-  flex: 1 1 0;
-  min-width: 0;
-  position: relative;
-  overflow: clip;
-  background: #fff;
-}
-.hero-au__goods-bg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  pointer-events: none;
-}
-.hero-au__goods-txt {
-  position: absolute;
-  top: min(3.37cqw, 53px);       /* 53/1574 */
-  left: 0;
-  right: 0;
-  text-align: center;
-  color: #fff;
+/* deco: 아치+✳+경매 (viewBox 고정 → 요소 정렬 항상 일치).
+   폭 = 카드 폭(33.33cqw) 기준, Figma 594.5px 상한 → ✳가 카드 가장자리에 걸침(Figma 룩). */
+.hero-au__deco { width: min(33.33cqw, 594.522px); flex: 0 0 auto; }  /* 594.522/1574 */
+.hero-au__deco svg { display: block; width: 100%; height: auto; overflow: visible; }
+
+.hero-au__nowopen {
+  margin: 0;
   font-family: 'Instrument Sans', sans-serif;
   font-weight: 400;
-  font-size: min(2.79cqw, 44px); /* 44/1574 */
-  line-height: 1;
-  text-transform: uppercase;
+  font-size: min(5.72cqw, 90px);       /* 90 */
+  line-height: 1.25;
+  color: #000;
+}
+.hero-au__cta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: min(1.27cqw, 20px);             /* 20 */
+}
+.hero-au__subtitle {
+  margin: 0;
+  font-family: 'Instrument Sans', sans-serif;
+  font-weight: 400;
+  font-size: min(2.29cqw, 36px);       /* 36 */
+  line-height: 1.3;
+  color: #000;
+}
+.hero-au__dates {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: min(1.33cqw, 21px);             /* 21 */
+  font-family: 'Pretendard Variable', Pretendard, sans-serif;
+  font-weight: 400;
+  font-size: min(2.03cqw, 32px);       /* 32 */
+  line-height: 1.1;
+  color: #000;
+}
+.hero-au__dline { width: min(5.84cqw, 92px); height: 2px; background: #000; flex: 0 0 auto; } /* 92 */
+
+/* ── 카드 2: C&R Goods (배경 사진 + 흰 텍스트) ── */
+.hero-au__goods { position: relative; overflow: clip; background: #fff; }
+.hero-au__goods-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+.hero-au__goods-txt {
+  position: absolute; top: min(3.37cqw, 53px); left: 0; right: 0;
+  text-align: center; color: #fff;
+  font-family: 'Instrument Sans', sans-serif; font-weight: 400;
+  font-size: min(2.79cqw, 44px); line-height: 1; text-transform: uppercase;
 }
 .hero-au__goods-txt p { margin: 0; }
 .hero-au__goods-txt p + p { margin-top: min(0.7cqw, 11px); }
 
-/* ── 카드 3: 펀딩 진행률 (기존 컴포넌트 재사용) ── */
+/* ── 카드 3: 펀딩 진행률 (기존 컴포넌트 재사용, 8열) ── */
 .hero-au__fund {
-  flex: 1 1 0;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: space-between;
-  padding: min(2.03cqw, 32px) min(1.27cqw, 20px); /* 32 / 20 */
+  display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+  padding: min(2.03cqw, 32px) min(1.27cqw, 20px);  /* 32 / 20 */
   background: #fff;
   gap: min(1.02cqw, 16px);
 }
 .hero-au__fund-grid {
   width: 100%;
-  aspect-ratio: 720 / 503;   /* DonationTreeGrid SVG가 채움 */
+  aspect-ratio: 580 / 643;   /* 8열×9행 viewBox(580×643) — 좁은 카드서 셀 크게(#3) */
 }
-.hero-au__fund-bar {
-  width: 100%;
-  max-width: 697px;
-}
+.hero-au__fund-bar { width: 100%; max-width: 697px; }
 
 /* ── 협폭(≤900cqw): 세로 스택 ── */
 @container (max-width: 900px) {
-  .hero-au__box { flex-direction: column; }
-  .hero-au__auction { padding: 28px 16px; }
-  .hero-au__art { max-width: min(440px, 86%); max-height: none; }
+  .hero-au__box { grid-template-columns: 1fr; }
+  .hero-au__auction { padding: 28px 16px; gap: 28px; }
+  .hero-au__deco { width: min(440px, 86%); }
+  .hero-au__nowopen { font-size: 56px; }
+  .hero-au__subtitle { font-size: 24px; }
+  .hero-au__dates { font-size: 22px; gap: 16px; }
+  .hero-au__dline { width: 72px; }
   .hero-au__goods { min-height: 320px; }
   .hero-au__goods-txt { top: 28px; font-size: 32px; }
   .hero-au__fund { padding: 24px 16px; gap: 20px; }

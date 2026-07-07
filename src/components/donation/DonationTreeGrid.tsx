@@ -107,10 +107,17 @@ export interface DonationTreeGridProps {
   goal: number;
   /** 접근성 라벨 (선택) */
   ariaLabel?: string;
+  /** ← [2026-07-08] 열 수(기본 10). 좁은 카드에선 8 등으로 줄여 셀을 크게. 총 70셀은 유지. */
+  cols?: number;
 }
 
-export function DonationTreeGrid({ current, goal, ariaLabel }: DonationTreeGridProps) {
+export function DonationTreeGrid({ current, goal, ariaLabel, cols = COLS }: DonationTreeGridProps) {
   const active = donationActiveTrees(current, goal); // ← 활성 나무 수
+  // ← [2026-07-08] 열 수 가변: 행=ceil(70/열), viewBox도 그에 맞춤. 셀 총수(70)·채움순서 불변.
+  const gCols = Math.max(1, Math.round(cols));
+  const gRows = Math.ceil(TOTAL_CELLS / gCols);
+  const vbW = gCols * PITCH + INSET_X * 2;
+  const vbH = gRows * PITCH + (503 - ROWS * PITCH); // 기존 하단 여백(13px) 유지
 
   // 직전 렌더의 활성 수 — 등장 stagger 기준(--i = idx − prevActive). 커밋 후 갱신.
   const prevActiveRef = useRef(0);                   // ← [추가]
@@ -134,19 +141,16 @@ export function DonationTreeGrid({ current, goal, ariaLabel }: DonationTreeGridP
   }, []);
 
   const cells = [];
-  for (let row = 0; row < ROWS; row++) {
-    for (let col = 0; col < COLS; col++) {
-      const idx = row * COLS + col;          // ← 행 우선 인덱스
-      const x = INSET_X + col * PITCH;
-      const y = row * PITCH;
-      const cx = x + R;
-      const cy = y + R;
-      const isTree = idx < active;           // ← 채움 순서(좌→우, 위→아래)
+  for (let idx = 0; idx < TOTAL_CELLS; idx++) {   // ← [2026-07-08] 70셀을 gCols 열로 배치
+    const col = idx % gCols;
+    const row = Math.floor(idx / gCols);
+    const x = INSET_X + col * PITCH;
+    const y = row * PITCH;
+    const cx = x + R;
+    const cy = y + R;
+    const isTree = idx < active;           // ← 채움 순서(좌→우, 위→아래)
 
-      if (isTree) {
-        // 활성 셀은 <g> 로 렌더 → 새로 활성화된 셀만 신규 마운트되어 등장 1회 발화.
-        // 등장 클래스는 모든 활성 나무에 상시 부여(클래스 토글 없음 → 리렌더 안전).
-        // --i = idx − prevActive : 최초 배치 0..N, 이후 단건 식수는 0(즉시).
+    if (isTree) {
         cells.push(
           <g
             key={idx}
@@ -159,9 +163,8 @@ export function DonationTreeGrid({ current, goal, ariaLabel }: DonationTreeGridP
             </g>
           </g>,
         );
-      } else {
+    } else {
         cells.push(<circle key={idx} cx={cx} cy={cy} r={R} fill={INACTIVE} />);
-      }
     }
   }
 
@@ -169,7 +172,7 @@ export function DonationTreeGrid({ current, goal, ariaLabel }: DonationTreeGridP
     <svg
       ref={svgRef}                                        // ← [추가] 뷰포트 관찰
       className={`esg-tg${paused ? ' is-paused' : ''}`}   // ← [추가] 정지 토글
-      viewBox="0 0 720 503"
+      viewBox={`0 0 ${vbW} ${vbH}`}
       width="100%"
       height="100%"
       preserveAspectRatio="xMidYMid meet"
