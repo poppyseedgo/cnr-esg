@@ -12,7 +12,7 @@
 //   2026-06-01  CSS 마이그레이션 — faq-qna.css 의 .faqqna-container 활용
 // ============================================================================
 
-import { HeroBazaar } from '@/components/home/HeroBazaar'; // ← [2026-06-23] 포스터그리드→바자회 히어로(나무 그리드+카운트다운)
+import { HeroAuction } from '@/components/home/HeroAuction'; // ← [2026-07-08] 경매 오픈 히어로(바자회 히어로 교체)
 import { DonorMarquee } from '@/components/home/DonorMarquee'; // ← [2026-06-16] 기부자 전광판
 import { MissionBand } from '@/components/home/MissionBand'; // ← [2026-06-23] 미션 밴드(2번째 섹션)
 import { HomeFaqSection } from '@/components/faq-qna/HomeFaqSection';
@@ -23,7 +23,7 @@ export function HomePage() {
   return (
     <div>
       {/* [2026-06-23] Figma 변경: 전광판을 히어로 '아래'로 이동 (히어로 → 전광판 → 미션) */}
-      <HeroBazaar />
+      <HeroAuction />{/* ← [2026-07-08] 경매 오픈 3분할 히어로 */}
       <DonorMarquee />
       <MissionBand />
 
