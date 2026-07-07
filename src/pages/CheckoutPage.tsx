@@ -18,19 +18,25 @@
 // ============================================================================
 
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'; // ← [2026-07-07] section 파라미터
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useBazaarSale } from '@/hooks/useBazaarSale'; // ← [2026-06-25] 선판매 정책 훅
 import { BazaarHoursNotice } from '@/components/bazaar/BazaarHoursNotice'; // ← [2026-06-29] 운영시간 안내
 import { loadMyCart, calcCartTotal, type CartItemWithProduct } from '@/lib/cart';
 import { getAvailableStock, isSoldOut, getDisplayPrice, isOnSale } from '@/lib/products';
-import { createBazaarOrder } from '@/lib/orders';
+import { createBazaarOrder, createGoodsOrder } from '@/lib/orders'; // ← [2026-07-07] 굿즈 결제
 
 export function CheckoutPage() {
   const { currentUser } = useCurrentUser();
   const navigate = useNavigate();
+  // ← [2026-07-07] 결제 섹션: ?section=goods → 굿즈 결제(상시, create_goods_order), 그 외/미지정 → 바자회(기존)
+  const [searchParams] = useSearchParams();
+  const section: 'goods' | 'bazaar' = searchParams.get('section') === 'goods' ? 'goods' : 'bazaar';
+  const isGoods = section === 'goods';
   // ← [2026-06-25] 결제 가능 여부/사유를 정책 훅에서 수신 (기간·기부자·토글·어드민·아카이브 반영)
   const { canPurchase: windowAllows, blockReason } = useBazaarSale();
+  const effWindowAllows = isGoods ? true : windowAllows; // ← [2026-07-07] 굿즈=상시판매(게이트 없음)
+  const effBlockReason = isGoods ? null : blockReason;    // ← [2026-07-07]
 
   const [items, setItems] = useState<CartItemWithProduct[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,7 +52,7 @@ export function CheckoutPage() {
     try {
       setError(null);
       const list = await loadMyCart(currentUser.id);
-      setItems(list);
+      setItems(list.filter((i) => ((i.product.section ?? 'bazaar') === section))); // ← [2026-07-07] 섹션 분리 결제(교차 오염 방지)
     } catch (e) {
       console.error('[CheckoutPage] load error:', e);
       setError(e instanceof Error ? e.message : '장바구니를 불러오지 못했습니다.');
@@ -60,7 +66,7 @@ export function CheckoutPage() {
     setLoading(true);
     void reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser?.id]);
+  }, [currentUser?.id, section]);
 
   if (!currentUser) return null; // RequireAuth가 막아줌
 
@@ -97,7 +103,7 @@ export function CheckoutPage() {
   const canCheckout =
     items.length > 0 &&
     overstockItems.length === 0 &&
-    windowAllows &&
+    effWindowAllows && // ← [2026-07-07] 굿즈=상시
     payerName.trim().length > 0;
 
   // 주문 진행
@@ -115,10 +121,15 @@ export function CheckoutPage() {
       // memo 첫 줄에 예금주명 기록 (어드민이 입금 확인 시 사용)
       const fullMemo = [`입금자명: ${payerName.trim()}`, memo.trim()].filter(Boolean).join('\n');
 
-      const result = await createBazaarOrder(
-        items.map((i) => ({ product_id: i.product_id, quantity: i.quantity })),
-        { memo: fullMemo, clearCart: true }
-      );
+      const result = isGoods
+        ? await createGoodsOrder(
+            items.map((i) => ({ product_id: i.product_id, quantity: i.quantity })),
+            { memo: fullMemo, clearCart: true },
+          )
+        : await createBazaarOrder(
+            items.map((i) => ({ product_id: i.product_id, quantity: i.quantity })),
+            { memo: fullMemo, clearCart: true },
+          );
 
       if (result.order_number) {
         // 입금 안내 페이지로 이동
@@ -344,11 +355,11 @@ export function CheckoutPage() {
             </div>
           )}
 
-          {/* ← [2026-06-29] 일일 구매 운영시간 실시간 안내/카운트다운 */}
-          <BazaarHoursNotice compact style={{ marginTop: 16, marginBottom: 0 }} />
+          {/* ← [2026-06-29] 일일 구매 운영시간 안내. 굿즈는 상시판매 → 미표시 */}
+          {!isGoods && <BazaarHoursNotice compact style={{ marginTop: 16, marginBottom: 0 }} />}
 
-          {/* ← [2026-06-25] 구매 불가 사유 안내 (선판매/구경전/종료/중단). /checkout 직접 진입 대비 */}
-          {blockReason && overstockItems.length === 0 && (
+          {/* ← [2026-06-25] 구매 불가 사유 안내. 굿즈는 게이트 없음(effBlockReason=null) */}
+          {effBlockReason && overstockItems.length === 0 && (
             <div
               style={{
                 marginTop: 16,
@@ -360,7 +371,7 @@ export function CheckoutPage() {
                 textAlign: 'center',
               }}
             >
-              {blockReason}
+              {effBlockReason}
             </div>
           )}
 

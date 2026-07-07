@@ -77,12 +77,13 @@ export async function addToCart(
   //   (기존: existing.quantity + quantity 로 무조건 증가 → 재고 초과 반복 담기 버그)
   const { data: product, error: pErr } = await supabase
     .from('esg_products')
-    .select('stock, reserved_stock, status')
+    .select('stock, reserved_stock, status, purchase_type') // ← [2026-07-07] purchase_type
     .eq('id', productId)
     .maybeSingle();
   if (pErr) throw pErr;
   if (!product) throw new Error('상품을 찾을 수 없습니다.');
   if (product.status !== 'on_sale') throw new Error('현재 구매할 수 없는 상품입니다.');
+  if (product.purchase_type === 'funding') throw new Error('펀딩 상품은 상세페이지에서 "펀딩 참여하기"로 신청해주세요.'); // ← [2026-07-07] 펀딩은 장바구니 미사용
   const available = getAvailableStock(product); // max(0, stock - reserved_stock) — 카드/장바구니와 1:1
   if (available <= 0) throw new Error('품절된 상품입니다.');
 

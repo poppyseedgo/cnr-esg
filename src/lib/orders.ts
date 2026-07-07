@@ -124,14 +124,71 @@ export async function createBazaarOrder(
 }
 
 // ============================================================================
-// 조회
+// [2026-07-07] 굿즈 — 일반결제 주문 / 펀딩 참여·진행률
 // ============================================================================
+
+/** 일반결제 굿즈 주문(create_goods_order). 이벤트 게이트 없음. order_type='goods'. */
+export async function createGoodsOrder(
+  items: { product_id: string; quantity: number }[],
+  opts: { memo?: string; clearCart?: boolean } = {},
+): Promise<{ success: boolean; order_number: string; total_amount: number }> {
+  if (items.length === 0) throw new Error('주문 항목이 없습니다.');
+  const { data, error } = await supabase.rpc('create_goods_order', {
+    p_items: items,
+    p_memo: opts.memo ?? null,
+    p_clear_cart: opts.clearCart !== false,
+  });
+  if (error) throw new Error(humanizeRpcError(error.message));
+  const result = data as { success: boolean; error?: string; order_number: string; total_amount: number };
+  if (!result?.success) throw new Error(humanizeRpcError(result?.error));
+
+  if (opts.clearCart !== false) notifyCartChanged();
+  notifyOrdersChanged();
+  trackPurchase({ orderNumber: result.order_number, totalAmount: result.total_amount, items });
+  return result;
+}
+
+/** 펀딩 참여(예약). 결제 아님. 성공 시 pledged 주문 생성. */
+export async function createFundingPledge(
+  productId: string,
+  quantity: number,
+): Promise<{ success: boolean; order_number: string; quantity: number; total_amount: number }> {
+  const { data, error } = await supabase.rpc('create_funding_pledge', { p_product_id: productId, p_quantity: quantity });
+  if (error) throw new Error(error.message ?? '펀딩 참여에 실패했습니다.');
+  const res = data as { success: boolean; error?: string; order_number: string; quantity: number; total_amount: number };
+  if (!res?.success) {
+    const map: Record<string, string> = {
+      NOT_AUTHENTICATED: '로그인이 필요합니다.',
+      NOT_FUNDING: '펀딩 상품이 아닙니다.',
+      NOT_ON_SALE: '현재 참여할 수 없는 상품입니다.',
+      FUNDING_CLOSED: '이미 마감된 펀딩입니다.',
+      DEADLINE_PASSED: '펀딩 마감일이 지났습니다.',
+    };
+    throw new Error(map[res?.error ?? ''] ?? res?.error ?? '펀딩 참여에 실패했습니다.');
+  }
+  notifyOrdersChanged();
+  return res;
+}
+
+/** 펀딩 진행률(공개 집계). */
+export async function loadFundingProgress(productId: string): Promise<{
+  goal_type: 'amount' | 'quantity' | null;
+  goal_amount: number | null; goal_quantity: number | null;
+  pledged_amount: number; pledged_quantity: number; backers: number;
+  deadline: string | null; funding_status: 'live' | 'succeeded' | 'failed';
+} | null> {
+  const { data, error } = await supabase.rpc('esg_funding_progress', { p_product_id: productId });
+  if (error) throw error;
+  const res = data as { success: boolean; [k: string]: unknown };
+  if (!res?.success) return null;
+  return res as never;
+}
 
 export interface LoadMyOrdersOptions {
   /** 특정 상태만 필터링 (예: ['pending'] 결제대기만) */
   statuses?: EsgPaymentStatus[];
-  /** 주문 타입 필터 (bazaar / auction) */
-  orderType?: 'bazaar' | 'auction';
+  /** 주문 타입 필터 (bazaar / auction / goods). 배열이면 여러 타입 동시(예: ['bazaar','goods']) */
+  orderType?: 'bazaar' | 'auction' | 'goods' | ('bazaar' | 'auction' | 'goods')[]; // ← [2026-07-07] goods + 배열
   limit?: number;
 }
 
@@ -152,7 +209,8 @@ export async function loadMyOrders(
     query = query.in('payment_status', statuses);
   }
   if (orderType) {
-    query = query.eq('order_type', orderType);
+    if (Array.isArray(orderType)) query = query.in('order_type', orderType); // ← [2026-07-07] 다중(예: 바자회+굿즈)
+    else query = query.eq('order_type', orderType);
   }
 
   const { data, error } = await query;

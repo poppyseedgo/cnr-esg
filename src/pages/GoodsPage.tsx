@@ -121,7 +121,13 @@ export function GoodsPage() {
           style={{ marginTop: 24, display: 'grid', gap: 16, gridTemplateColumns: 'repeat(2, 1fr)' }}
         >
           {products.map((p) => (
-            <ProductCard key={p.id} product={p} basePath="/goods" canQuickAdd quickAddBlockReason={null} />
+            <ProductCard
+              key={p.id}
+              product={p}
+              basePath="/goods"
+              canQuickAdd={p.purchase_type !== 'funding'} // ← [2026-07-07] 펀딩은 상세에서 참여(빠른담기 X)
+              quickAddBlockReason={p.purchase_type === 'funding' ? '펀딩 상품 — 상세에서 참여' : null}
+            />
           ))}
         </div>
       )}

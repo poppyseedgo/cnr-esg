@@ -124,8 +124,8 @@ export function MyPagePending() {
     try {
       setError(null);
       const list = await loadMyOrders(currentUser.id, {
-        statuses: ['pending'],
-        orderType: 'bazaar',
+        statuses: ['pending', 'pledged'], // ← [2026-07-07] 펀딩 참여중(pledged)도 "진행 중" 탭에 노출
+        orderType: ['bazaar', 'goods'], // ← [2026-07-07] 굿즈 주문(펀딩 참여 포함) 함께 표시
       });
       setOrders(list);
     } catch (e) {
@@ -210,7 +210,7 @@ export function MyPageCompleted() {
       setError(null);
       const list = await loadMyOrders(currentUser.id, {
         statuses: ['paid'],
-        orderType: 'bazaar',
+        orderType: ['bazaar', 'goods'], // ← [2026-07-07] 굿즈 주문(펀딩 참여 포함) 함께 표시
       });
       setOrders(list);
     } catch (e) {
@@ -575,6 +575,12 @@ function OrderCard({
           }}
         >
           ⏰ 입금 기한 {formatTimeLeft(timeLeftMs)} 남음
+        </div>
+      )}
+      {/* ← [2026-07-07] 펀딩 참여중(예약, 결제 전) 안내 */}
+      {order.payment_status === 'pledged' && (
+        <div style={{ marginTop: 12, padding: '6px 10px', background: '#ede9fe', color: '#6d28d9', borderRadius: 6, fontSize: 12, textAlign: 'center' }}>
+          🎯 펀딩 참여중 — 목표 달성 시 결제(입금) 안내를 드립니다 (지금은 결제 전)
         </div>
       )}
     </Link>

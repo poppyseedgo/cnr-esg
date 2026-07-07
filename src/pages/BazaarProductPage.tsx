@@ -36,6 +36,7 @@ import { addToCart } from '@/lib/cart';
 import { signInWithMicrosoft } from '@/lib/auth';
 import { ProductEditForm } from '@/components/admin/ProductEditForm';
 import { ProductDetailTabs } from '@/components/ProductDetailTabs';
+import { FundingPanel } from '@/components/goods/FundingPanel'; // ← [2026-07-07] 펀딩 상세 참여
 import { CustomLabel } from '@/components/CustomLabel'; // ← [2026-07-06] 커스텀 라벨
 import { getProductTags, splitTagsByKind } from '@/lib/tags'; // ← [2026-06-23] 상세 태그
 import type { EsgProductRow, EsgTagRow } from '@/types/esg';
@@ -174,7 +175,8 @@ export function BazaarProductPage({ section = 'bazaar' }: { section?: 'bazaar' |
   const paymentPending = displayStatus === 'payment_pending'; // 입금 대기 중
   const countdownMs = reservation ? new Date(reservation.until).getTime() - nowMs : 0; // ← [2026-06-25]
   // ← [2026-06-25] 재고/예약(soldOut·paymentPending)은 정책이 모르는 영역이라 별도 AND. 나머지는 windowAllows가 판정.
-  const canPurchase = !soldOut && !paymentPending && windowAllows;
+  const isFundingProduct = product.purchase_type === 'funding'; // ← [2026-07-07] 펀딩은 FundingPanel이 담당
+  const canPurchase = !soldOut && !paymentPending && windowAllows && !isFundingProduct; // ← [2026-07-07]
 
   const handleAddToCart = async () => {
     if (!currentUser) {
@@ -402,6 +404,9 @@ export function BazaarProductPage({ section = 'bazaar' }: { section?: 'bazaar' |
 
           {/* 설명은 하단 탭 영역에서 마크다운으로 표시 */}
 
+          {/* ← [2026-07-07] 펀딩 상품: 일반 구매영역 대신 펀딩 참여 패널 */}
+          {isFundingProduct && <FundingPanel product={product} />}
+
           {/* 수량 선택 */}
           {canPurchase && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -490,8 +495,8 @@ export function BazaarProductPage({ section = 'bazaar' }: { section?: 'bazaar' |
           {/* ← [2026-06-29] 일일 구매 운영시간 안내(버튼 위). 굿즈는 상시판매 → 미표시 */}
           {!isGoods && <BazaarHoursNotice compact style={{ margin: 0 }} />}
 
-          {/* 버튼 */}
-          {canPurchase ? (
+          {/* 버튼 (펀딩은 위 FundingPanel이 담당 → 여기선 렌더 안 함) */}
+          {isFundingProduct ? null : canPurchase ? (
             <div style={{ display: 'flex', gap: 8 }}>
               <button
                 type="button"

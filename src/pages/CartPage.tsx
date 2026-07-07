@@ -84,9 +84,17 @@ export function CartPage() {
     return item.quantity > available || isSoldOut(item.product);
   });
 
-  // ← [2026-06-25] 기간/기부자/토글/어드민 판정은 windowAllows로 일원화. 재고/항목수는 별도 AND.
-  const canCheckout =
-    items.length > 0 && overstockItems.length === 0 && windowAllows;
+  // ← [2026-07-07] 결제는 섹션별(bazaarCanCheckout/goodsCanCheckout)로 분리 판정 → 통합 canCheckout 제거
+
+  // ── [2026-07-07] 섹션 분리 결제: 바자회/굿즈는 주문 정책이 달라 각각 주문 ──
+  const overstockOf = (arr: CartItemWithProduct[]) =>
+    arr.filter((item) => item.quantity > getAvailableStock(item.product) || isSoldOut(item.product));
+  const bazaarItems = items.filter((i) => (i.product.section ?? 'bazaar') === 'bazaar');
+  const goodsItems = items.filter((i) => (i.product.section ?? 'bazaar') === 'goods');
+  const bazaarTotals = calcCartTotal(bazaarItems);
+  const goodsTotals = calcCartTotal(goodsItems);
+  const bazaarCanCheckout = bazaarItems.length > 0 && overstockOf(bazaarItems).length === 0 && windowAllows; // 바자회=이벤트 게이트
+  const goodsCanCheckout = goodsItems.length > 0 && overstockOf(goodsItems).length === 0;                    // 굿즈=상시
 
   // 수량 변경
   const handleChangeQuantity = async (item: CartItemWithProduct, delta: number) => {
@@ -404,44 +412,44 @@ export function CartPage() {
               </span>
             </div>
 
-            {/* ← [2026-06-29] 일일 구매 운영시간 실시간 안내/카운트다운 */}
-            <BazaarHoursNotice compact style={{ marginTop: 0, marginBottom: 12 }} />
-
-            {/* ← [2026-06-25] 구매 불가 사유 단일 표시 (구경전/선판매/종료/중단 모두 blockReason이 처리) */}
-            {!canCheckout && blockReason && (
-              <div
-                style={{
-                  padding: 10,
-                  background: '#fef3c7',
-                  color: '#92400e',
-                  borderRadius: 6,
-                  fontSize: 12,
-                  marginBottom: 12,
-                  textAlign: 'center',
-                }}
-              >
-                {blockReason}
+            {/* ← [2026-07-07] 섹션별 결제. 두 섹션이 섞여 있으면 각각 주문(정책이 다름). */}
+            {bazaarItems.length > 0 && (
+              <div style={{ marginBottom: goodsItems.length > 0 ? 16 : 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <span style={{ fontSize: 13, color: '#666' }}>🛍 바자회 {bazaarTotals.itemCount}개 · {bazaarTotals.totalQuantity}개 수량</span>
+                  <span style={{ fontSize: 18, fontWeight: 700, color: '#222' }}>{bazaarTotals.totalAmount.toLocaleString()}원</span>
+                </div>
+                <BazaarHoursNotice compact style={{ marginTop: 0, marginBottom: 8 }} />
+                {!bazaarCanCheckout && blockReason && (
+                  <div style={{ padding: 10, background: '#fef3c7', color: '#92400e', borderRadius: 6, fontSize: 12, marginBottom: 8, textAlign: 'center' }}>{blockReason}</div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => navigate('/checkout?section=bazaar')}
+                  disabled={!bazaarCanCheckout}
+                  style={checkoutBtnStyle(bazaarCanCheckout)}
+                >
+                  {bazaarCanCheckout ? '🛍 바자회 상품 주문하기' : '바자회 결제 불가'}
+                </button>
               </div>
             )}
 
-            <button
-              type="button"
-              onClick={() => navigate('/checkout')}
-              disabled={!canCheckout}
-              style={{
-                width: '100%',
-                padding: '14px 20px',
-                background: canCheckout ? '#1a1a1a' : '#ccc',
-                color: '#fff',
-                border: 'none',
-                borderRadius: 8,
-                cursor: canCheckout ? 'pointer' : 'not-allowed',
-                fontSize: 15,
-                fontWeight: 700,
-              }}
-            >
-              {canCheckout ? '💳 결제하기' : '결제 진행 불가'}
-            </button>
+            {goodsItems.length > 0 && (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <span style={{ fontSize: 13, color: '#666' }}>🎁 굿즈 {goodsTotals.itemCount}개 · {goodsTotals.totalQuantity}개 수량</span>
+                  <span style={{ fontSize: 18, fontWeight: 700, color: '#222' }}>{goodsTotals.totalAmount.toLocaleString()}원</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => navigate('/checkout?section=goods')}
+                  disabled={!goodsCanCheckout}
+                  style={checkoutBtnStyle(goodsCanCheckout)}
+                >
+                  {goodsCanCheckout ? '🎁 굿즈 상품 주문하기' : '굿즈 결제 불가'}
+                </button>
+              </div>
+            )}
             <p style={{ marginTop: 8, fontSize: 11, color: '#aaa', textAlign: 'center' }}>
               계좌이체 결제 · 사내 수령 · 수익금 전부 생명의 숲 기부
             </p>
@@ -450,4 +458,19 @@ export function CartPage() {
       )}
     </div>
   );
+}
+
+// ← [2026-07-07] 섹션별 주문 버튼 공통 스타일
+function checkoutBtnStyle(enabled: boolean): React.CSSProperties {
+  return {
+    width: '100%',
+    padding: '14px 20px',
+    background: enabled ? '#1a1a1a' : '#ccc',
+    color: '#fff',
+    border: 'none',
+    borderRadius: 8,
+    cursor: enabled ? 'pointer' : 'not-allowed',
+    fontSize: 15,
+    fontWeight: 700,
+  };
 }
