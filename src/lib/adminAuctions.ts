@@ -102,6 +102,12 @@ export async function createAuction(input: CreateAuctionInput): Promise<EsgAucti
  *
  * - 진행 중(active) 경매의 호가 단위 변경은 권장하지 않음 (UI에서 확인 다이얼로그)
  * - 현재가/최고 입찰자는 어드민이 직접 수정 안 함 (RPC 통해서만)
+ *
+ * ⚠️ 불변식 주의 [2026-07-08]: "입찰 0건 ⟹ current_price = start_price".
+ *   start_price 를 여기서 바꿔도 current_price 는 클라이언트에서 손대지 않는다.
+ *   DB 트리거 trg_esg_auctions_price_invariant 가 SSOT 로 자동 동기화하므로,
+ *   여기서 current_price 를 함께 계산/전송하지 말 것(불변식 이중 구현 = 정합성 붕괴).
+ *   (마이그레이션: 20260708_fix_auction_current_price_invariant.sql)
  */
 export async function updateAuction(id: string, patch: AuctionPatch): Promise<void> {
   if (Object.keys(patch).length === 0) return;
