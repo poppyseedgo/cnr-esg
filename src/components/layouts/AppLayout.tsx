@@ -36,6 +36,7 @@ export function AppLayout() {
   // ── [2026-06-24] 두 단계 사이드바 ──────────────────────────────────────────
   // 바자회/경매 라우트에서 메인 사이드바를 89px 레일로 접고 2차 패널을 연다.
   const isTwoTier = /^\/(bazaar|auction|goods)(\/|$)/.test(location.pathname); // ← 적용 범위: 바자회+경매+굿즈(기부 제외) // ← [2026-07-07] goods
+  const isHome = location.pathname === '/'; // ← [2026-07-08] 홈: 데스크탑 기본 접힘(Figma 89px 레일)
 
   // 일반 라우트용 수동 접힘(localStorage 지속) — 기존 동작 보존
   const [manualCollapsed, setManualCollapsed] = useState<boolean>(() => {
@@ -43,6 +44,8 @@ export function AppLayout() {
   });
   // 2-tier 라우트 전용 접힘(세션 한정, localStorage 미오염).
   const [twoTierCollapsed, setTwoTierCollapsed] = useState<boolean>(true);
+  // ← [2026-07-08] 홈 전용 접힘(세션 한정, 기본 접힘). 수동 펼침은 세션 내 유지.
+  const [homeCollapsed, setHomeCollapsed] = useState<boolean>(true);
   // ← [2026-07-06] 2-tier(바자회/경매)로 '이동할 때마다' 1차 사이드바 자동 접힘.
   //    (기존: 비2tier→2tier '진입 순간'에만 접힘 → 경매↔바자회 등 2tier 간 이동/2tier 내 이동 시 안 접혔음)
   //    pathname 기준으로 교체 → 페이지 이동 시 접힘. 같은 페이지 내 필터(쿼리 파라미터 변경)는
@@ -53,9 +56,10 @@ export function AppLayout() {
   }, [location.pathname]);
 
   // 현재 적용 접힘 상태 + 토글(라우트 종류에 따라 분기)
-  const collapsed = isTwoTier ? twoTierCollapsed : manualCollapsed;
+  const collapsed = isTwoTier ? twoTierCollapsed : isHome ? homeCollapsed : manualCollapsed; // ← [2026-07-08] 홈 분기
   const toggleCollapse = () => {
     if (isTwoTier) { setTwoTierCollapsed((v) => !v); return; } // 2-tier: 세션 토글(펼치면 1차+2차 동시 노출)
+    if (isHome) { setHomeCollapsed((v) => !v); return; }       // ← [2026-07-08] 홈: 세션 토글
     setManualCollapsed((v) => {
       const next = !v;
       try { localStorage.setItem('esg_sidebar_collapsed', next ? '1' : '0'); } catch { /* 무시 */ }

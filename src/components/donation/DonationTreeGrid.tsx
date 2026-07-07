@@ -112,10 +112,14 @@ export interface DonationTreeGridProps {
 }
 
 export function DonationTreeGrid({ current, goal, ariaLabel, cols = COLS }: DonationTreeGridProps) {
-  const active = donationActiveTrees(current, goal); // ← 활성 나무 수
-  // ← [2026-07-08] 열 수 가변: 행=ceil(70/열), viewBox도 그에 맞춤. 셀 총수(70)·채움순서 불변.
+  // ← [2026-07-08] 열 수 가변 + 풀사각형: 행=ceil(70/열), 셀 총수=열×행(8열→72).
+  //    빈칸 없이 딱 떨어지도록 렌더 총수를 기준으로 달성 수 환산.
   const gCols = Math.max(1, Math.round(cols));
   const gRows = Math.ceil(TOTAL_CELLS / gCols);
+  const gTotal = gCols * gRows;                       // 풀사각형 셀 수(8×9=72)
+  const active = goal > 0
+    ? Math.min(gTotal, Math.max(0, Math.round((current / goal) * gTotal)))
+    : 0;                                              // 렌더 총수 기준 달성 수
   const vbW = gCols * PITCH + INSET_X * 2;
   const vbH = gRows * PITCH + (503 - ROWS * PITCH); // 기존 하단 여백(13px) 유지
 
@@ -141,7 +145,7 @@ export function DonationTreeGrid({ current, goal, ariaLabel, cols = COLS }: Dona
   }, []);
 
   const cells = [];
-  for (let idx = 0; idx < TOTAL_CELLS; idx++) {   // ← [2026-07-08] 70셀을 gCols 열로 배치
+  for (let idx = 0; idx < gTotal; idx++) {   // ← [2026-07-08] 풀사각형(gTotal) 렌더 → 빈칸 없음
     const col = idx % gCols;
     const row = Math.floor(idx / gCols);
     const x = INSET_X + col * PITCH;

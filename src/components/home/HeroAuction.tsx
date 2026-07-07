@@ -31,7 +31,7 @@ export function HeroAuction() {
                 <image href="/home/auction-arc.svg" x="130.72" y="0" width="330.373" height="91.813" />
                 <image href="/home/auction-spark.svg" x="0" y="84.96" width="156.522" height="157.999" />
                 <image href="/home/auction-spark.svg" x="438" y="79.96" width="156.522" height="157.999" />
-                <text x="316" y="196" textAnchor="middle" fill="#000"
+                <text x="297.26" y="161.5" textAnchor="middle" dominantBaseline="central" fill="#000"
                   fontFamily="'Pretendard Variable', Pretendard, sans-serif" fontWeight={400} fontSize="140">경매</text>
               </svg>
             </div>
