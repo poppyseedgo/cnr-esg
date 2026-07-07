@@ -10,7 +10,7 @@
 // ============================================================================
 
 import { useState, useEffect } from 'react';
-import { updateProduct, deleteProduct } from '@/lib/adminProducts';
+import { updateProduct, deleteProduct, finalizeFunding } from '@/lib/adminProducts'; // ← [2026-07-07] finalizeFunding
 import { pushNoteToLinkedIntake } from '@/lib/bazaarIntake'; // ← [2026-06-17] 상품 상세 → 검수 메모 밀어넣기
 import { getAvailableStock } from '@/lib/products';
 import { getProductTags, setProductTags, splitTagsByKind } from '@/lib/tags'; // ← [2026-06-23] 카테고리/브랜드 분리
@@ -73,6 +73,19 @@ export function ProductEditForm({
   const [isNew, setIsNew] = useState(product.is_new);                                  // ← [2026-06-09]
   const [isPinned, setIsPinned] = useState(product.is_pinned);                         // ← [2026-06-17] 상품 고정
   const [salePrice, setSalePrice] = useState<number | ''>(product.sale_price ?? '');   // ← [2026-06-09]
+  // ── [2026-07-07] 펀딩(굿즈 전용) 편집 상태 ──
+  const isGoods = product.section === 'goods';
+  const [purchaseType, setPurchaseType] = useState<'normal' | 'funding'>(product.purchase_type ?? 'normal');
+  const [fundingGoalType, setFundingGoalType] = useState<'amount' | 'quantity'>(product.funding_goal_type ?? 'quantity');
+  const [fundingGoalAmount, setFundingGoalAmount] = useState<number | ''>(product.funding_goal_amount ?? '');
+  const [fundingGoalQuantity, setFundingGoalQuantity] = useState<number | ''>(product.funding_goal_quantity ?? '');
+  const [fundingDeadline, setFundingDeadline] = useState<string>(isoToLocalInput(product.funding_deadline));
+  const isFunding = isGoods && purchaseType === 'funding';
+  const [finalizing, setFinalizing] = useState(false);
+  // 마감확정 가능: 펀딩 + 진행중(live) + 마감일 도달
+  const canFinalize = isGoods && product.purchase_type === 'funding'
+    && (product.funding_status ?? 'live') === 'live'
+    && !!product.funding_deadline && new Date(product.funding_deadline).getTime() <= Date.now();
   // ← [2026-07-06] 커스텀 라벨(텍스트+배경/폰트색). 문자열로 보관(빈 문자열=미지정).
   const [label, setLabel] = useState<CustomLabelValue>({
     text: product.label_text ?? '',
@@ -150,6 +163,29 @@ export function ProductEditForm({
       if (lb !== (product.label_bg ?? null)) patch.label_bg = lb;
       if (lc !== (product.label_color ?? null)) patch.label_color = lc;
 
+      // ← [2026-07-07] 펀딩 diff(굿즈 전용). normal↔funding 전환 및 목표/마감 변경 반영.
+      if (isGoods) {
+        const nextPT: 'normal' | 'funding' = isFunding ? 'funding' : 'normal';
+        if (nextPT !== (product.purchase_type ?? 'normal')) patch.purchase_type = nextPT;
+        if (isFunding) {
+          const gt = fundingGoalType;
+          const gAmt = gt === 'amount' ? Number(fundingGoalAmount) || null : null;
+          const gQty = gt === 'quantity' ? Number(fundingGoalQuantity) || null : null;
+          const dlIso = fundingDeadline ? new Date(fundingDeadline).toISOString() : null;
+          if (!dlIso) throw new Error('펀딩 마감일을 입력해주세요.');
+          if (gt === 'amount' && !(gAmt && gAmt > 0)) throw new Error('목표 금액을 입력해주세요.');
+          if (gt === 'quantity' && !(gQty && gQty > 0)) throw new Error('목표 수량을 입력해주세요.');
+          if (gt !== product.funding_goal_type) patch.funding_goal_type = gt;
+          if (gAmt !== product.funding_goal_amount) patch.funding_goal_amount = gAmt;
+          if (gQty !== product.funding_goal_quantity) patch.funding_goal_quantity = gQty;
+          if (dlIso !== product.funding_deadline) patch.funding_deadline = dlIso;
+        } else if ((product.purchase_type ?? 'normal') === 'funding') {
+          // funding → normal 전환: 펀딩 필드 정리
+          patch.funding_goal_type = null; patch.funding_goal_amount = null;
+          patch.funding_goal_quantity = null; patch.funding_deadline = null;
+        }
+      }
+
       // ← [2026-06-23] 카테고리+브랜드 합쳐서 변경 감지(정렬 후 비교). RPC는 patch와 별개로 호출.
       const allTags = [...categoryTags, ...brandTags];
       const curTagIds = allTags.map((t) => t.id).sort();
@@ -171,6 +207,23 @@ export function ProductEditForm({
       alert(e instanceof Error ? e.message : '저장 실패');
     } finally {
       setBusy(false);
+    }
+  };
+
+  // ← [2026-07-07] 펀딩 마감 수동 확정
+  const handleFinalize = async () => {
+    if (!window.confirm('지금 펀딩을 마감 확정할까요?\n\n목표 달성 시 참여자 주문이 "결제 대기(pending)"로 전환되고, 미달 시 모두 취소됩니다. (되돌릴 수 없음)')) return;
+    setFinalizing(true);
+    try {
+      const res = await finalizeFunding(product.id);
+      if (res.already) alert('이미 확정된 펀딩입니다.');
+      else alert(res.met ? `🎉 목표 달성! (${res.achieved?.toLocaleString()}/${res.goal?.toLocaleString()}) 참여자 ${res.affected_orders}건이 결제 대기로 전환됐습니다.`
+                         : `아쉽게 미달성 (${res.achieved?.toLocaleString()}/${res.goal?.toLocaleString()}). 참여 ${res.affected_orders}건이 취소됐습니다.`);
+      onSuccess();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '펀딩 확정 실패');
+    } finally {
+      setFinalizing(false);
     }
   };
 
@@ -254,6 +307,70 @@ export function ProductEditForm({
           disabled={busy}
         />
       </Field>
+
+      {/* ← [2026-07-07] 결제 방식 / 펀딩 (굿즈 전용) */}
+      {isGoods && (
+        <div style={{ marginTop: 12, padding: 12, border: '1px solid #e5e7eb', borderRadius: 8, background: '#fafafa' }}>
+          <Field label="결제 방식">
+            <div style={{ display: 'flex', gap: 8 }}>
+              {(['normal', 'funding'] as const).map((pt) => (
+                <button key={pt} type="button" onClick={() => setPurchaseType(pt)} disabled={busy}
+                  style={{ flex: 1, padding: '10px 12px', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                    border: purchaseType === pt ? '2px solid #111' : '1px solid #ddd',
+                    background: purchaseType === pt ? '#111' : '#fff', color: purchaseType === pt ? '#fff' : '#333' }}>
+                  {pt === 'normal' ? '일반 결제' : '🎯 Funding (선주문)'}
+                </button>
+              ))}
+            </div>
+          </Field>
+
+          {isFunding && (
+            <>
+              <Field label="목표 기준">
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {(['quantity', 'amount'] as const).map((gt) => (
+                    <button key={gt} type="button" onClick={() => setFundingGoalType(gt)} disabled={busy}
+                      style={{ flex: 1, padding: '8px 12px', borderRadius: 6, fontSize: 13, cursor: 'pointer',
+                        border: fundingGoalType === gt ? '2px solid #111' : '1px solid #ddd',
+                        background: fundingGoalType === gt ? '#eef2ff' : '#fff', fontWeight: fundingGoalType === gt ? 700 : 400 }}>
+                      {gt === 'quantity' ? '목표 수량' : '목표 금액'}
+                    </button>
+                  ))}
+                </div>
+              </Field>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
+                {fundingGoalType === 'quantity' ? (
+                  <Field label="목표 수량 (개) *">
+                    <input type="number" value={fundingGoalQuantity} onChange={(e) => setFundingGoalQuantity(e.target.value === '' ? '' : (Number(e.target.value) || 0))} disabled={busy} step={1} min={1} style={inputStyle} />
+                  </Field>
+                ) : (
+                  <Field label="목표 금액 (원) *">
+                    <input type="number" value={fundingGoalAmount} onChange={(e) => setFundingGoalAmount(e.target.value === '' ? '' : (Number(e.target.value) || 0))} disabled={busy} step={10000} min={1} style={inputStyle} />
+                  </Field>
+                )}
+                <Field label="마감일 *">
+                  <input type="datetime-local" value={fundingDeadline} onChange={(e) => setFundingDeadline(e.target.value)} disabled={busy} style={inputStyle} />
+                </Field>
+              </div>
+
+              {/* 진행 상태 + 마감확정 */}
+              <div style={{ marginTop: 8, fontSize: 12, color: '#555' }}>
+                진행 상태: <strong>{product.funding_status ?? 'live'}</strong>
+              </div>
+              {canFinalize && (
+                <button type="button" onClick={handleFinalize} disabled={finalizing}
+                  style={{ marginTop: 8, width: '100%', padding: '10px 12px', borderRadius: 6, fontSize: 13, fontWeight: 700,
+                    border: 'none', background: finalizing ? '#ccc' : '#7c3aed', color: '#fff', cursor: finalizing ? 'not-allowed' : 'pointer' }}>
+                  {finalizing ? '확정 중…' : '⏰ 마감일 도달 — 지금 펀딩 마감 확정'}
+                </button>
+              )}
+              {product.purchase_type === 'funding' && (product.funding_status ?? 'live') === 'live' && !canFinalize && (
+                <div style={{ marginTop: 8, fontSize: 11, color: '#888' }}>마감일 이후 마감확정 버튼이 활성화됩니다. (크론이 5분 간격으로 자동 확정)</div>
+              )}
+            </>
+          )}
+        </div>
+      )}
 
       {/* ← [2026-06-23] 태그 — 카테고리 / 브랜드 분리 입력. 사용자 페이지 필터 메뉴로 노출 */}
       <Field label="카테고리 태그 (예: 유아용품, 식품, 저당과자)">
@@ -454,6 +571,15 @@ export function ProductEditForm({
 // ============================================================================
 // 공통 UI
 // ============================================================================
+
+// ← [2026-07-07] 펀딩 마감일 ISO → datetime-local input 값("YYYY-MM-DDTHH:mm", 로컬시각)
+function isoToLocalInput(iso: string | null): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 const inputStyle: React.CSSProperties = {
   width: '100%',

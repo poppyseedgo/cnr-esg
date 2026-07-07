@@ -33,6 +33,14 @@ export function CreateProductForm({ onCancel, onSuccess, section = 'bazaar' }: C
   const [sortOrder, setSortOrder] = useState(0);
   const [isNew, setIsNew] = useState(false);                       // ← [2026-06-09] "새 상품" 라벨
   const [salePrice, setSalePrice] = useState<number | ''>('');     // ← [2026-06-09] 세일가(빈값=세일 없음)
+  // ── [2026-07-07] 펀딩(굿즈 전용). 결제방식 normal|funding ──
+  const isGoods = section === 'goods';
+  const [purchaseType, setPurchaseType] = useState<'normal' | 'funding'>('normal');
+  const [fundingGoalType, setFundingGoalType] = useState<'amount' | 'quantity'>('quantity');
+  const [fundingGoalAmount, setFundingGoalAmount] = useState<number | ''>('');
+  const [fundingGoalQuantity, setFundingGoalQuantity] = useState<number | ''>('');
+  const [fundingDeadline, setFundingDeadline] = useState<string>(''); // datetime-local "YYYY-MM-DDTHH:mm"
+  const isFunding = isGoods && purchaseType === 'funding';
   const [saving, setSaving] = useState(false);
 
   // ← [2026-06-09] 세일가 유효성/할인율 미리보기 (정상가 미만일 때만 세일)
@@ -43,6 +51,16 @@ export function CreateProductForm({ onCancel, onSuccess, section = 'bazaar' }: C
     if (!name.trim()) {
       alert('상품명을 입력해주세요.');
       return;
+    }
+    // ← [2026-07-07] 펀딩 검증
+    let fundingDeadlineIso: string | null = null;
+    if (isFunding) {
+      if (!fundingDeadline) { alert('펀딩 마감일을 입력해주세요.'); return; }
+      const dl = new Date(fundingDeadline);
+      if (isNaN(dl.getTime()) || dl.getTime() <= Date.now()) { alert('펀딩 마감일은 미래 시각이어야 합니다.'); return; }
+      fundingDeadlineIso = dl.toISOString();
+      if (fundingGoalType === 'amount' && !(Number(fundingGoalAmount) > 0)) { alert('목표 금액을 입력해주세요.'); return; }
+      if (fundingGoalType === 'quantity' && !(Number(fundingGoalQuantity) > 0)) { alert('목표 수량을 입력해주세요.'); return; }
     }
     setSaving(true);
     try {
@@ -58,6 +76,12 @@ export function CreateProductForm({ onCancel, onSuccess, section = 'bazaar' }: C
         is_new: isNew,                                        // ← [2026-06-09]
         sale_price: saleActive ? (salePrice as number) : null, // ← [2026-06-09] 정상가 미만일 때만 저장
         section,                                              // ← [2026-07-07] 굿즈/바자회 섹션
+        // ← [2026-07-07] 펀딩 필드(굿즈+funding 일 때만 의미, lib에서 재정규화)
+        purchase_type: isFunding ? 'funding' : 'normal',
+        funding_goal_type: isFunding ? fundingGoalType : null,
+        funding_goal_amount: isFunding && fundingGoalType === 'amount' ? Number(fundingGoalAmount) : null,
+        funding_goal_quantity: isFunding && fundingGoalType === 'quantity' ? Number(fundingGoalQuantity) : null,
+        funding_deadline: fundingDeadlineIso,
       });
       onSuccess();
     } catch (e) {
@@ -135,6 +159,73 @@ export function CreateProductForm({ onCancel, onSuccess, section = 'bazaar' }: C
           </div>
         </Field>
       </div>
+
+      {/* ── [2026-07-07] 결제 방식 (굿즈 전용): 일반결제 / Funding ── */}
+      {isGoods && (
+        <div style={{ marginTop: 16, padding: 12, border: '1px solid #e5e7eb', borderRadius: 8, background: '#fafafa' }}>
+          <Field label="결제 방식">
+            <div style={{ display: 'flex', gap: 8 }}>
+              {(['normal', 'funding'] as const).map((pt) => (
+                <button
+                  key={pt}
+                  type="button"
+                  onClick={() => setPurchaseType(pt)}
+                  disabled={saving}
+                  style={{
+                    flex: 1, padding: '10px 12px', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                    border: purchaseType === pt ? '2px solid #111' : '1px solid #ddd',
+                    background: purchaseType === pt ? '#111' : '#fff',
+                    color: purchaseType === pt ? '#fff' : '#333',
+                  }}
+                >
+                  {pt === 'normal' ? '일반 결제' : '🎯 Funding (선주문)'}
+                </button>
+              ))}
+            </div>
+          </Field>
+
+          {isFunding && (
+            <>
+              <div style={{ fontSize: 12, color: '#0369a1', background: '#e0f2fe', padding: '8px 10px', borderRadius: 6, marginBottom: 10 }}>
+                마감일까지 목표 달성 시에만 참여자 일괄 결제(계좌이체) 진행 · 미달 시 무산(All-or-Nothing)
+              </div>
+              <Field label="목표 기준">
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {(['quantity', 'amount'] as const).map((gt) => (
+                    <button
+                      key={gt}
+                      type="button"
+                      onClick={() => setFundingGoalType(gt)}
+                      disabled={saving}
+                      style={{
+                        flex: 1, padding: '8px 12px', borderRadius: 6, fontSize: 13, cursor: 'pointer',
+                        border: fundingGoalType === gt ? '2px solid #111' : '1px solid #ddd',
+                        background: fundingGoalType === gt ? '#eef2ff' : '#fff', fontWeight: fundingGoalType === gt ? 700 : 400,
+                      }}
+                    >
+                      {gt === 'quantity' ? '목표 수량' : '목표 금액'}
+                    </button>
+                  ))}
+                </div>
+              </Field>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
+                {fundingGoalType === 'quantity' ? (
+                  <Field label="목표 수량 (개) *">
+                    <input type="number" value={fundingGoalQuantity} onChange={(e) => setFundingGoalQuantity(e.target.value === '' ? '' : (Number(e.target.value) || 0))} disabled={saving} step={1} min={1} placeholder="예: 50" style={inputStyle} />
+                  </Field>
+                ) : (
+                  <Field label="목표 금액 (원) *">
+                    <input type="number" value={fundingGoalAmount} onChange={(e) => setFundingGoalAmount(e.target.value === '' ? '' : (Number(e.target.value) || 0))} disabled={saving} step={10000} min={1} placeholder="예: 1000000" style={inputStyle} />
+                  </Field>
+                )}
+                <Field label="마감일 *">
+                  <input type="datetime-local" value={fundingDeadline} onChange={(e) => setFundingDeadline(e.target.value)} disabled={saving} style={inputStyle} />
+                </Field>
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: 6, marginTop: 16 }}>
         <button type="button" onClick={save} disabled={saving} style={{ flex: 1, padding: '10px 12px', background: saving ? '#ccc' : '#111', color: '#fff', border: 'none', borderRadius: 6, cursor: saving ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600 }}>

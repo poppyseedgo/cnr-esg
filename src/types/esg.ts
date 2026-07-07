@@ -28,6 +28,13 @@ export type EsgProductStatus = 'on_sale' | 'sold_out' | 'hidden';
  *  esg_products·esg_tags 공유, 커머스 테이블은 product_id로 section 무관 동작. */
 export type EsgProductSection = 'bazaar' | 'goods';
 
+/** [2026-07-07] 굿즈 결제 방식: 일반결제 | 펀딩(All-or-Nothing pre-order) */
+export type EsgPurchaseType = 'normal' | 'funding';
+/** 펀딩 목표 기준 */
+export type EsgFundingGoalType = 'amount' | 'quantity';
+/** 펀딩 진행 상태(마감 후 확정) */
+export type EsgFundingStatus = 'live' | 'succeeded' | 'failed';
+
 export type EsgOrderType = 'bazaar' | 'auction' | 'goods'; // ← [2026-07-07] 굿즈 주문 분리
 
 export type EsgPaymentStatus =
@@ -35,7 +42,8 @@ export type EsgPaymentStatus =
   | 'paid'
   | 'cancelled'
   | 'refunded'
-  | 'expired';
+  | 'expired'
+  | 'pledged'; // ← [2026-07-07] 펀딩 참여(예약, 결제 전). 마감 달성 시 pending 전환 / 미달 시 cancelled
 
 export type EsgPaymentMethod = 'bank_transfer';
 
@@ -355,6 +363,13 @@ export interface EsgProductRow {
   label_bg: string | null;    // ← [2026-07-06] 커스텀 라벨 배경색 HEX
   label_color: string | null; // ← [2026-07-06] 커스텀 라벨 폰트색 HEX
   section: EsgProductSection; // ← [2026-07-07] 'bazaar'(기본) | 'goods' — 목록/어드민 분리
+  // ── [2026-07-07] 굿즈 Funding(All-or-Nothing pre-order) ──
+  purchase_type: EsgPurchaseType;                 // 'normal'(기본) | 'funding'
+  funding_goal_type: EsgFundingGoalType | null;   // 'amount' | 'quantity' (funding 일 때)
+  funding_goal_amount: number | null;             // 목표 금액
+  funding_goal_quantity: number | null;           // 목표 수량
+  funding_deadline: string | null;                // 마감일 ISO
+  funding_status: EsgFundingStatus | null;         // 'live'|'succeeded'|'failed' (마감 후 확정)
   created_at: string;
   updated_at: string;
   /** 클라이언트 보강(서버 컬럼 아님) — 리스트/상세에서 태그 표시용. // ← [2026-06-23] */

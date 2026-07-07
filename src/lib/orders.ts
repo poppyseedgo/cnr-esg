@@ -276,6 +276,7 @@ export const PAYMENT_STATUS_LABELS: Record<EsgPaymentStatus, string> = {
   cancelled: '취소됨',
   refunded: '환불됨',
   expired: '기한 만료',
+  pledged: '펀딩 참여중', // ← [2026-07-07] 예약(결제 전) — 마감 달성 시 입금 대기로 전환
 };
 
 /** 상태별 색상 (UI에서 일관성) */
@@ -285,6 +286,7 @@ export const PAYMENT_STATUS_COLORS: Record<EsgPaymentStatus, { bg: string; color
   cancelled: { bg: '#f0f0f0', color: '#666' },
   refunded: { bg: '#dbeafe', color: '#1e40af' },
   expired: { bg: '#fee2e2', color: '#991b1b' },
+  pledged: { bg: '#ede9fe', color: '#6d28d9' }, // ← [2026-07-07] 펀딩 참여중(보라)
 };
 
 /** pending 주문의 남은 시간 (ms). 만료됐으면 0 이하 */

@@ -38,6 +38,12 @@ export interface CreateProductInput {
   is_new?: boolean;            // ← [2026-06-09] "새 상품" 라벨
   sale_price?: number | null;  // ← [2026-06-09] 세일가(NULL=세일 아님)
   section?: EsgProductSection; // ← [2026-07-07] 'bazaar'(기본) | 'goods'
+  // ── [2026-07-07] 펀딩(All-or-Nothing) ──
+  purchase_type?: import('@/types/esg').EsgPurchaseType;                 // 'normal'(기본) | 'funding'
+  funding_goal_type?: import('@/types/esg').EsgFundingGoalType | null;   // 'amount' | 'quantity'
+  funding_goal_amount?: number | null;
+  funding_goal_quantity?: number | null;
+  funding_deadline?: string | null;                                     // ISO
 }
 
 export type UpdateProductPatch = Partial<
@@ -57,6 +63,11 @@ export type UpdateProductPatch = Partial<
     | 'label_text'    // ← [2026-07-06] 커스텀 라벨
     | 'label_bg'      // ← [2026-07-06]
     | 'label_color'   // ← [2026-07-06]
+    | 'purchase_type'         // ← [2026-07-07] 펀딩
+    | 'funding_goal_type'     // ← [2026-07-07]
+    | 'funding_goal_amount'   // ← [2026-07-07]
+    | 'funding_goal_quantity' // ← [2026-07-07]
+    | 'funding_deadline'      // ← [2026-07-07]
   >
 >;
 
@@ -86,6 +97,24 @@ export async function createProduct(input: CreateProductInput): Promise<EsgProdu
       ? input.sale_price
       : null;
 
+  // ← [2026-07-07] 펀딩 정규화: normal 이면 모든 펀딩필드 NULL. funding 이면 목표유형에 따라 한쪽만 채움.
+  const isFunding = input.purchase_type === 'funding';
+  const goalType = isFunding ? (input.funding_goal_type ?? 'quantity') : null;
+  const fundingCols = isFunding
+    ? {
+        purchase_type: 'funding',
+        funding_goal_type: goalType,
+        funding_goal_amount: goalType === 'amount' ? (input.funding_goal_amount ?? null) : null,
+        funding_goal_quantity: goalType === 'quantity' ? (input.funding_goal_quantity ?? null) : null,
+        funding_deadline: input.funding_deadline ?? null,
+        funding_status: 'live', // 등록 즉시 진행중
+      }
+    : {
+        purchase_type: 'normal',
+        funding_goal_type: null, funding_goal_amount: null, funding_goal_quantity: null,
+        funding_deadline: null, funding_status: null,
+      };
+
   const { data, error } = await supabase
     .from('esg_products')
     .insert([
@@ -101,6 +130,7 @@ export async function createProduct(input: CreateProductInput): Promise<EsgProdu
         is_new: input.is_new ?? false,   // ← [2026-06-09]
         sale_price: saleClean,           // ← [2026-06-09]
         section: input.section ?? 'bazaar', // ← [2026-07-07] 섹션(미지정=바자회, 기존과 동일)
+        ...fundingCols,                  // ← [2026-07-07] 펀딩 필드
       },
     ])
     .select('*')
@@ -230,4 +260,42 @@ export async function reorderProducts(orderedIds: string[], section?: EsgProduct
   const { data, error } = await supabase.rpc('reorder_products', { p_ids: orderedIds });
   if (error) throw error;
   if (data && data.success === false) throw new Error(data.error ?? '재정렬에 실패했습니다.');
+}
+
+// ============================================================================
+// [2026-07-07] 펀딩(Funding) — 관리자 마감확정 / 진행률
+// ============================================================================
+
+/** 펀딩 마감 수동 확정(관리자). 달성→참여자 주문 pending 전환, 미달→cancelled. 멱등. */
+export async function finalizeFunding(productId: string): Promise<{
+  met?: boolean; status?: string; goal?: number; achieved?: number; affected_orders?: number; already?: boolean;
+}> {
+  const { data, error } = await supabase.rpc('finalize_funding', { p_product_id: productId });
+  if (error) throw new Error(error.message ?? '펀딩 확정에 실패했습니다.');
+  const res = data as { success: boolean; error?: string; [k: string]: unknown };
+  if (!res?.success) {
+    if (res?.error === 'FORBIDDEN') throw new Error('관리자만 확정할 수 있습니다.');
+    if (res?.error === 'DEADLINE_NOT_REACHED') throw new Error('아직 마감일이 지나지 않았습니다.');
+    if (res?.error === 'NOT_FUNDING') throw new Error('펀딩 상품이 아닙니다.');
+    throw new Error(res?.error ?? '펀딩 확정에 실패했습니다.');
+  }
+  return res as { met?: boolean; status?: string; goal?: number; achieved?: number; affected_orders?: number; already?: boolean };
+}
+
+/** 펀딩 진행률 조회(공개 집계) — 진행/달성 금액·수량·참여자 수. */
+export async function loadFundingProgress(productId: string): Promise<{
+  goal_type: 'amount' | 'quantity' | null;
+  goal_amount: number | null;
+  goal_quantity: number | null;
+  pledged_amount: number;
+  pledged_quantity: number;
+  backers: number;
+  deadline: string | null;
+  funding_status: 'live' | 'succeeded' | 'failed';
+} | null> {
+  const { data, error } = await supabase.rpc('esg_funding_progress', { p_product_id: productId });
+  if (error) throw error;
+  const res = data as { success: boolean; [k: string]: unknown };
+  if (!res?.success) return null;
+  return res as never;
 }
