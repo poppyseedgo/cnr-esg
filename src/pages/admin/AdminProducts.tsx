@@ -39,7 +39,10 @@ const STATUS_COLORS: Record<EsgProductStatus, { bg: string; color: string }> = {
   hidden: { bg: '#f0f0f0', color: '#666' },
 };
 
-export function AdminProducts() {
+// ← [2026-07-07] section prop 으로 바자회/굿즈 공용화. 미지정=바자회(기존과 100% 동일).
+export function AdminProducts({ section = 'bazaar' }: { section?: import('@/types/esg').EsgProductSection } = {}) {
+  const isGoods = section === 'goods';
+  const sectionLabel = isGoods ? '굿즈' : '바자회'; // 헤더/버튼 문구용
   const [products, setProducts] = useState<EsgProductRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -63,7 +66,7 @@ export function AdminProducts() {
   const reload = async () => {
     try {
       setError(null);
-      setProducts(await loadAllProducts());
+      setProducts(await loadAllProducts(section)); // ← [2026-07-07] 섹션별 목록(굿즈/바자회 분리)
     } catch (e) {
       console.error('[AdminProducts]', e);
       setError(e instanceof Error ? e.message : '상품을 불러오지 못했습니다.');
@@ -86,7 +89,7 @@ export function AdminProducts() {
 
     setReordering(true);
     try {
-      await reorderProducts(next.map((p) => p.id));          // sort_order 1..N 재할당
+      await reorderProducts(next.map((p) => p.id), section);  // ← [2026-07-07] 섹션 격리 재정렬(굿즈↔바자회 무간섭)
     } catch (e) {
       alert(e instanceof Error ? e.message : '순서 저장 실패');
       void reload();                                         // 실패 시 서버 상태로 복구
@@ -120,7 +123,7 @@ export function AdminProducts() {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-        <h2 style={{ margin: 0 }}>🛍 바자회 상품 관리</h2>
+        <h2 style={{ margin: 0 }}>{isGoods ? '🎁' : '🛍'} {sectionLabel} 상품 관리</h2>
         <button
           type="button"
           onClick={() => setCreating(true)}
@@ -157,6 +160,7 @@ export function AdminProducts() {
         >
           <h3 style={{ margin: '0 0 16px', fontSize: 16, color: '#111' }}>➕ 새 상품 등록</h3>
           <CreateProductForm
+            section={section} // ← [2026-07-07] 신규 상품을 이 섹션(굿즈/바자회)으로 등록
             onCancel={() => setCreating(false)}
             onSuccess={() => {
               setCreating(false);

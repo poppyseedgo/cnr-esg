@@ -24,7 +24,11 @@ export type EsgCommentStatus = 'published' | 'deleted' | 'hidden';
 
 export type EsgProductStatus = 'on_sale' | 'sold_out' | 'hidden';
 
-export type EsgOrderType = 'bazaar' | 'auction';
+/** [2026-07-07] 상품/태그 섹션 구분자 — 바자회(기부물품) / 굿즈(상시 판매 굿즈).
+ *  esg_products·esg_tags 공유, 커머스 테이블은 product_id로 section 무관 동작. */
+export type EsgProductSection = 'bazaar' | 'goods';
+
+export type EsgOrderType = 'bazaar' | 'auction' | 'goods'; // ← [2026-07-07] 굿즈 주문 분리
 
 export type EsgPaymentStatus =
   | 'pending'
@@ -350,6 +354,7 @@ export interface EsgProductRow {
   label_text: string | null;  // ← [2026-07-06] 커스텀 라벨 문구(NULL/공백=미표시)
   label_bg: string | null;    // ← [2026-07-06] 커스텀 라벨 배경색 HEX
   label_color: string | null; // ← [2026-07-06] 커스텀 라벨 폰트색 HEX
+  section: EsgProductSection; // ← [2026-07-07] 'bazaar'(기본) | 'goods' — 목록/어드민 분리
   created_at: string;
   updated_at: string;
   /** 클라이언트 보강(서버 컬럼 아님) — 리스트/상세에서 태그 표시용. // ← [2026-06-23] */
@@ -369,6 +374,7 @@ export interface EsgTagRow {
   name: string;       // 표시 이름(한글 OK)
   slug: string;       // URL/필터 키 (UNIQUE)
   kind: TagKind;      // ← [2026-06-23] 카테고리/브랜드 구분
+  section: EsgProductSection; // ← [2026-07-07] 'bazaar'(기본) | 'goods' — 섹션별 필터 칩 스코프
   sort_order: number; // 메뉴 정렬
   created_at: string;
 }

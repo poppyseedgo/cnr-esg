@@ -16,7 +16,7 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { listAllTags, upsertTag } from '@/lib/tags';
-import type { EsgTagRow, TagKind } from '@/types/esg';
+import type { EsgTagRow, TagKind, EsgProductSection } from '@/types/esg'; // ← [2026-07-07] section
 
 interface TagInputProps {
   value: EsgTagRow[];
@@ -24,19 +24,20 @@ interface TagInputProps {
   disabled?: boolean;
   kind?: TagKind;          // ← [2026-06-23] 'category'(기본) | 'brand' — 자동완성/생성 종류
   placeholder?: string;    // ← [2026-06-23] 입력 안내문
+  section?: EsgProductSection; // ← [2026-07-07] 자동완성/생성 섹션 스코프(기본 bazaar=기존과 동일)
 }
 
-export function TagInput({ value, onChange, disabled, kind = 'category', placeholder }: TagInputProps) {
+export function TagInput({ value, onChange, disabled, kind = 'category', placeholder, section = 'bazaar' }: TagInputProps) { // ← [2026-07-07] section
   const [allTags, setAllTags] = useState<EsgTagRow[]>([]);
   const [input, setInput] = useState('');
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
 
-  // 전체 태그 로드(자동완성용)
+  // 전체 태그 로드(자동완성용) — 섹션 스코프 // ← [2026-07-07] 굿즈면 굿즈 태그만 제안
   useEffect(() => {
-    listAllTags().then(setAllTags).catch(() => {/* 자동완성 실패는 조용히 무시(직접 입력 가능) */});
-  }, []);
+    listAllTags(section).then(setAllTags).catch(() => {/* 자동완성 실패는 조용히 무시(직접 입력 가능) */});
+  }, [section]);
 
   const selectedIds = useMemo(() => new Set(value.map((t) => t.id)), [value]);
   const q = input.trim().toLowerCase();
@@ -67,7 +68,7 @@ export function TagInput({ value, onChange, disabled, kind = 'category', placeho
     if (!trimmed || creating) return;
     setCreating(true);
     try {
-      const tag = await upsertTag(trimmed, kind); // ← [2026-06-23] 종류 지정 생성/조회
+      const tag = await upsertTag(trimmed, kind, section); // ← [2026-06-23] 종류 / [2026-07-07] 섹션 지정 생성·조회
       setAllTags((prev) => (prev.some((t) => t.id === tag.id) ? prev : [...prev, tag]));
       if (!value.some((t) => t.id === tag.id)) onChange([...value, tag]);
       setInput('');

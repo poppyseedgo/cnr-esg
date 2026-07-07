@@ -15,6 +15,7 @@ const adminTabs = [
   { to: '/admin/bazaar-intake', label: '물품 접수', icon: '📦' }, // ← [추가 2026-06-08] 바자회 물품 접수/검수/게시
   { to: '/admin/presale', label: '선구매 관리', icon: '🎫' }, // ← [추가 2026-06-26] 선구매 자격/공개시각/비상토글
   { to: '/admin/products', label: '바자회 상품', icon: '🛍' },
+  { to: '/admin/goods', label: '굿즈 상품', icon: '🎁' }, // ← [2026-07-07] 굿즈 상품 관리
   { to: '/admin/donations', label: '기부 관리', icon: '💚' },
   { to: '/admin/roster', label: '명단 관리', icon: '📋' }, // ← [추가 2026-06-16 버그#5] 통합 명단/CSV
   { to: '/admin/posts', label: '게시글 관리', icon: '📝' },

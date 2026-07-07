@@ -18,7 +18,7 @@
 // ============================================================================
 
 import { supabase as _supabase } from './supabase';
-import type { EsgTagRow, EsgTagWithCount, TagKind } from '@/types/esg';
+import type { EsgTagRow, EsgTagWithCount, TagKind, EsgProductSection } from '@/types/esg'; // ← [2026-07-07] section
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const supabase = _supabase as any;
@@ -48,12 +48,14 @@ export async function listTagsWithCount(): Promise<EsgTagWithCount[]> {
 // ============================================================================
 // 어드민 자동완성용 — 전체 태그(이름 오름차순)
 // ============================================================================
-export async function listAllTags(): Promise<EsgTagRow[]> {
-  const { data, error } = await supabase
+export async function listAllTags(section?: EsgProductSection): Promise<EsgTagRow[]> { // ← [2026-07-07] section 스코프
+  let query = supabase
     .from('esg_tags')
     .select('*')
     .order('sort_order', { ascending: true })
     .order('name', { ascending: true });
+  if (section) query = query.eq('section', section); // ← [2026-07-07] 굿즈/바자회 카테고리 분리(미지정=전체, 하위호환)
+  const { data, error } = await query;
   if (error) throw error;
   return (data ?? []) as EsgTagRow[];
 }
@@ -62,7 +64,11 @@ export async function listAllTags(): Promise<EsgTagRow[]> {
 // 태그 즉시 등록 — 같은 slug 있으면 그 태그 반환, 없으면 생성
 //   (워드프레스 "엔터 → 즉시 생성". 중복 입력해도 안전)
 // ============================================================================
-export async function upsertTag(name: string, kind: TagKind = 'category'): Promise<EsgTagRow> {
+export async function upsertTag(
+  name: string,
+  kind: TagKind = 'category',
+  section: EsgProductSection = 'bazaar', // ← [2026-07-07] 생성 섹션(기본 바자회=기존과 동일)
+): Promise<EsgTagRow> {
   const trimmed = name.trim();
   if (!trimmed) throw new Error('태그 이름을 입력해주세요.');
 
@@ -75,7 +81,15 @@ export async function upsertTag(name: string, kind: TagKind = 'category'): Promi
     if (msg.includes('INVALID_KIND')) throw new Error('태그 종류가 올바르지 않습니다.');
     throw new Error(msg || '태그 등록 실패');
   }
-  return data as EsgTagRow;
+  let tag = data as EsgTagRow;
+  // ← [2026-07-07] 굿즈 카테고리로 만든 경우 section 보정. esg_upsert_tag_kind 는 section 미설정 →
+  //    새 태그는 DB DEFAULT 'bazaar' 로 생성되므로, goods 컨텍스트면 해당 태그만 section 갱신.
+  //    (굿즈 카테고리명은 바자회와 구분되어 기존 태그 하이재킹 위험 없음)
+  if (section !== 'bazaar' && tag?.id && tag.section !== section) {
+    const { error: upErr } = await supabase.from('esg_tags').update({ section }).eq('id', tag.id);
+    if (!upErr) tag = { ...tag, section };
+  }
+  return tag;
 }
 
 // ============================================================================

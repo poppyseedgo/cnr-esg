@@ -36,11 +36,12 @@ export interface LoadProductsOptions {
    */
   tagGroups?: string[][];
   sort?: 'reg' | 'price_desc' | 'price_asc'; // ← [2026-06-24] 정렬: 등록순(기본) / 높은가격 / 낮은가격
+  section?: import('@/types/esg').EsgProductSection; // ← [2026-07-07] 'bazaar'|'goods' 섹션 필터(미지정=전체, 하위호환)
 }
 
 /** 상품 목록 (정렬: 고정(is_pinned) 먼저 → 비고정 품절 뒤로(list_rank) → sort_order ASC → created_at) */
 export async function loadProducts(opts: LoadProductsOptions = {}): Promise<EsgProductRow[]> {
-  const { scope = 'all', limit, offset = 0, search, tagId, tagIds, tagGroups, sort = 'reg' } = opts;   // ← [2026-06-24] tagGroups(패싯)
+  const { scope = 'all', limit, offset = 0, search, tagId, tagIds, tagGroups, sort = 'reg', section } = opts;   // ← [2026-06-24] tagGroups(패싯) / [2026-07-07] section
   const statuses: EsgProductStatus[] = scope === 'on_sale_only' ? ['on_sale'] : ['on_sale', 'sold_out'];
 
   // ── [2026-06-24] 태그 필터 정규화 → '그룹' 배열로 통일 ──────────────────────
@@ -69,6 +70,8 @@ export async function loadProducts(opts: LoadProductsOptions = {}): Promise<EsgP
     .from('esg_products')
     .select(selectCols)
     .in('status', statuses);
+
+  if (section) query = query.eq('section', section); // ← [2026-07-07] 섹션 필터(굿즈/바자회 분리, 미지정=전체)
 
   // ── [2026-06-24] 정렬 분기 ─────────────────────────────────────────────
   //  · reg(기본): 고정 먼저 → (비고정)품절 뒤로 → sort_order → created_at

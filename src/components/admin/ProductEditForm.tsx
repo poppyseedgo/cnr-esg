@@ -262,6 +262,7 @@ export function ProductEditForm({
           onChange={setCategoryTags}
           disabled={busy}
           kind="category"
+          section={product.section} // ← [2026-07-07] 이 상품의 섹션 카테고리만 제안/생성(굿즈=굿즈 카테고리)
           placeholder="카테고리 입력 후 Enter (예: 유아용품, 식품)"
         />
       </Field>
@@ -271,6 +272,7 @@ export function ProductEditForm({
           onChange={setBrandTags}
           disabled={busy}
           kind="brand"
+          section={product.section} // ← [2026-07-07] 섹션 스코프
           placeholder="브랜드 입력 후 Enter (예: 나이키, 샤넬)"
         />
       </Field>

@@ -18,9 +18,10 @@ import type { EsgProductStatus } from '@/types/esg';
 interface CreateProductFormProps {
   onCancel: () => void;
   onSuccess: () => void;
+  section?: import('@/types/esg').EsgProductSection; // ← [2026-07-07] 'bazaar'(기본) | 'goods'
 }
 
-export function CreateProductForm({ onCancel, onSuccess }: CreateProductFormProps) {
+export function CreateProductForm({ onCancel, onSuccess, section = 'bazaar' }: CreateProductFormProps) { // ← [2026-07-07] section
   const [tempId] = useState(() => `new-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -56,6 +57,7 @@ export function CreateProductForm({ onCancel, onSuccess }: CreateProductFormProp
         sort_order: sortOrder,
         is_new: isNew,                                        // ← [2026-06-09]
         sale_price: saleActive ? (salePrice as number) : null, // ← [2026-06-09] 정상가 미만일 때만 저장
+        section,                                              // ← [2026-07-07] 굿즈/바자회 섹션
       });
       onSuccess();
     } catch (e) {

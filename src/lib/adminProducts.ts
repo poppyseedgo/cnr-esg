@@ -21,7 +21,7 @@
 // ============================================================================
 
 import { supabase as _supabase } from './supabase';
-import type { EsgProductRow, EsgProductStatus } from '@/types/esg';
+import type { EsgProductRow, EsgProductStatus, EsgProductSection } from '@/types/esg'; // ← [2026-07-07] section
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const supabase = _supabase as any;
@@ -37,6 +37,7 @@ export interface CreateProductInput {
   sort_order?: number;
   is_new?: boolean;            // ← [2026-06-09] "새 상품" 라벨
   sale_price?: number | null;  // ← [2026-06-09] 세일가(NULL=세일 아님)
+  section?: EsgProductSection; // ← [2026-07-07] 'bazaar'(기본) | 'goods'
 }
 
 export type UpdateProductPatch = Partial<
@@ -59,13 +60,15 @@ export type UpdateProductPatch = Partial<
   >
 >;
 
-/** 모든 상품 조회 (어드민 - hidden 포함) */
-export async function loadAllProducts(): Promise<EsgProductRow[]> {
-  const { data, error } = await supabase
+/** 모든 상품 조회 (어드민 - hidden 포함). section 지정 시 해당 섹션만(미지정=전체, 하위호환) */
+export async function loadAllProducts(section?: EsgProductSection): Promise<EsgProductRow[]> { // ← [2026-07-07] section 필터
+  let query = supabase
     .from('esg_products')
     .select('*')
     .order('sort_order', { ascending: true })
     .order('created_at', { ascending: false });
+  if (section) query = query.eq('section', section); // ← [2026-07-07] 굿즈/바자회 분리 (미지정 시 기존과 동일)
+  const { data, error } = await query;
   if (error) throw error;
   return (data ?? []) as EsgProductRow[];
 }
@@ -97,6 +100,7 @@ export async function createProduct(input: CreateProductInput): Promise<EsgProdu
         sort_order: input.sort_order ?? 0,
         is_new: input.is_new ?? false,   // ← [2026-06-09]
         sale_price: saleClean,           // ← [2026-06-09]
+        section: input.section ?? 'bazaar', // ← [2026-07-07] 섹션(미지정=바자회, 기존과 동일)
       },
     ])
     .select('*')
@@ -216,7 +220,13 @@ export async function unhideProduct(id: string): Promise<void> {          // ←
  * 받은 id 순서대로 sort_order = 1..N 일괄 재할당 (reorder_products RPC, 관리자만, 원자적).
  * 고정과 무관하게 전체 물품 대상. (고정 그룹 내부 순서도 이 sort_order로 결정됨)
  */
-export async function reorderProducts(orderedIds: string[]): Promise<void> {
+export async function reorderProducts(orderedIds: string[], section?: EsgProductSection): Promise<void> { // ← [2026-07-07] section
+  // ← [2026-07-07] 굿즈는 섹션 격리 RPC(바자회 sort_order 무간섭). 바자회/미지정은 기존 RPC 그대로(무손상).
+  if (section === 'goods') {
+    const { error } = await supabase.rpc('reorder_products_in_section', { p_ids: orderedIds, p_section: 'goods' });
+    if (error) throw error;
+    return;
+  }
   const { data, error } = await supabase.rpc('reorder_products', { p_ids: orderedIds });
   if (error) throw error;
   if (data && data.success === false) throw new Error(data.error ?? '재정렬에 실패했습니다.');
