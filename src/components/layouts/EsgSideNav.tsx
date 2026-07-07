@@ -151,8 +151,19 @@ function getBadge(
   return { text: '진행중', bg: t.badgeActive, show: true, isActive: true };
 }
 
-function Badge({ badge, t }: { badge?: BadgeInfo; t: SideTokens }) {
+function Badge({ badge, t, plain }: { badge?: BadgeInfo; t: SideTokens; plain?: boolean }) {
   if (!badge?.show) return null;
+  // ← [2026-07-08] plain: Figma 1차 '진행중'은 알약 대신 라임 텍스트(#E2FF54). 기존 pill은 그대로 유지.
+  if (plain) {
+    return (
+      <span style={{
+        color: badge.isActive ? '#E2FF54' : t.badgeNeutral,
+        fontSize: 10, fontWeight: 500, lineHeight: 1.25, whiteSpace: 'nowrap',
+      }}>
+        {badge.text}
+      </span>
+    );
+  }
   return (
     <span style={{
       background: badge.bg,
@@ -184,12 +195,14 @@ function CountBadge({ n, t }: { n: number; t: SideTokens }) {
 // ============================================================================
 
 function PrimaryItem({
-  to, label, badge, t, activityKey, onNavigate, gated = true,
+  to, label, badge, t, activityKey, onNavigate, gated = true, plainBadge = false,
 }: {
   to: string; label: string; badge?: BadgeInfo; t: SideTokens;
   activityKey?: EsgActivityKey; onNavigate?: () => void;
   /** ← [2026-06-25] false면 활동 게이트(모달) 무시하고 항상 라우트로 이동. 바자회=열람 상시 허용. */
   gated?: boolean;
+  /** ← [2026-07-08] true면 Figma대로 '진행중'을 라임 텍스트로(알약 X) */
+  plainBadge?: boolean;
 }) {
   // hooks 규칙: 조건부 호출 금지 → activityKey 없으면 placeholder 키로 호출 후 결과 무시
   const gate = useEventGate(activityKey ?? 'bazaar');
@@ -213,7 +226,7 @@ function PrimaryItem({
       })}
     >
       {/* ← [2026-06-23] 캡쳐대로 뱃지를 라벨 '왼쪽'으로 (Figma: D-30 → 라벨) */}
-      <Badge badge={badge} t={t} />
+      <Badge badge={badge} t={t} plain={plainBadge} />
       {label}
     </NavLink>
   );
@@ -241,10 +254,11 @@ function AdminItem({ t, onNavigate }: { t: SideTokens; onNavigate?: () => void }
 
 /** 2차 네비 / 지난 이벤트 항목 (muted, 우측 카운트/배지/시상예정 텍스트 옵션) */
 function MutedItem({
-  to, label, t, size = 24, badge, count, award, dot, onNavigate,
+  to, label, t, size = 24, badge, count, award, dot, onNavigate, labelColor,
 }: {
   to: string; label: string; t: SideTokens; size?: number;
   badge?: BadgeInfo; count?: number; award?: string; dot?: boolean; onNavigate?: () => void; // ← [2026-06-25] dot: 결제대기 깜빡임
+  labelColor?: string; // ← [2026-07-08] 라벨 색 오버라이드(지난 이벤트 바자회 #89FF62)
 }) {
   return (
     <NavLink
@@ -252,7 +266,7 @@ function MutedItem({
       onClick={onNavigate}
       style={({ isActive }) => ({
         display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0',
-        textDecoration: 'none', color: isActive ? t.text : t.muted,
+        textDecoration: 'none', color: labelColor ?? (isActive ? t.text : t.muted), // ← [2026-07-08] labelColor 우선
         fontSize: size, fontWeight: 400, lineHeight: 1.25, whiteSpace: 'nowrap',
         transition: 'color 0.15s',
       })}
@@ -345,10 +359,10 @@ function NavBody({
       </div>
 
       {/* 1차 네비 (우측 정렬 — [2026-06-23] 캡쳐대로 복원: items-end + 뱃지 좌측) */}
-      <nav style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
-        <PrimaryItem to="/bazaar" label="나무 심는 바자회" badge={badges.bazaar} t={t} activityKey="bazaar" gated={false} onNavigate={onNavigate} />{/* ← [2026-06-25] 바자회=모달 제거, 물품 페이지 직행(열람 상시 허용) */}
-        <PrimaryItem to="/goods" label="나무심는 굿즈" t={t} gated={false} onNavigate={onNavigate} />{/* ← [2026-07-07] 굿즈=상시 열람 */}
-        <PrimaryItem to="/auction" label="ESG 경매" badge={badges.auction} t={t} activityKey="auction" onNavigate={onNavigate} />
+      {/* ← [2026-07-08] 경매 오픈 개편(Figma 2284-1405): 경매(진행중) → 굿즈 → 기부하기 → 어드민. 바자회는 '지난 이벤트'로 이동. gap 4→12 */}
+      <nav style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'flex-end' }}>
+        <PrimaryItem to="/auction" label="나무 심는 경매" badge={badges.auction} plainBadge t={t} activityKey="auction" onNavigate={onNavigate} />{/* ← [2026-07-08] 경매 최상단 + 진행중(라임 텍스트) */}
+        <PrimaryItem to="/goods" label="나무 심는 굿즈" t={t} gated={false} onNavigate={onNavigate} />{/* ← [2026-07-08] 라벨 띄어쓰기 정정 */}
         <PrimaryItem to="/donate" label="기부하기" t={t} onNavigate={onNavigate} />
         {isAdmin && <AdminItem t={t} onNavigate={onNavigate} />}
       </nav>
@@ -389,8 +403,10 @@ function NavBody({
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
         <span style={{ color: t.label, fontSize: 16, lineHeight: 1.25 }}>지난 이벤트</span>
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <MutedItem to="/posts/zero-waste" label="제로 웨이스트" award="6/30 시상예정" t={t} size={20} onNavigate={onNavigate} />
-          <MutedItem to="/posts/wise-life" label="슬기로운 사회생활" award="6/30 시상예정" t={t} size={20} onNavigate={onNavigate} />
+          {/* ← [2026-07-08] 바자회 7/7 종료 → 지난 이벤트 최상단(라벨 #89FF62, 여전히 열람 가능) */}
+          <MutedItem to="/bazaar" label="나무 심는 바자회" award="7/7 성황리 종료" t={t} size={20} labelColor="#89FF62" onNavigate={onNavigate} />
+          <MutedItem to="/posts/zero-waste" label="제로 웨이스트" award="6/30 시상" t={t} size={20} onNavigate={onNavigate} />{/* ← [2026-07-08] 시상예정→시상 */}
+          <MutedItem to="/posts/wise-life" label="슬기로운 사회생활" award="6/30 시상" t={t} size={20} onNavigate={onNavigate} />{/* ← [2026-07-08] */}
         </div>
       </div>
     </div>
