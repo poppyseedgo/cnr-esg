@@ -149,6 +149,7 @@ function getVariantForPath(pathname: string): Variant {
   if (
     pathname.startsWith('/bazaar') ||
     pathname.startsWith('/auction') ||
+    pathname.startsWith('/goods') || // ← [2026-07-07] 굿즈=light
     pathname.startsWith('/cart') ||
     pathname.startsWith('/checkout') ||
     pathname.startsWith('/orders') ||

@@ -104,6 +104,7 @@ function getVariantForPath(pathname: string): Variant {
   if (pathname.startsWith('/admin')) return 'green';
   if (
     pathname.startsWith('/bazaar') || pathname.startsWith('/auction') ||
+    pathname.startsWith('/goods') || // ← [2026-07-07] 굿즈=light(흰 헤더/검정 로고)
     pathname.startsWith('/cart') || pathname.startsWith('/checkout') ||
     pathname.startsWith('/orders') || pathname.startsWith('/donate') ||
     pathname.startsWith('/mypage') || pathname.startsWith('/notifications')
@@ -346,6 +347,7 @@ function NavBody({
       {/* 1차 네비 (우측 정렬 — [2026-06-23] 캡쳐대로 복원: items-end + 뱃지 좌측) */}
       <nav style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
         <PrimaryItem to="/bazaar" label="나무 심는 바자회" badge={badges.bazaar} t={t} activityKey="bazaar" gated={false} onNavigate={onNavigate} />{/* ← [2026-06-25] 바자회=모달 제거, 물품 페이지 직행(열람 상시 허용) */}
+        <PrimaryItem to="/goods" label="나무심는 굿즈" t={t} gated={false} onNavigate={onNavigate} />{/* ← [2026-07-07] 굿즈=상시 열람 */}
         <PrimaryItem to="/auction" label="ESG 경매" badge={badges.auction} t={t} activityKey="auction" onNavigate={onNavigate} />
         <PrimaryItem to="/donate" label="기부하기" t={t} onNavigate={onNavigate} />
         {isAdmin && <AdminItem t={t} onNavigate={onNavigate} />}

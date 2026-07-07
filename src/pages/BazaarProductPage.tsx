@@ -54,12 +54,17 @@ function detailTagChip(bg: string, color: string): React.CSSProperties {
   };
 }
 
-export function BazaarProductPage() {
+// ← [2026-07-07] section prop 으로 바자회/굿즈 공용화. 기본 'bazaar'(기존과 100% 동일).
+export function BazaarProductPage({ section = 'bazaar' }: { section?: 'bazaar' | 'goods' } = {}) {
+  const isGoods = section === 'goods';
+  const listPath = isGoods ? '/goods' : '/bazaar'; // 뒤로가기/브레드크럼/태그칩 베이스
   const { productId } = useParams();
   const navigate = useNavigate();
   const { currentUser, isAdmin } = useCurrentUser();
-  // ← [2026-06-25] 구매 가능 여부/사유를 정책 훅에서 직접 수신 (선판매·공개·종료·기부자·토글 반영)
-  const { canPurchase: windowAllows, blockReason } = useBazaarSale();
+  // ← [2026-06-25] 구매 가능 여부/사유를 정책 훅에서 수신. 굿즈는 상시판매 → 창(window) 항상 허용.
+  const sale = useBazaarSale(); // 훅은 항상 호출(조건부 호출 불가). 굿즈면 결과 무시.
+  const windowAllows = isGoods ? true : sale.canPurchase;       // ← [2026-07-07] 굿즈=게이트 없음
+  const blockReason = isGoods ? null : sale.blockReason;        // ← [2026-07-07]
 
   const [product, setProduct] = useState<EsgProductRow | null>(null);
   const [loading, setLoading] = useState(true);
@@ -139,7 +144,7 @@ export function BazaarProductPage() {
         <div style={{ fontSize: 48, marginBottom: 12, opacity: 0.5 }}>🚫</div>
         <h2>{error ?? '상품을 찾을 수 없습니다'}</h2>
         <Link
-          to="/bazaar"
+          to={listPath}
           style={{
             display: 'inline-block',
             marginTop: 16,
@@ -227,8 +232,8 @@ export function BazaarProductPage() {
     <article style={{ maxWidth: 960, margin: '0 auto' }}>
       {/* Breadcrumb */}
       <div style={{ marginBottom: 16, fontSize: 13 }}>
-        <Link to="/bazaar" style={{ color: '#888', textDecoration: 'none' }}>
-          🛍 바자회
+        <Link to={listPath} style={{ color: '#888', textDecoration: 'none' }}>
+          {isGoods ? '🎁 굿즈' : '🛍 바자회'}
         </Link>
         <span style={{ color: '#bbb', margin: '0 6px' }}>›</span>
         <span style={{ color: '#444' }}>{product.name}</span>
@@ -303,7 +308,7 @@ export function BazaarProductPage() {
               onCancel={() => setAdminEditing(false)}
               onDeleted={() => {
                 setAdminEditing(false);
-                navigate('/bazaar', { replace: true });
+                navigate(listPath, { replace: true });
               }}
             />
           )}
@@ -357,10 +362,10 @@ export function BazaarProductPage() {
               return (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 12 }}>
                   {categories.map((t) => (
-                    <Link key={t.id} to={`/bazaar?cat=${t.slug}`} style={detailTagChip('#ecfdf5', '#047857')}>#{t.name}</Link>
+                    <Link key={t.id} to={`${listPath}?cat=${t.slug}`} style={detailTagChip('#ecfdf5', '#047857')}>#{t.name}</Link>
                   ))}
                   {brands.map((t) => (
-                    <Link key={t.id} to={`/bazaar?brand=${t.slug}`} style={detailTagChip('#111', '#fff')}>#{t.name}</Link>
+                    <Link key={t.id} to={`${listPath}?brand=${t.slug}`} style={detailTagChip('#111', '#fff')}>#{t.name}</Link>
                   ))}
                 </div>
               );
@@ -482,8 +487,8 @@ export function BazaarProductPage() {
             </div>
           )}
 
-          {/* ← [2026-06-29] 일일 구매 운영시간 실시간 안내/카운트다운 (버튼 위) */}
-          <BazaarHoursNotice compact style={{ margin: 0 }} />
+          {/* ← [2026-06-29] 일일 구매 운영시간 안내(버튼 위). 굿즈는 상시판매 → 미표시 */}
+          {!isGoods && <BazaarHoursNotice compact style={{ margin: 0 }} />}
 
           {/* 버튼 */}
           {canPurchase ? (

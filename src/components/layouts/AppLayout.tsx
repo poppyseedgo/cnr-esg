@@ -35,7 +35,7 @@ export function AppLayout() {
 
   // ── [2026-06-24] 두 단계 사이드바 ──────────────────────────────────────────
   // 바자회/경매 라우트에서 메인 사이드바를 89px 레일로 접고 2차 패널을 연다.
-  const isTwoTier = /^\/(bazaar|auction)(\/|$)/.test(location.pathname); // ← 적용 범위: 바자회+경매(기부 제외)
+  const isTwoTier = /^\/(bazaar|auction|goods)(\/|$)/.test(location.pathname); // ← 적용 범위: 바자회+경매+굿즈(기부 제외) // ← [2026-07-07] goods
 
   // 일반 라우트용 수동 접힘(localStorage 지속) — 기존 동작 보존
   const [manualCollapsed, setManualCollapsed] = useState<boolean>(() => {

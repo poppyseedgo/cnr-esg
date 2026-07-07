@@ -25,6 +25,7 @@
 import { Link, useLocation } from 'react-router-dom'; // ← [2026-07-06] 라우트별 분기(경매/바자회)
 import { BazaarFilters } from '@/components/bazaar/BazaarFilters';
 import { AuctionSidebar } from '@/components/auction/AuctionSidebar'; // ← [2026-07-06] 경매 전용 사이드바
+import { GoodsSidebar } from '@/components/goods/GoodsSidebar'; // ← [2026-07-07] 굿즈 전용 사이드바
 import { useNavCounts } from '@/hooks/useNavCounts'; // ← [2026-06-24] 1차 사이드바와 동일 카운트 공유
 import { useMyPendingOrders } from '@/hooks/useMyPendingOrders'; // ← [2026-06-25] 결제대기 dot
 
@@ -43,6 +44,7 @@ const SECONDARY_NAV: Array<{ to: string; label: string }> = [
 export function SecondarySidebar({ mainCollapsed }: SecondarySidebarProps) {
   const location = useLocation(); // ← [2026-07-06] /auction → 경매 사이드바, 그 외(/bazaar) → 바자회 필터
   const isAuction = /^\/auction(\/|$)/.test(location.pathname);
+  const isGoods = /^\/goods(\/|$)/.test(location.pathname); // ← [2026-07-07] 굿즈 라우트
 
   const { cartCount, unread, wishlistCount } = useNavCounts(); // ← [2026-06-24] 1차 사이드바와 동일 소스
   const { expiries } = useMyPendingOrders();                    // ← [2026-06-25] 결제대기 주문
@@ -69,13 +71,13 @@ export function SecondarySidebar({ mainCollapsed }: SecondarySidebarProps) {
         fontFamily: "'Pretendard', system-ui, sans-serif",
       }}
     >
-      {/* ← [2026-07-06] 경매 라우트: 경매 전용 사이드바(제목+기부자+보조내비) / 그 외: 바자회 필터 */}
+      {/* ← [2026-07-06/07] 경매→경매 사이드바 / 굿즈→굿즈 사이드바 / 그 외→바자회 필터. 보조내비는 공통 */}
       {isAuction ? (
         <AuctionSidebar variant="sidebar" mainCollapsed={mainCollapsed} />
       ) : (
         <>
           {/* 필터(타이틀 포함) */}
-          <BazaarFilters showTitle />
+          {isGoods ? <GoodsSidebar variant="sidebar" /> : <BazaarFilters showTitle />}
 
           {/* 보조내비 — 메인 사이드바 접힘일 때만(펼치면 1차 패널이 가짐) */}
           {mainCollapsed && (
@@ -88,7 +90,7 @@ export function SecondarySidebar({ mainCollapsed }: SecondarySidebarProps) {
                     to={item.to}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 8,
-                      padding: '8px 0', fontSize: 24, lineHeight: 1.25, color: '#848484',
+                      padding: '8px 0', fontSize: isGoods ? 28 : 24, lineHeight: 1.25, color: '#848484', // ← [2026-07-07] 굿즈=28(Figma 메뉴 버튼 사이즈 차이)
                       textDecoration: 'none', whiteSpace: 'nowrap',
                     }}
                   >

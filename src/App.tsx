@@ -46,6 +46,8 @@ const PostsPage = lazyWithRetry(() => import('@/pages/PostsPage').then((m) => ({
 const PostDetailPage = lazyWithRetry(() => import('@/pages/PostDetailPage').then((m) => ({ default: m.PostDetailPage })));
 const BazaarPage = lazyWithRetry(() => import('@/pages/BazaarPage').then((m) => ({ default: m.BazaarPage })));
 const BazaarProductPage = lazyWithRetry(() => import('@/pages/BazaarProductPage').then((m) => ({ default: m.BazaarProductPage })));
+const GoodsPage = lazyWithRetry(() => import('@/pages/GoodsPage').then((m) => ({ default: m.GoodsPage }))); // ← [2026-07-07]
+const GoodsProductPage = lazyWithRetry(() => import('@/pages/GoodsProductPage').then((m) => ({ default: m.GoodsProductPage }))); // ← [2026-07-07]
 const AuctionPage = lazyWithRetry(() => import('@/pages/AuctionPage').then((m) => ({ default: m.AuctionPage })));
 const AuctionDetailPage = lazyWithRetry(() => import('@/pages/AuctionDetailPage').then((m) => ({ default: m.AuctionDetailPage })));
 const CartPage = lazyWithRetry(() => import('@/pages/CartPage').then((m) => ({ default: m.CartPage })));
@@ -105,6 +107,8 @@ const router = createBrowserRouter([
       //                구매 차단은 useBazaarSale 정책 + 서버 트리거가 담당. (경매는 게이트 유지)
       { path: '/bazaar', element: <BazaarPage /> },
       { path: '/bazaar/:productId', element: <BazaarProductPage /> },
+      { path: '/goods', element: <GoodsPage /> }, // ← [2026-07-07] 굿즈 목록
+      { path: '/goods/:productId', element: <GoodsProductPage /> }, // ← [2026-07-07] 굿즈 상세
       { path: '/auction', element: <ActivityGate activityKey="auction"><AuctionPage /></ActivityGate> },
       { path: '/auction/:auctionId', element: <ActivityGate activityKey="auction"><AuctionDetailPage /></ActivityGate> },
       { path: '/donate', element: <DonatePage /> },

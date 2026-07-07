@@ -52,9 +52,11 @@ interface ProductCardProps {
   canQuickAdd?: boolean;
   /** 빠른 담기 불가 사유(데스크톱 호버 tooltip 표시용). 상세 사유 안내는 상세페이지가 담당. */
   quickAddBlockReason?: string | null;
+  /** 상세 링크 베이스 경로(기본 /bazaar). 굿즈 리스트는 /goods 전달 → /goods/:id 로 이동. // ← [2026-07-07] */
+  basePath?: string;
 }
 
-export function ProductCard({ product, canQuickAdd = true, quickAddBlockReason = null }: ProductCardProps) {
+export function ProductCard({ product, canQuickAdd = true, quickAddBlockReason = null, basePath = '/bazaar' }: ProductCardProps) { // ← [2026-07-07] basePath
   const { currentUser } = useCurrentUser();
   const { wishlisted, toggle } = useWishlist(product.id); // ← [2026-06-24]
 
@@ -97,7 +99,7 @@ export function ProductCard({ product, canQuickAdd = true, quickAddBlockReason =
 
   return (
     <Link
-      to={`/bazaar/${product.id}`}
+      to={`${basePath}/${product.id}`}
       className="pcard"
       style={{
         opacity: soldOut ? 0.6 : 1, // ← 품절 시각 약화(필수 동작 보존, 동적값이라 인라인 유지)
