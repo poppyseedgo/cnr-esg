@@ -112,13 +112,14 @@
 /* ── 협폭(≤900cqw): 세로 스택 ── */
 @container (max-width: 900px) {
   .hero-au__box { grid-template-columns: 1fr; }
-  .hero-au__auction { padding: 28px 16px; gap: 28px; }
+  .hero-au__auction { padding: 28px 16px; } /* ← [2026-07-08] gap 제거: 정사각형 안에서 space-between로 분배 */
   .hero-au__deco { width: min(440px, 86%); }
   .hero-au__nowopen { font-size: 56px; }
   .hero-au__subtitle { font-size: 24px; }
   .hero-au__dates { font-size: 22px; gap: 16px; }
   .hero-au__dline { width: 72px; }
-  .hero-au__goods { min-height: 320px; }
+  /* ← [2026-07-08] 카드1·카드2 동일한 정사각형 높이(세로 스택 시 높이=너비) */
+  .hero-au__auction, .hero-au__goods { aspect-ratio: 1 / 1; align-self: stretch; }
   .hero-au__goods-txt { top: 28px; font-size: 32px; }
   .hero-au__fund { padding: 24px 16px; gap: 20px; }
   .hero-au__fund-grid { width: min(560px, 92cqw); }
