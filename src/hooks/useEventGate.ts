@@ -21,8 +21,6 @@
 
 import { useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useCurrentUser } from './useCurrentUser';
-import { useEventPhase } from './useEventPhase';
 import type { EsgActivityKey } from '@/types/esg';
 import type { EventModalKey } from '@/components/home/eventModalContent';
 
@@ -46,16 +44,14 @@ export interface UseEventGateResult {
 }
 
 export function useEventGate(activityKey: EsgActivityKey): UseEventGateResult {
-  const { isAdmin } = useCurrentUser();
-  const { getActivity } = useEventPhase();
   const navigate = useNavigate();
   const [, setSearchParams] = useSearchParams();
 
-  const { status } = getActivity(activityKey);
   const modalKey = ACTIVITY_TO_MODAL[activityKey];
 
-  // 어드민은 항상 통과. 종료(closed)도 통과. before만 차단.
-  const blocked = !isAdmin && status === 'before';
+  // ← [2026-07-08] 안내 모달 전면 제거: 모든 이벤트가 오픈/종료된 상태이므로 게이트 비활성.
+  //    blocked=false → 네비 클릭이 openGuide()를 호출하지 않고 그대로 이동, ActivityGate도 통과.
+  const blocked = false;
 
   /** 홈으로 이동 + ?modal= 세팅 (URL 직접 접근/북마크 차단용) */
   const redirectToGuide = useCallback(() => {

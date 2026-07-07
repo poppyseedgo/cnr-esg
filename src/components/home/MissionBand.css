@@ -71,16 +71,12 @@
   display: block;
 }
 
-/* 협폭: 세로 스택 */
+/* 협폭: 세로 스택 — 두 카드 모두 정사각형(높이=너비) */
 @container (max-width: 900px) {
-  .mission__row { flex-direction: column; min-height: 0; }
-  /* ← [2026-06-24 근본] 세로 스택에서 컬럼의 flex-basis:0(데스크톱 50/50용) 해제.
-     세로 전환 시 flex-basis:0 이 '주축=세로'에 적용돼 height/콘텐츠높이를 무력화 →
-     잎 사진(.mission__photo, 빈 div)이 height:220px 무시하고 0으로 붕괴, 섹션 전체가
-     먹혀서 안 보이던 직접 원인. flex:0 0 auto 로 basis 를 auto 로 돌려 height/내용높이 정상화. */
-  .mission__col { flex: 0 0 auto; }
-  .mission__photo { flex: 0 0 220px; height: 220px; } /* 잎 사진 고정 220 (이제 적용됨) */
-  .mission__center { flex: 0 0 auto; padding: 40px 20px; gap: 32px; } /* 문구+로고 = 내용 높이 */
+  .mission__row { flex-direction: column; min-height: 0; align-items: stretch; }
+  /* ← [2026-07-08] 잎 사진·미션 카드 정사각형. flex column + 폭 full(stretch) → aspect-ratio가 높이=너비 */
+  .mission__col { flex: 0 0 auto; aspect-ratio: 1 / 1; }
+  .mission__center { padding: 7cqw 4cqw; gap: 4cqw; }         /* 폭 비례 */
   .mission__text { font-size: clamp(26px, 7cqw, 44px); white-space: normal; }
-  .mission__logo { width: 180px; }
+  .mission__logo { width: clamp(140px, 46cqw, 215px); }
 }

@@ -23,7 +23,6 @@ import { PendingOrderBar } from './PendingOrderBar'; // ← [2026-06-25] 결제�
 import { BazaarNoticeBar } from './BazaarNoticeBar'; // ← [2026-06-29] 바자회 운영시간 공지바
 import { Footer } from './Footer';
 import { LoadingScreen } from '@/components/routing/LoadingScreen'; // ← [코드 스플리팅] Suspense fallback
-import { GlobalEventModal } from '@/components/home/GlobalEventModal';
 import { usePageTracking } from '@/hooks/usePageTracking'; // ← [2026-06-02 추가] GA4 라우트 추적 훅
 
 export function AppLayout() {
@@ -108,8 +107,7 @@ export function AppLayout() {
       {/* ← [2026-06-23] Footer는 .app-shell 밖 → 사이드바 폭과 무관하게 전폭(Figma 1920) */}
       <Footer />
       <ScrollRestoration />
-      {/* ?modal=brand|bazaar|wise|zero 감지해 어디서든 모달 표시 */}
-      <GlobalEventModal />
+      {/* ← [2026-07-08] 안내 모달 전면 제거: GlobalEventModal 마운트 삭제(?modal= 새로고침 재등장 원인 제거) */}
     </div>
   );
 }
