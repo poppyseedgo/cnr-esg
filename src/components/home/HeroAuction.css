@@ -51,7 +51,7 @@
   margin: 0;
   font-family: 'Instrument Sans', sans-serif;
   font-weight: 400;
-  font-size: min(5.72cqw, 90px);       /* 90 */
+  font-size: min(5cqw, 90px);          /* ← [2026-07-08] 5.72→5cqw (더 작게), 90px 상한 유지 */
   line-height: 1.25;
   color: #000;
 }
@@ -94,7 +94,7 @@
   font-size: min(2.79cqw, 44px); line-height: 1; text-transform: uppercase;
 }
 .hero-au__goods-txt p { margin: 0; }
-.hero-au__goods-txt p + p { margin-top: min(0.7cqw, 11px); }
+.hero-au__goods-txt p + p { margin-top: 8px; } /* ← [2026-07-08] 11→8px */
 
 /* ── 카드 3: 펀딩 진행률 (기존 컴포넌트 재사용, 8열) ── */
 .hero-au__fund {
