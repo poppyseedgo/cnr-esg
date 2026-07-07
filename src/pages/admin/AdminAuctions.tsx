@@ -20,6 +20,7 @@ import {
 import { deleteAuctionAdmin, reorderAuctions } from '@/lib/adminAuctions'; // ← [2026-06-23] 삭제 / [2026-07-06] 재정렬
 import { AuctionEditForm } from '@/components/admin/AuctionEditForm';
 import { CreateAuctionForm } from '@/components/admin/CreateAuctionForm';
+import { BidManagerModal } from '@/components/admin/BidManagerModal'; // ← [2026-07-07] 입찰 삭제 관리
 import type { EsgAuctionRow } from '@/types/esg';
 
 export function AdminAuctions() {
@@ -221,6 +222,7 @@ export function AdminAuctions() {
 function AuctionAdminCard({ auction, onChange }: { auction: EsgAuctionRow; onChange: () => void }) {
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false); // ← [2026-06-23] 삭제 진행중
+  const [managingBids, setManagingBids] = useState(false); // ← [2026-07-07] 입찰 관리 모달
   const statusColor = AUCTION_STATUS_COLORS[auction.status];
 
   // ← [2026-06-23] 상태/입찰 무관 영구 삭제. 입찰/낙찰이 있으면 경고 후 진행.
@@ -311,6 +313,24 @@ function AuctionAdminCard({ auction, onChange }: { auction: EsgAuctionRow; onCha
             >
               ✏️ 수정
             </button>
+            {/* ← [2026-07-07] 입찰 관리(잘못된 입찰 삭제 + 최고가 재산정) */}
+            <button
+              type="button"
+              onClick={() => setManagingBids(true)}
+              disabled={deleting}
+              style={{
+                padding: '4px 10px',
+                background: '#fff',
+                border: '1px solid #0ea5e9',
+                color: '#0ea5e9',
+                borderRadius: 4,
+                cursor: deleting ? 'not-allowed' : 'pointer',
+                fontSize: 11,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              🧾 입찰 관리
+            </button>
             {/* ← [2026-06-23] 상태/입찰 무관 영구 삭제 */}
             <button
               type="button"
@@ -345,6 +365,15 @@ function AuctionAdminCard({ auction, onChange }: { auction: EsgAuctionRow; onCha
             setEditing(false);
             onChange();
           }}
+        />
+      )}
+
+      {/* ← [2026-07-07] 입찰 관리 모달 — 삭제 시 최고가/입찰수 재산정 → 카드 갱신 */}
+      {managingBids && (
+        <BidManagerModal
+          auction={auction}
+          onClose={() => setManagingBids(false)}
+          onChanged={onChange}
         />
       )}
     </div>

@@ -37,6 +37,7 @@ import {
   type BidWithProfile,
 } from '@/lib/auctions';
 import { formatTimeLeft, formatKstEndDate } from '@/lib/orders';
+import { adminDeleteAuctionBid } from '@/lib/adminAuctions'; // ← [2026-07-07] 관리자 입찰 삭제
 import { formatKSTFull } from '@/utils/time';
 import { signInWithMicrosoft } from '@/lib/auth';
 import { Avatar } from '@/components/Avatar';
@@ -107,6 +108,24 @@ export function AuctionDetailPage() {
       setBids(list);
     } catch (e) {
       console.error('[AuctionDetailPage] load bids:', e);
+    }
+  };
+
+  // ← [2026-07-07] 관리자: 잘못된 입찰 삭제(최고가/입찰수 재산정은 RPC가 처리, 이후 자동 갱신)
+  const [deletingBidId, setDeletingBidId] = useState<string | null>(null);
+  const handleAdminDeleteBid = async (bidId: string, amount: number) => {
+    if (!window.confirm(
+      `이 입찰(${amount.toLocaleString('ko-KR')}원)을 삭제할까요?\n\n삭제하면 남은 입찰로 현재 최고가·최고입찰자·입찰수가 자동 재산정됩니다. (되돌릴 수 없음)`
+    )) return;
+    setDeletingBidId(bidId);
+    try {
+      await adminDeleteAuctionBid(bidId); // 내부에서 notifyAuctionChanged → 현재가/목록 자동 갱신
+      await reloadAuction();
+      await reloadBids();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '입찰 삭제에 실패했습니다.');
+    } finally {
+      setDeletingBidId(null);
     }
   };
 
@@ -806,6 +825,29 @@ export function AuctionDetailPage() {
                     >
                       {b.bid_amount.toLocaleString()}원
                     </span>
+                    {/* ← [2026-07-07] 관리자 전용: 잘못된 입찰 삭제 */}
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        disabled={deletingBidId === b.id}
+                        onClick={() => handleAdminDeleteBid(b.id, b.bid_amount)}
+                        title="이 입찰 삭제 (관리자)"
+                        style={{
+                          marginLeft: 8,
+                          padding: '4px 8px',
+                          borderRadius: 6,
+                          border: '1px solid #ef4444',
+                          background: '#fff',
+                          color: '#ef4444',
+                          fontSize: 11,
+                          fontWeight: 600,
+                          cursor: deletingBidId === b.id ? 'not-allowed' : 'pointer',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {deletingBidId === b.id ? '삭제 중…' : '삭제'}
+                      </button>
+                    )}
                   </div>
                 );
               })}

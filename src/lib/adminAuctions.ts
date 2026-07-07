@@ -20,7 +20,8 @@
 
 import { supabase as _supabase } from './supabase';
 import { callRpc } from './supabase';
-import type { EsgAuctionRow, EsgAuctionStatus } from '@/types/esg';
+import { notifyAuctionChanged } from './auctions'; // ← [2026-07-07] 입찰 삭제 후 상세/목록 즉시 갱신
+import type { EsgAuctionRow, EsgAuctionStatus, EsgAuctionBidRow } from '@/types/esg'; // ← [2026-07-07] EsgAuctionBidRow
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const supabase = _supabase as any;
@@ -204,4 +205,72 @@ export async function setAuctionDonor(
     if (res?.error === 'AUCTION_NOT_FOUND') throw new Error('경매를 찾을 수 없습니다.'); // ← [2026-07-06]
     throw new Error(res?.error ?? '기부자 저장 실패'); // ← [2026-07-06]
   }
+}
+
+// ============================================================================
+// [2026-07-07] 입찰 관리(관리자) — 잘못된 입찰 건 조회/삭제
+// ============================================================================
+
+/**
+ * 경매 실입찰 목록(관리자용, 실명 포함).
+ * esg_auction_bids SELECT 는 공개(USING true)라 직접 조회 가능(익명 마스킹 없는 원본).
+ * 최신순. 관리자 화면에서 "누가/얼마/언제" 확인 후 삭제 대상 식별에 사용.
+ */
+export async function adminListAuctionBids(auctionId: string): Promise<EsgAuctionBidRow[]> {
+  const { data, error } = await supabase
+    .from('esg_auction_bids')
+    .select('*')
+    .eq('auction_id', auctionId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as EsgAuctionBidRow[];
+}
+
+/**
+ * 입찰 삭제(관리자). admin_delete_auction_bid RPC 호출 →
+ * 삭제 + 남은 입찰로 current_price·current_bidder·bid_count 재산정(원자적).
+ * 성공 시 notifyAuctionChanged 로 상세/목록 즉시 갱신.
+ * 반환: 재산정된 상태(new_current_price·new_bid_count·new_current_bidder_id).
+ */
+export async function adminDeleteAuctionBid(bidId: string): Promise<{
+  auction_id: string;
+  new_current_price: number;
+  new_bid_count: number;
+  new_current_bidder_id: string | null;
+}> {
+  const { data, error } = await supabase.rpc('admin_delete_auction_bid', { p_bid_id: bidId }); // ← [2026-07-07]
+  if (error) throw new Error(error.message ?? '입찰 삭제에 실패했습니다.');
+  const result = data as {
+    success: boolean;
+    error?: string;
+    status?: string;
+    auction_id?: string;
+    new_current_price?: number;
+    new_bid_count?: number;
+    new_current_bidder_id?: string | null;
+  };
+
+  if (!result?.success) {
+    // 서버 에러코드 → 친화 메시지
+    if (result?.error === 'FORBIDDEN') throw new Error('관리자만 입찰을 삭제할 수 있습니다.');
+    if (result?.error === 'BID_NOT_FOUND') throw new Error('이미 삭제된 입찰이거나 찾을 수 없습니다.');
+    if (result?.error === 'AUCTION_NOT_FOUND') throw new Error('경매를 찾을 수 없습니다.');
+    if (result?.error === 'AUCTION_LOCKED') {
+      throw new Error(
+        result?.status === 'ended'
+          ? '이미 종료(낙찰)된 경매의 입찰은 삭제할 수 없습니다. 필요 시 경매를 먼저 취소/재정산해야 합니다.'
+          : '취소된 경매의 입찰은 삭제할 수 없습니다.',
+      );
+    }
+    throw new Error(result?.error ?? '입찰 삭제에 실패했습니다.');
+  }
+
+  notifyAuctionChanged(result.auction_id); // 상세/목록 즉시 갱신(Realtime 대기 X)
+
+  return {
+    auction_id: result.auction_id!,
+    new_current_price: result.new_current_price ?? 0,
+    new_bid_count: result.new_bid_count ?? 0,
+    new_current_bidder_id: result.new_current_bidder_id ?? null,
+  };
 }
