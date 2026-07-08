@@ -25,6 +25,7 @@ import { matchesQuery } from '@/utils/search';
 import { ProductEditForm } from '@/components/admin/ProductEditForm';
 import { CreateProductForm } from '@/components/admin/CreateProductForm';
 import { WishlistUsersModal } from '@/components/admin/WishlistUsersModal'; // ← [2026-06-25] 찜한 사람 명단 모달
+import { AdminFundingParticipants } from '@/components/admin/AdminFundingParticipants'; // ← [2026-07-08] 펀딩 참여자 관리(모달)
 import type { EsgProductRow, EsgProductStatus } from '@/types/esg';
 
 const STATUS_LABELS: Record<EsgProductStatus, string> = {
@@ -52,6 +53,7 @@ export function AdminProducts({ section = 'bazaar' }: { section?: import('@/type
   const [wishlistCounts, setWishlistCounts] = useState<Map<string, number>>(new Map()); // ← [2026-06-25] product_id→찜 수(전체 1회 집계)
   const [wishlistTarget, setWishlistTarget] = useState<EsgProductRow | null>(null);      // ← [2026-06-25] 찜 명단 모달 대상(null=닫힘)
   const [editTarget, setEditTarget] = useState<EsgProductRow | null>(null);              // ← [2026-07-01] 수정 모달 대상(null=닫힘). 그리드 전환으로 인라인 폼→모달.
+  const [participantsTarget, setParticipantsTarget] = useState<EsgProductRow | null>(null); // ← [2026-07-08] 펀딩 참여자 모달 대상
 
   // ← [고정/정렬] 드래그 재정렬 상태
   const dragIndexRef = useRef<number | null>(null);          // 드래그 시작 인덱스 (리렌더 불필요 → ref)
@@ -263,6 +265,7 @@ export function AdminProducts({ section = 'bazaar' }: { section?: import('@/type
                 wishlistCount={wishlistCounts.get(p.id) ?? 0}   // ← [2026-06-25] 집계 Map에서 O(1) 조회
                 onShowWishlist={() => setWishlistTarget(p)}      // ← [2026-06-25] 명단 모달 열기
                 onEdit={() => setEditTarget(p)}                  // ← [2026-07-01] 수정 모달 열기
+                onManageParticipants={() => setParticipantsTarget(p)} // ← [2026-07-08] 펀딩 참여자 모달
               />
             </div>
           ))}
@@ -294,6 +297,23 @@ export function AdminProducts({ section = 'bazaar' }: { section?: import('@/type
           onClose={() => setWishlistTarget(null)}
         />
       )}
+
+      {/* ← [2026-07-08] 펀딩 참여자 관리 모달 (페이지 단일 인스턴스) */}
+      {participantsTarget && (
+        <div
+          role="dialog" aria-modal="true"
+          onClick={(e) => { if (e.target === e.currentTarget) setParticipantsTarget(null); }}
+          style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+        >
+          <div style={{ background: '#fff', borderRadius: 14, width: '100%', maxWidth: 760, maxHeight: '85vh', overflowY: 'auto', padding: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <h2 style={{ margin: 0, fontSize: 17 }}>{participantsTarget.name}</h2>
+              <button type="button" onClick={() => setParticipantsTarget(null)} style={{ border: 'none', background: '#f3f4f6', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', fontSize: 16 }}>✕</button>
+            </div>
+            <AdminFundingParticipants productId={participantsTarget.id} onChanged={reload} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -308,12 +328,14 @@ function ProductAdminCard({
   wishlistCount = 0,    // ← [2026-06-25] 이 상품 찜 수(배지 표시·0이면 회색)
   onShowWishlist,       // ← [2026-06-25] 명단 모달 열기 콜백
   onEdit,               // ← [2026-07-01] 수정 모달 열기 콜백
+  onManageParticipants, // ← [2026-07-08] 펀딩 참여자 관리 모달 열기(펀딩 상품만)
 }: {
   product: EsgProductRow;
   onChange: () => void;
   wishlistCount?: number; // ← [2026-06-25]
   onShowWishlist?: () => void; // ← [2026-06-25]
   onEdit?: () => void;    // ← [2026-07-01]
+  onManageParticipants?: () => void; // ← [2026-07-08]
 }) {
   const [busy, setBusy] = useState(false);                    // ← [정책㉠] 숨김/해제 처리 중 잠금
   const statusColor = STATUS_COLORS[product.status];
@@ -507,6 +529,20 @@ function ProductAdminCard({
             </button>
           )}
         </div>
+        {/* ← [2026-07-08] 펀딩 상품: 참여자 관리 버튼(모달) */}
+        {product.purchase_type === 'funding' && onManageParticipants && (
+          <button
+            type="button"
+            onClick={onManageParticipants}
+            style={{
+              marginTop: 6, width: '100%', padding: '6px 0', background: '#f5f3ff',
+              border: '1px solid #ddd6fe', color: '#6d28d9', borderRadius: 6,
+              cursor: 'pointer', fontSize: 12, fontWeight: 600,
+            }}
+          >
+            🎯 참여자 관리
+          </button>
+        )}
       </div>
     </div>
   );
