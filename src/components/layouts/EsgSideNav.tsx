@@ -219,8 +219,8 @@ function PrimaryItem({
       onClick={handleClick}
       style={({ isActive }) => ({
         display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0',
-        textDecoration: 'none', color: t.text,                       // ← [2026-06-23] 활성 초록텍스트 제거(기본색 유지)
-        fontSize: 28, fontWeight: isActive ? 600 : 400, lineHeight: 1.25, // ← [2026-07-08] 24→28, 활성 700→600
+        textDecoration: 'none', color: isActive ? 'rgb(56, 233, 135)' : t.text, // ← [2026-07-08] 선택 시 초록 rgb(56,233,135)
+        fontSize: 28, fontWeight: isActive ? 500 : 400, lineHeight: 1.25, // ← [2026-07-08] 활성 600→500
         whiteSpace: 'nowrap',
         transition: 'font-weight 0.12s, color 0.12s',               // ← [2026-06-23] 활성 초록 배경 알약 삭제
       })}
@@ -238,11 +238,11 @@ function AdminItem({ t, onNavigate }: { t: SideTokens; onNavigate?: () => void }
     <NavLink
       to="/admin"
       onClick={onNavigate}
-      style={({ isActive }) => ({
+      style={() => ({
         display: 'flex', alignItems: 'center', padding: filled ? '8px 16px' : '8px 0',
         borderRadius: filled ? 99 : 0, textDecoration: 'none',
         color: filled ? '#000000' : t.adminText,                     // ← [2026-06-23] 활성 hover색 제거(초록 유지)
-        fontSize: 28, fontWeight: isActive ? 600 : 500, lineHeight: 1.25, whiteSpace: 'nowrap', // ← [2026-07-08] 24→28, 활성 700→600
+        fontSize: 28, fontWeight: 500, lineHeight: 1.25, whiteSpace: 'nowrap', // ← [2026-07-08] 활성 600→500(항상 500)
         background: filled ? t.adminBg : 'transparent',              // ← [2026-06-23] 활성 초록 배경 삭제
         transition: 'font-weight 0.12s, color 0.12s',
       })}

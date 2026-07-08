@@ -90,7 +90,7 @@ export function SecondarySidebar({ mainCollapsed }: SecondarySidebarProps) {
                     to={item.to}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 8,
-                      padding: '8px 0', fontSize: isGoods ? 20 : 24, lineHeight: 1.25, color: '#848484', // ← [2026-07-08] 굿즈=20px
+                      padding: '8px 0', fontSize: 24, lineHeight: 1.25, color: '#848484', // ← [2026-07-08] 공통 24px 통일(굿즈 20 제거)
                       textDecoration: 'none', whiteSpace: 'nowrap',
                     }}
                   >
