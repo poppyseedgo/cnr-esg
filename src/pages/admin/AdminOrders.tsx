@@ -40,6 +40,51 @@ const STATUS_TABS: { value: EsgPaymentStatus | 'all'; label: string }[] = [
   { value: 'refunded', label: '환불됨' },
 ];
 
+// ── [2026-07-08] 굿즈(펀딩) 주문 묶음 뷰 ───────────────────────────────────
+//   한 사용자가 같은 상품에 여러 번 주문한 경우(펀딩 다회 참여), 개별 주문은
+//   그대로 두되 (사용자 × 상품) 단위로 묶어 합산 총액을 헤더에 표시한다.
+//   대상: order_type='goods' 이고 단일 품목 주문 중 같은 (user,product) ≥2건.
+//   그 외(바자회/경매/단건)는 손대지 않고 개별 카드로 렌더.
+type AdminOrderView =
+  | { kind: 'single'; order: OrderWithItems }
+  | { kind: 'group'; key: string; userName: string; productName: string; total: number; orders: OrderWithItems[] };
+
+function groupAdminOrders(orders: OrderWithItems[]): AdminOrderView[] {
+  const groupKeyOf = (o: OrderWithItems): string | null => {
+    if (o.order_type !== 'goods') return null;          // 굿즈(펀딩)만 대상
+    if (!o.items || o.items.length !== 1) return null;   // 단일 품목만(펀딩 주문 = 1품목)
+    return `${o.user_id}::${o.items[0].product_id}`;
+  };
+
+  // 1) 그룹 후보 수집(첫 등장 순서 보존)
+  const buckets = new Map<string, OrderWithItems[]>();
+  const order: string[] = []; // 첫 등장 순서(그룹키 or 'single:'+id)
+  for (const o of orders) {
+    const k = groupKeyOf(o);
+    if (k) {
+      if (!buckets.has(k)) { buckets.set(k, []); order.push(k); }
+      buckets.get(k)!.push(o);
+    } else {
+      const sk = 'single:' + o.id;
+      buckets.set(sk, [o]); order.push(sk);
+    }
+  }
+
+  // 2) 뷰 변환: 그룹 후보라도 1건뿐이면 single 로 강등
+  return order.map((k): AdminOrderView => {
+    const arr = buckets.get(k)!;
+    if (k.startsWith('single:') || arr.length < 2) return { kind: 'single', order: arr[0] };
+    return {
+      kind: 'group',
+      key: k,
+      userName: arr[0].user_name_snapshot ?? arr[0].user_email,
+      productName: arr[0].items[0]?.product_name_snapshot ?? '상품',
+      total: arr.reduce((s, o) => s + o.total_amount, 0),
+      orders: arr,
+    };
+  });
+}
+
 export function AdminOrders() {
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
   const [loading, setLoading] = useState(true);
@@ -234,14 +279,45 @@ export function AdminOrders() {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {orders.map((o) => (
-            <OrderAdminCard
-              key={o.id}
-              order={o}
-              onConfirmPaid={() => setConfirmTarget(o)}
-              onChange={reload}
-            />
-          ))}
+          {/* ← [2026-07-08] 굿즈 펀딩 다회 참여는 (사용자×상품) 묶음으로 표시(합산 헤더 + 개별 카드) */}
+          {groupAdminOrders(orders).map((v) =>
+            v.kind === 'single' ? (
+              <OrderAdminCard
+                key={v.order.id}
+                order={v.order}
+                onConfirmPaid={() => setConfirmTarget(v.order)}
+                onChange={reload}
+              />
+            ) : (
+              <div
+                key={v.key}
+                style={{
+                  border: '1.5px solid #d8b4fe', borderRadius: 12, background: '#faf5ff',
+                  padding: 10, display: 'flex', flexDirection: 'column', gap: 8,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', padding: '2px 4px' }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#6b21a8', background: '#f3e8ff', borderRadius: 6, padding: '2px 8px' }}>
+                    🤝 펀딩 묶음
+                  </span>
+                  <span style={{ fontSize: 13, fontWeight: 600 }}>{v.userName}</span>
+                  <span style={{ fontSize: 12, color: '#888' }}>· {v.productName}</span>
+                  <span style={{ fontSize: 12, color: '#888' }}>· {v.orders.length}건</span>
+                  <span style={{ marginLeft: 'auto', fontSize: 15, fontWeight: 700, color: '#6b21a8' }}>
+                    합산 {v.total.toLocaleString()}원
+                  </span>
+                </div>
+                {v.orders.map((o) => (
+                  <OrderAdminCard
+                    key={o.id}
+                    order={o}
+                    onConfirmPaid={() => setConfirmTarget(o)}
+                    onChange={reload}
+                  />
+                ))}
+              </div>
+            )
+          )}
         </div>
       )}
 
@@ -390,14 +466,15 @@ function OrderAdminCard({
         <span
           style={{
             padding: '3px 8px',
-            background: order.order_type === 'bazaar' ? '#f0f9ff' : '#fdf4ff',
-            color: order.order_type === 'bazaar' ? '#0c4a6e' : '#6b21a8',
+            // ← [2026-07-08] 굿즈(goods) 배지 추가 — 기존엔 goods 가 '경매'로 오표기됨
+            background: order.order_type === 'bazaar' ? '#f0f9ff' : order.order_type === 'goods' ? '#f0fdf4' : '#fdf4ff',
+            color: order.order_type === 'bazaar' ? '#0c4a6e' : order.order_type === 'goods' ? '#166534' : '#6b21a8',
             borderRadius: 4,
             fontSize: 11,
             fontWeight: 600,
           }}
         >
-          {order.order_type === 'bazaar' ? '🛍 바자회' : '🔨 경매'}
+          {order.order_type === 'bazaar' ? '🛍 바자회' : order.order_type === 'goods' ? '🎁 굿즈' : '🔨 경매'}
         </span>
         <Link
           to={`/orders/${order.order_number}`}

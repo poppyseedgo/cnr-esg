@@ -376,22 +376,49 @@ ${bank.memo ? `<p style="font-size:12px;color:#888;margin-top:8px;">${escapeHtml
 `;
 }
 
-// 1. 바자회 주문 생성 / (재사용) 굿즈 펀딩 성사 입금 안내  ← [2026-07-08] is_funding 분기
+// 1. 바자회 주문 생성 / (재사용) 굿즈 펀딩 성사 입금 안내  ← [2026-07-08] is_funding 분기 + 합산 주문 테이블
 function tmplBazaarOrderCreated(data: Record<string, unknown>): string {
   const isFunding = data.is_funding === true; // ← [2026-07-08] 펀딩 성사 입금 안내면 문구 분기
-  const heading = isFunding
-    ? '🎉 펀딩이 성사되었습니다 — 입금(결제) 안내'
-    : '🛍 바자회 주문이 접수되었습니다';
-  const intro = isFunding
-    ? `${escapeHtml(data.user_name)}님이 참여하신 펀딩이 목표를 달성해 성사되었습니다. 아래 안내에 따라 입금 기한 내에 결제(계좌이체)를 진행해 주세요.`
-    : `${escapeHtml(data.user_name)}님, 주문해 주셔서 감사합니다.`;
-  const warn = isFunding
-    ? '아래 계좌로 <strong>입금자명 일치</strong>하여 송금해 주세요.<br><strong>입금 기한(아래 표기) 내</strong>에 입금이 확인되지 않으면 주문이 자동 취소됩니다.'
-    : '아래 계좌로 <strong>입금자명 일치</strong>하여 송금해 주세요.<br><strong>주문 후 15분 이내</strong>(아래 입금 기한)에 입금이 확인되지 않으면 주문이 자동 취소됩니다.';
+  if (isFunding) {
+    // ── [2026-07-08] (사용자×상품) 합산: 개별 주문 라인 + 합계 ───────────────
+    const orders = Array.isArray(data.orders) ? (data.orders as Array<Record<string, unknown>>) : [];
+    const rows = orders.map((o) => `
+      <tr>
+        <td style="padding:6px 8px;border-bottom:1px solid #eee;font-size:13px;">${escapeHtml(o.order_number)}</td>
+        <td style="padding:6px 8px;border-bottom:1px solid #eee;font-size:13px;text-align:center;">${escapeHtml(o.quantity)}개</td>
+        <td style="padding:6px 8px;border-bottom:1px solid #eee;font-size:13px;text-align:right;">${formatAmount(o.amount)}원</td>
+      </tr>`).join('');
+    const ordersTable = `
+<table style="width:100%;border-collapse:collapse;margin:8px 0 4px;border:1px solid #eee;border-radius:8px;overflow:hidden;">
+  <thead>
+    <tr style="background:#f8f8f8;">
+      <th style="padding:6px 8px;text-align:left;font-size:12px;color:#666;">주문번호</th>
+      <th style="padding:6px 8px;text-align:center;font-size:12px;color:#666;">수량</th>
+      <th style="padding:6px 8px;text-align:right;font-size:12px;color:#666;">금액</th>
+    </tr>
+  </thead>
+  <tbody>${rows}
+    <tr>
+      <td colspan="2" style="padding:8px;font-weight:700;font-size:13px;">합계 (${escapeHtml(data.order_count)}건)</td>
+      <td style="padding:8px;font-weight:700;font-size:14px;text-align:right;color:#111;">${formatAmount(data.total_amount)}원</td>
+    </tr>
+  </tbody>
+</table>`;
+    return wrap(`
+<h2 style="margin:0 0 12px;font-size:18px;color:#222;">🎉 펀딩이 성사되었습니다 — 입금(결제) 안내</h2>
+<p>${escapeHtml(data.user_name)}님이 참여하신 <strong>${escapeHtml(data.product_name)}</strong> 펀딩이 목표를 달성해 성사되었습니다.<br>아래 <strong>${escapeHtml(data.order_count)}건</strong>의 주문을 합산한 금액을 입금 기한 내에 결제(계좌이체)해 주세요.</p>
+${alertBox('아래 계좌로 <strong>입금자명 일치</strong>하여 <strong>합계 금액을 한 번에</strong> 송금해 주세요.<br><strong>입금 기한(아래 표기) 내</strong>에 입금이 확인되지 않으면 주문이 자동 취소됩니다.', 'warning')}
+${ordersTable}
+${paymentGuideBlock(data)}
+${button('내 주문 보기', `${APP_BASE_URL}/orders/${data.order_id}`)}
+<p style="font-size:12px;color:#888;">입금 후 관리자 확인을 거쳐 메일로 다시 알려드립니다.</p>
+`);
+  }
+  // 일반 바자회 주문 접수(단건)
   return wrap(`
-<h2 style="margin:0 0 12px;font-size:18px;color:#222;">${heading}</h2>
-<p>${intro}</p>
-${alertBox(warn, 'warning')}
+<h2 style="margin:0 0 12px;font-size:18px;color:#222;">🛍 바자회 주문이 접수되었습니다</h2>
+<p>${escapeHtml(data.user_name)}님, 주문해 주셔서 감사합니다.</p>
+${alertBox('아래 계좌로 <strong>입금자명 일치</strong>하여 송금해 주세요.<br><strong>주문 후 15분 이내</strong>(아래 입금 기한)에 입금이 확인되지 않으면 주문이 자동 취소됩니다.', 'warning')}
 ${paymentGuideBlock(data)}
 ${infoBox([['주문번호', escapeHtml(data.order_number)]])}
 ${button('주문 상세 보기', `${APP_BASE_URL}/orders/${data.order_number}`)}
@@ -450,18 +477,26 @@ ${isBazaar
 
 // 5. 바자회 강제 취소 (어드민)
 function tmplBazaarOrderCancelled(data: Record<string, unknown>): string {
-  const isFunding = data.is_funding === true; // ← [2026-07-08] 펀딩 무산이면 문구 분기
-  const heading = isFunding ? 'ℹ️ 펀딩이 무산되었습니다' : '🚫 주문이 취소되었습니다';
-  const intro = isFunding
-    ? `${escapeHtml(data.user_name)}님, 아쉽게도 목표에 도달하지 못해 펀딩이 무산되어 참여가 자동 취소되었습니다. (결제된 금액은 없습니다.)`
-    : `${escapeHtml(data.user_name)}님, 관리자에 의해 주문이 취소되었습니다.`;
+  const isFunding = data.is_funding === true; // ← [2026-07-08] 펀딩 무산이면 문구 분기(합산)
+  if (isFunding) {
+    return wrap(`
+<h2 style="margin:0 0 12px;font-size:18px;color:#222;">ℹ️ 펀딩이 무산되었습니다</h2>
+<p>${escapeHtml(data.user_name)}님, 아쉽게도 <strong>${escapeHtml(data.product_name)}</strong> 펀딩이 목표에 도달하지 못해 무산되어 참여가 자동 취소되었습니다. <strong>결제된 금액은 없습니다.</strong></p>
+${infoBox([
+  ['상품', escapeHtml(data.product_name)],
+  ['취소된 주문', `${escapeHtml(data.order_count)}건`],
+  ['합계 금액', `${formatAmount(data.total_amount)}원 (결제 없음)`],
+])}
+${alertBox('참여해 주셔서 감사합니다. 다음 펀딩에서 다시 만나요!', 'info')}
+`);
+  }
   return wrap(`
-<h2 style="margin:0 0 12px;font-size:18px;color:#222;">${heading}</h2>
-<p>${intro}</p>
+<h2 style="margin:0 0 12px;font-size:18px;color:#222;">🚫 주문이 취소되었습니다</h2>
+<p>${escapeHtml(data.user_name)}님, 관리자에 의해 주문이 취소되었습니다.</p>
 ${infoBox([
   ['주문번호', escapeHtml(data.order_number)],
   ['금액', `${formatAmount(data.total_amount)}원`],
-  [isFunding ? '무산 사유' : '취소 사유', escapeHtml(data.cancelled_reason ?? '(사유 미기재)')],
+  ['취소 사유', escapeHtml(data.cancelled_reason ?? '(사유 미기재)')],
 ])}
 ${alertBox('자세한 사항은 아래 문의 이메일로 연락 주세요.', 'info')}
 `);
