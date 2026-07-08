@@ -38,10 +38,10 @@ export function FundingConfirmModal({
           gap: 12, alignItems: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
         }}
       >
-        {/* 나무 아이콘 (Figma 2354:333, 41×49) — 초록 원 + 검정 기둥 */}
+        {/* 나무 아이콘 (Figma 2354:333 · 첨부 SVG 그대로) — 초록 원 #46FF68 + 검정 기둥 */}
         <svg width="41" height="49" viewBox="0 0 42 49" fill="none" aria-hidden style={{ display: 'block', flexShrink: 0 }}>
-          <circle cx="21" cy="21" r="21" fill="#8FFF73" />
-          <rect x="18" y="21" width="6" height="28" fill="#111" />
+          <circle cx="20.5627" cy="20.5627" r="20.5627" fill="#46FF68" />
+          <rect x="18.5625" y="33" width="4" height="16" fill="black" />
         </svg>
 
         {/* 헤딩 2줄 20 */}
