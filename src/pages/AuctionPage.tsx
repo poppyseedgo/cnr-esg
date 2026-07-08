@@ -8,7 +8,8 @@
 //   - 브레드크럼(Home › Auction) + 정렬 행(등록순 / 높은 가격 순 / 낮은 가격 순, URL sort)
 //   - 경매 카드 그리드(.shop-grid 2/3/4열, .pcard 공용 chassis — 바자회와 통일)
 //   - 카드 상태별 요소:
-//       · 상단 좌: 입찰상태 배지(내가 최고가 #99f75d / 밀려남 #c9f75d) — 내가 입찰한 진행중 경매만
+//       · 상단 좌: 입찰상태 배지(내가 최고가 #99f75d / 밀려남 #f75d5f·흰색) — 내가 입찰한 진행중 경매만 // ← [2026-07-08] 밀려남 빨강화
+//         호버 CTA(밀려남)도 동일 빨강. ※카운트다운 바(#e8ff68)는 밀려남과 무관 — 유지.
 //       · 상단 우: 🔥 N명 입찰 (bid_count>0)
 //       · 본문 배지행: [예정(검정)] [새 제품]
 //       · 가격행: 시작가(입찰 있으면 취소선) + 현재가(빨강 라벨, 입찰 있을 때만)
@@ -247,7 +248,7 @@ function AuctionCard({ auction, bidStatus }: { auction: EsgAuctionRow; bidStatus
               {/* 커스텀 라벨 (텍스트 없으면 null) */}
               <CustomLabel text={auction.label_text} bg={auction.label_bg} color={auction.label_color} />
               {bidStatus === 'highest' && <span style={overlayBadge('#99f75d', '#000')}>내가 최고가 입찰 중</span>}
-              {bidStatus === 'outbid' && <span style={overlayBadge('#c9f75d', '#000')}>입찰에서 밀려남</span>}
+              {bidStatus === 'outbid' && <span style={overlayBadge('#f75d5f', '#fff')}>입찰에서 밀려남</span>}{/* ← [2026-07-08] 밀려남 라벨 노랑#c9f75d→빨강#f75d5f(Figma 2316:57)+흰색 */}
             </div>
             {hasBids && (
               <span style={{ ...overlayBadge('rgba(0,0,0,0.55)', '#fff'), display: 'inline-flex', gap: 4, alignItems: 'center' }}>
@@ -364,7 +365,7 @@ function ctaLabel(s: BidStatus): string {
 }
 function ctaStyle(s: BidStatus): React.CSSProperties {
   if (s === 'highest') return { background: '#99f75d', color: '#111' };
-  if (s === 'outbid') return { background: '#e8ff68', color: '#111' };
+  if (s === 'outbid') return { background: '#f75d5f', color: '#fff' }; // ← [2026-07-08] 밀려남 CTA 노랑#e8ff68→빨강#f75d5f(Figma 2316:69)+흰색. ※카운트다운 바(#e8ff68)는 무관·유지
   return { background: '#000', color: '#fff', textTransform: 'capitalize' };
 }
 

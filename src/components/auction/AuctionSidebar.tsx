@@ -13,11 +13,17 @@
 //
 // [데이터] loadAuctionDonors() — esg_auctions.donor_name_snapshot(경매 기부자 SSOT) 중복 제거.
 //   20260706_auction_donor 마이그레이션 적용 후 채워짐(미적용 시 명단 비어도 안전).
+//
+// [변경 이력]
+//   2026-07-08 · '나의 입찰 내역' 우측에 빨간 dot(깜빡임) 추가. 내가 입찰하거나
+//              밀려났을 때(=진행 중 경매에 내 입찰 존재) 표시. useMyActiveBids 훅으로
+//              판정하고, dot 스타일은 결제대기 dot(#EF4444/7px/cnrPendingBlink)과 통일.
 // ============================================================================
 
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom'; // ← [2026-07-06] 기부자 필터 URL(?donor=)
 import { loadAuctionDonors, type AuctionDonor } from '@/lib/auctions';
+import { useMyActiveBids } from '@/hooks/useMyActiveBids'; // ← [2026-07-08] '나의 입찰 내역' 빨간 dot 판정
 
 interface AuctionSidebarProps {
   /** sidebar=데스크톱 2차 패널(칩 wrap + 보조내비) / mobile=페이지 상단(칩 가로 스크롤) */
@@ -37,6 +43,8 @@ export function AuctionSidebar({ variant, mainCollapsed = false }: AuctionSideba
   const isMobile = variant === 'mobile';
   const [donors, setDonors] = useState<AuctionDonor[]>([]);
   const [donorsOpen, setDonorsOpen] = useState(true); // ← [2026-07-06] 펼침/접힘(기본 펼침) — 아이콘이 상태 반영
+  // ← [2026-07-08] 보조내비가 실제로 노출될 때(!isMobile && mainCollapsed)만 조회/구독 → 불필요 부하 0
+  const { hasActiveBids } = useMyActiveBids(!isMobile && mainCollapsed);
 
   // ── [2026-07-06] 기부자 필터 = URL 파라미터(?donor=key1,key2) 단일 소스 ──
   const [searchParams, setSearchParams] = useSearchParams();
@@ -123,18 +131,33 @@ export function AuctionSidebar({ variant, mainCollapsed = false }: AuctionSideba
       {/* ── 보조내비 (데스크톱 사이드바 + 메인 접힘일 때만) ── */}
       {!isMobile && mainCollapsed && (
         <nav style={{ display: 'flex', flexDirection: 'column', marginTop: 8 }}>
-          {AUCTION_NAV.map((item) => (
-            <Link
-              key={item.to}
-              to={item.to}
-              style={{
-                padding: '8px 0', fontSize: 24, lineHeight: 1.25, color: '#848484',
-                textDecoration: 'none', whiteSpace: 'nowrap',
-              }}
-            >
-              {item.label}
-            </Link>
-          ))}
+          {AUCTION_NAV.map((item) => {
+            const showBidDot = item.to === '/mypage/bidding' && hasActiveBids; // ← [2026-07-08] 내 진행중 입찰 있으면 dot
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8, // ← [2026-07-08] dot 배치용 flex(라벨 우측)
+                  padding: '8px 0', fontSize: 24, lineHeight: 1.25, color: '#848484',
+                  textDecoration: 'none', whiteSpace: 'nowrap',
+                }}
+              >
+                {item.label}
+                {/* ← [2026-07-08] 내가 입찰/밀려남(진행중) 빨간 dot — 결제대기 dot 과 동일 스타일 통일 */}
+                {showBidDot && (
+                  <span
+                    aria-label="진행 중인 내 입찰 있음"
+                    style={{
+                      width: 7, height: 7, borderRadius: '50%', background: '#EF4444',
+                      display: 'inline-block', alignSelf: 'flex-start', marginTop: 2,
+                      animation: 'cnrPendingBlink 1s ease-in-out infinite',
+                    }}
+                  />
+                )}
+              </Link>
+            );
+          })}
         </nav>
       )}
     </div>
