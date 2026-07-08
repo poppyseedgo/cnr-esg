@@ -21,6 +21,8 @@ import { subscribeProducts } from '@/lib/products'; // ← [2026-07-08] 관리�
 import { getDisplayPrice } from '@/lib/products';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { signInWithMicrosoft } from '@/lib/auth';
+import { FundingConfirmModal } from '@/components/goods/FundingConfirmModal'; // ← [2026-07-08] 참여 확인 모달
+import { burstConfetti } from '@/lib/confetti'; // ← [2026-07-08] 성공 컨페티
 import type { EsgProductRow } from '@/types/esg';
 
 type Progress = NonNullable<Awaited<ReturnType<typeof loadFundingProgress>>>;
@@ -58,6 +60,8 @@ export function FundingSidebar({ product }: { product: EsgProductRow }) {
   const [qty, setQty] = useState(1);
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(Date.now());
+  const [confirmOpen, setConfirmOpen] = useState(false); // ← [2026-07-08] 참여 확인 모달
+  const [success, setSuccess] = useState(false);         // ← [2026-07-08] 성공 오버레이
 
   const reload = () => { loadFundingProgress(product.id).then(setProg).catch(() => {}); };
   useEffect(() => { reload(); /* eslint-disable-next-line */ }, [product.id]);
@@ -87,16 +91,28 @@ export function FundingSidebar({ product }: { product: EsgProductRow }) {
     return () => clearInterval(t);
   }, [status, product.id]);
 
-  const participate = async () => {
+  // "펀딩 참여하기" 클릭 → 확인 모달 (비로그인은 로그인 유도)
+  const openConfirm = () => {
     if (!currentUser) { void signInWithMicrosoft(); return; }
+    setConfirmOpen(true);
+  };
+
+  // 모달 '확인' → 참여 처리 → 성공 연출(컨페티 + 오버레이) → 수량 초기화 + 달성률 갱신
+  const doPledge = async () => {
     setBusy(true);
     try {
-      const res = await createFundingPledge(product.id, qty);
-      alert(`펀딩 참여 완료! (${res.quantity}개 · ${won(res.total_amount)}원)\n\n목표 달성 시 참여자에게 입금 안내가 갑니다. (지금은 결제 전이에요)`);
-      reload();
+      await createFundingPledge(product.id, qty);
+      setConfirmOpen(false);
+      setBusy(false);
+      burstConfetti();                 // 전체화면 컨페티
+      setSuccess(true);                // "펀딩 참여 성공!" 오버레이
+      setQty(1);                       // 수량 초기화
+      reload();                        // 달성률 즉시 갱신
+      window.setTimeout(() => setSuccess(false), 2200); // 자동 소멸
     } catch (e) {
+      setBusy(false);
       alert(e instanceof Error ? e.message : '펀딩 참여에 실패했습니다.');
-    } finally { setBusy(false); }
+    }
   };
 
   const Divider = () => <div style={{ width: '100%', height: 1, background: C.line }} />;
@@ -222,7 +238,7 @@ export function FundingSidebar({ product }: { product: EsgProductRow }) {
         return (
           <button
             type="button"
-            onClick={() => { if (succeeded) { navigate('/mypage'); } else if (isOpen) { void participate(); } }}
+            onClick={() => { if (succeeded) { navigate('/mypage'); } else if (isOpen) { openConfirm(); } }}
             disabled={!clickable}
             style={{
               width: '100%', padding: '20px 16px', border: '1px solid #000',
@@ -236,6 +252,28 @@ export function FundingSidebar({ product }: { product: EsgProductRow }) {
           </button>
         );
       })()}
+
+      {/* 참여 확인 모달 (Figma 2341:126) */}
+      <FundingConfirmModal
+        open={confirmOpen}
+        qty={qty}
+        totalAmount={unit * qty}
+        busy={busy}
+        onConfirm={doPledge}
+        onCancel={() => setConfirmOpen(false)}
+      />
+
+      {/* 성공 오버레이 — 컨페티와 함께 중앙 표시 후 자동 소멸 */}
+      {success && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1101, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+          <div style={{ textAlign: 'center', animation: 'cnrSuccessPop 0.35s cubic-bezier(0.2,1.3,0.4,1) both' }}>
+            <div style={{ fontSize: 72, lineHeight: 1, filter: 'drop-shadow(0 6px 20px rgba(0,0,0,0.2))' }}>🎉</div>
+            <div style={{ marginTop: 14, fontSize: 34, fontWeight: 800, color: '#0f7b3f', textShadow: '0 2px 12px rgba(255,255,255,0.9)' }}>
+              펀딩 참여 성공!
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

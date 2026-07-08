@@ -23,6 +23,15 @@
     sans-serif;
 }
 
+/* ── [2026-07-08] 숫자 전역 폰트: Instrument Sans(숫자) → Pretendard(한글 fallback) ──
+   숫자는 Instrument Sans, 섞인 한글/기호는 Pretendard 로 자동 폴백.
+   사용: <span class="num">14,000</span>원  또는  style에서 fontFamily: 'var(--font-num)' */
+:root {
+  --font-num: 'Instrument Sans', 'Pretendard Variable', 'Pretendard',
+    -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+.num { font-family: var(--font-num); }
+
 html,
 body {
   margin: 0;
@@ -131,6 +140,11 @@ button {
 @keyframes cnrPendingBlink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.2; }
+}
+/* ← [2026-07-08] 펀딩 참여 성공 오버레이 팝인 */
+@keyframes cnrSuccessPop {
+  from { opacity: 0; transform: scale(0.8); }
+  to   { opacity: 1; transform: scale(1); }
 }
 /* 주의: .route-fade에는 transform을 쓰지 않는다.
    transform/filter 조상은 position:fixed 자손의 컨테이닝 블록이 되어
