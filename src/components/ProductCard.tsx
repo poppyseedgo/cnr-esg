@@ -64,9 +64,12 @@ interface ProductCardProps {
   quickAddBlockReason?: string | null;
   /** 상세 링크 베이스 경로(기본 /bazaar). 굿즈 리스트는 /goods 전달 → /goods/:id 로 이동. // ← [2026-07-07] */
   basePath?: string;
+  /** 배치 진행률(리스트 폴링). 전달되면 카드가 자체 loadFundingProgress 를 호출하지 않음(N+1 방지).
+   *  undefined=미전달(자체 조회) · null=배치모드·미로딩 · 객체=배치값. // ← [2026-07-08] */
+  fundingProgress?: import('@/lib/orders').FundingProgressLite | null;
 }
 
-export function ProductCard({ product, canQuickAdd = true, quickAddBlockReason = null, basePath = '/bazaar' }: ProductCardProps) { // ← [2026-07-07] basePath
+export function ProductCard({ product, canQuickAdd = true, quickAddBlockReason = null, basePath = '/bazaar', fundingProgress }: ProductCardProps) { // ← [2026-07-08] fundingProgress
   const { currentUser } = useCurrentUser();
   const { wishlisted, toggle } = useWishlist(product.id); // ← [2026-06-24]
 
@@ -83,23 +86,33 @@ export function ProductCard({ product, canQuickAdd = true, quickAddBlockReason =
   const [adding, setAdding] = useState(false); // ← [2026-06-24] 담기 진행/완료 transient
   const [justAdded, setJustAdded] = useState(false);
 
-  // ── [2026-07-08] 펀딩 카드(Figma 2330:106) — 진행률/마감 표시 ──────────────
+  // ── [2026-07-08] 펀딩 카드(Figma 2330:106) — 진행률/마감/성사 표시 ──────────
   const isFunding = product.purchase_type === 'funding';
+  const fundingStatus = product.funding_status ?? 'live'; // ← 목록 실시간 리로드(subscribeProducts)로 갱신됨
   const [fundingPct, setFundingPct] = useState<number | null>(null);
   useEffect(() => {
     if (!isFunding) return;
+    const gt = product.funding_goal_type ?? 'quantity';
+    const goal = gt === 'amount' ? (product.funding_goal_amount ?? 0) : (product.funding_goal_quantity ?? 0);
+    const toPct = (amt: number, qty: number) => {
+      const ach = gt === 'amount' ? amt : qty;
+      // ← [2026-07-08] 100% 초과 그대로 표기(목표 이상 성공률). 예: 170%
+      return goal > 0 ? Math.round((ach / goal) * 100) : 0;
+    };
+    // 배치 모드(리스트 폴링): prop 전달됨 → 자체 조회 안 함(N+1 방지)
+    if (fundingProgress !== undefined) {
+      if (fundingProgress) setFundingPct(toPct(fundingProgress.pledged_amount, fundingProgress.pledged_quantity));
+      return;
+    }
+    // 폴백: 단독 사용(배치 미주입) → 자체 조회
     let alive = true;
     loadFundingProgress(product.id)
-      .then((p) => {
-        if (!alive || !p) return;
-        const gt = product.funding_goal_type ?? 'quantity';
-        const goal = gt === 'amount' ? (product.funding_goal_amount ?? 0) : (product.funding_goal_quantity ?? 0);
-        const ach = gt === 'amount' ? p.pledged_amount : p.pledged_quantity;
-        setFundingPct(goal > 0 ? Math.min(100, Math.round((ach / goal) * 100)) : 0);
-      })
+      .then((p) => { if (alive && p) setFundingPct(toPct(p.pledged_amount, p.pledged_quantity)); })
       .catch(() => {});
     return () => { alive = false; };
-  }, [isFunding, product.id, product.funding_goal_type, product.funding_goal_amount, product.funding_goal_quantity]);
+    // funding_status 변경(성사/무산) 시에도 재평가 → 최종 달성률 반영
+  }, [isFunding, product.id, product.funding_goal_type, product.funding_goal_amount, product.funding_goal_quantity, product.funding_status, fundingProgress]);
+  const fundingEnded = fundingStatus === 'succeeded' || fundingStatus === 'failed';
 
   // 빠른 담기 — 카드는 Link이므로 버튼 클릭 시 네비게이션 차단
   const handleAddToCart = async (e: React.MouseEvent) => {
@@ -137,14 +150,29 @@ export function ProductCard({ product, canQuickAdd = true, quickAddBlockReason =
       <div className="pcard-img">
         {product.thumbnail_url && (
           <div style={{ position: 'absolute', inset: 0 }}>
-            <BlurImage url={product.thumbnail_url} width={680} />
+            <BlurImage url={product.thumbnail_url} width={1000} quality={80} />{/* ← [2026-07-08] 화질 개선 680/70→1000/80 */}
           </div>
         )}
 
         {/* ← [2026-07-06] 커스텀 라벨 (이미지 좌상단 오버레이). 텍스트 없으면 CustomLabel 이 null */}
-        {product.label_text && product.label_text.trim() && (
+        {!isFunding && product.label_text && product.label_text.trim() && (
           <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 1, pointerEvents: 'none' }}>
             <CustomLabel text={product.label_text} bg={product.label_bg} color={product.label_color} />
+          </div>
+        )}
+
+        {/* ← [2026-07-08] 펀딩 라벨: Pre-Order + 상태(성사 시 달성률 성공) */}
+        {isFunding && (
+          <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 1, pointerEvents: 'none', display: 'flex', gap: 6 }}>
+            <span style={{ background: '#000', color: '#fff', fontSize: 13, lineHeight: 1.3, padding: '4px 8px', whiteSpace: 'nowrap' }}>Pre-Order</span>
+            {fundingStatus === 'succeeded' && (
+              <span style={{ background: '#a6ff6d', color: '#000', fontSize: 13, lineHeight: 1.3, padding: '4px 8px', whiteSpace: 'nowrap' }}>
+                <span style={{ fontFamily: NUM }}>{fundingPct ?? 0}%</span> 달성 성공
+              </span>
+            )}
+            {fundingStatus === 'failed' && (
+              <span style={{ background: '#bdbdbd', color: '#111', fontSize: 13, lineHeight: 1.3, padding: '4px 8px', whiteSpace: 'nowrap' }}>펀딩 무산</span>
+            )}
           </div>
         )}
 
@@ -181,8 +209,16 @@ export function ProductCard({ product, canQuickAdd = true, quickAddBlockReason =
           </div>
         )}
 
-        {/* 호버 액션바 — 펀딩: [프리오더 펀딩하기 | 찜] / 일반: [Add To Cart | 찜] */}
+        {/* 호버 액션바 — 펀딩: 진행중[프리오더 펀딩하기|찜] / 종료[판매 종료] / 일반: [Add To Cart|찜] */}
         {isFunding ? (
+          fundingEnded ? (
+            <div className="pcard-actions">
+              {/* ← [2026-07-08] 성사/무산 = 판매 종료(단일 버튼) */}
+              <div className="pcard-btn" style={{ background: '#000', color: '#fff', flex: 1 }}>
+                {fundingStatus === 'succeeded' ? '판매 종료' : '펀딩 무산'}
+              </div>
+            </div>
+          ) : (
           <div className="pcard-actions">
             {/* ← [2026-07-08] 클릭 시 Link 가 상세(/goods/:id)로 이동 → 거기서 수량+참여 */}
             <div className="pcard-btn" style={{ background: '#000', color: '#fff' }}>프리오더 펀딩하기</div>
@@ -195,6 +231,7 @@ export function ProductCard({ product, canQuickAdd = true, quickAddBlockReason =
               {wishlisted ? '이미 찜 함' : '찜'}
             </button>
           </div>
+          )
         ) : !blocked ? (
           <div className="pcard-actions">
             <button
@@ -232,7 +269,7 @@ export function ProductCard({ product, canQuickAdd = true, quickAddBlockReason =
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
             <div style={{ display: 'flex', gap: 4, alignItems: 'flex-start', fontSize: 16, letterSpacing: '0.16px', lineHeight: 1.4 }}>
               <span style={{ color: '#ff5959', fontFamily: NUM }}>{fundingPct ?? 0}%</span>
-              <span style={{ color: '#000' }}>달성</span>
+              <span style={{ color: '#000' }}>{fundingStatus === 'succeeded' ? '달성 성공' : fundingStatus === 'failed' ? '달성 실패' : '달성'}</span>
             </div>
             <div style={{ display: 'flex', gap: 4, alignItems: 'center', fontSize: 14, letterSpacing: '0.14px', lineHeight: 1.4 }}>
               <span style={{ color: '#bbb' }}>프리오더 마감</span>

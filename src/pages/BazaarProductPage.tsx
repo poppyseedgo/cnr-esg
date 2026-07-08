@@ -617,7 +617,7 @@ function ImageCarousel({
       }}
     >
       <div style={{ position: 'absolute', inset: 0 }}>
-        <BlurImage url={images[currentIdx]} width={1080} quality={78} alt={`이미지 ${currentIdx + 1}`} />
+        <BlurImage url={images[currentIdx]} width={1440} quality={82} alt={`이미지 ${currentIdx + 1}`} />{/* ← [2026-07-08] 화질 개선 1080/78→1440/82 */}
       </div>
       {!single && (
         <>

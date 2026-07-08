@@ -17,6 +17,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom'; // ← [2026-07-08] 성사 후 마이페이지 이동
 import { loadFundingProgress, createFundingPledge } from '@/lib/orders';
+import { subscribeProducts } from '@/lib/products'; // ← [2026-07-08] 관리자 편집/확정 실시간 반영
 import { getDisplayPrice } from '@/lib/products';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { signInWithMicrosoft } from '@/lib/auth';
@@ -66,21 +67,25 @@ export function FundingSidebar({ product }: { product: EsgProductRow }) {
   const goalType = product.funding_goal_type ?? 'quantity';
   const goal = goalType === 'amount' ? (product.funding_goal_amount ?? 0) : (product.funding_goal_quantity ?? 0);
   const achieved = prog ? (goalType === 'amount' ? prog.pledged_amount : prog.pledged_quantity) : 0;
-  const pct = goal > 0 ? Math.min(100, Math.round((achieved / goal) * 100)) : 0;
+  const pct = goal > 0 ? Math.round((achieved / goal) * 100) : 0; // ← [2026-07-08] 100% 초과 표기(예: 170%)
+  const barPct = Math.min(100, pct); // 진행바 채움은 100%까지
   const status = prog?.funding_status ?? product.funding_status ?? 'live';
   const deadlineMs = product.funding_deadline ? new Date(product.funding_deadline).getTime() : 0;
   const timeLeft = deadlineMs - now;
   const isOpen = status === 'live' && timeLeft > 0;
-  // 마감됐지만 아직 확정(succeeded/failed) 전 — 크론/관리자 확정을 기다리는 상태
-  const collating = status === 'live' && deadlineMs > 0 && timeLeft <= 0;
 
-  // ← [2026-07-08] '집계 중' 동안 확정 여부를 폴링해 성사/무산 상태를 자동 반영
-  //   (관리자/크론이 다른 곳에서 확정하므로, 참여자 화면이 stale 'live'로 멈추지 않게)
+  // ← [2026-07-08] 실시간 반영:
+  //   (1) esg_products 구독 — 관리자 편집(가격/목표/마감/썸네일)·확정(funding_status) 즉시 반영
+  //   (2) 진행 중(live)·집계 중 동안 폴링 — 타 사용자 참여로 달성률 변동 + 확정 감지
   useEffect(() => {
-    if (!collating) return;
-    const t = setInterval(() => { loadFundingProgress(product.id).then(setProg).catch(() => {}); }, 8000);
+    const off = subscribeProducts(() => { loadFundingProgress(product.id).then(setProg).catch(() => {}); });
+    return off;
+  }, [product.id]);
+  useEffect(() => {
+    if (status !== 'live') return; // 종료(succeeded/failed)면 폴링 불필요
+    const t = setInterval(() => { loadFundingProgress(product.id).then(setProg).catch(() => {}); }, 10000);
     return () => clearInterval(t);
-  }, [collating, product.id]);
+  }, [status, product.id]);
 
   const participate = async () => {
     if (!currentUser) { void signInWithMicrosoft(); return; }
@@ -141,7 +146,7 @@ export function FundingSidebar({ product }: { product: EsgProductRow }) {
         {/* 진행바: 검정 트랙 + 초록 글로우 채움(진행률 폭) */}
         <div style={{ position: 'relative', width: '100%', height: 32, background: '#000', overflow: 'hidden' }}>
           <div style={{
-            position: 'absolute', inset: 0, width: `${pct}%`,
+            position: 'absolute', inset: 0, width: `${barPct}%`,
             background: `linear-gradient(to right, ${C.accent} 0%, ${C.accent} 60%, rgba(12,255,57,0) 100%)`,
             transition: 'width .4s ease',
           }} />
