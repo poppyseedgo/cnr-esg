@@ -147,7 +147,7 @@ export function FundingSidebar({ product }: { product: EsgProductRow }) {
 
       {/* ← [2026-07-08] 1회 이상 참여 시 문구 (Figma 2341:208) — 초록 #0fe654 + 회색 #ccd3df, SemiBold 13 */}
       {myCount >= 1 && (
-        <p style={{ margin: 0, fontSize: 13, lineHeight: 1.2, fontWeight: 600 }}>
+        <p style={{ margin: 0, fontSize: 13, lineHeight: 1.2, fontWeight: 500 }}>{/* ← [2026-07-08] FW 600→500 */}
           <span style={{ color: '#0fe654' }}>{myCount}회 참여한 펀딩입니다. </span>
           <span style={{ color: '#ccd3df' }}>중복 참여도 가능해요.</span>
         </p>

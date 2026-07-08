@@ -308,8 +308,8 @@ export function AuctionDetailPage() {
       {isAdmin && (
         <div
           style={{
-            background: '#fff',
-            border: '2px solid #0ea5e9',
+            background: '#f4f4f4',
+            border: 'none',
             borderRadius: 12,
             padding: 16,
             marginBottom: 16,
