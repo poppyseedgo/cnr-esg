@@ -40,6 +40,7 @@ export function CreateProductForm({ onCancel, onSuccess, section = 'bazaar' }: C
   const [fundingGoalAmount, setFundingGoalAmount] = useState<number | ''>('');
   const [fundingGoalQuantity, setFundingGoalQuantity] = useState<number | ''>('');
   const [fundingDeadline, setFundingDeadline] = useState<string>(''); // datetime-local "YYYY-MM-DDTHH:mm"
+  const [paymentDeadline, setPaymentDeadline] = useState<string>(''); // ← [2026-07-08] 결제 기한(절대 일시)
   const isFunding = isGoods && purchaseType === 'funding';
   const [saving, setSaving] = useState(false);
 
@@ -54,6 +55,7 @@ export function CreateProductForm({ onCancel, onSuccess, section = 'bazaar' }: C
     }
     // ← [2026-07-07] 펀딩 검증
     let fundingDeadlineIso: string | null = null;
+    let paymentDeadlineIso: string | null = null; // ← [2026-07-08]
     if (isFunding) {
       if (!fundingDeadline) { alert('펀딩 마감일을 입력해주세요.'); return; }
       const dl = new Date(fundingDeadline);
@@ -61,6 +63,12 @@ export function CreateProductForm({ onCancel, onSuccess, section = 'bazaar' }: C
       fundingDeadlineIso = dl.toISOString();
       if (fundingGoalType === 'amount' && !(Number(fundingGoalAmount) > 0)) { alert('목표 금액을 입력해주세요.'); return; }
       if (fundingGoalType === 'quantity' && !(Number(fundingGoalQuantity) > 0)) { alert('목표 수량을 입력해주세요.'); return; }
+      // ← [2026-07-08] 결제 기한(선택). 입력 시 참여 마감 이후여야 함.
+      if (paymentDeadline) {
+        const pd = new Date(paymentDeadline);
+        if (isNaN(pd.getTime()) || pd.getTime() <= dl.getTime()) { alert('결제 기한은 참여 마감일보다 이후여야 합니다.'); return; }
+        paymentDeadlineIso = pd.toISOString();
+      }
     }
     setSaving(true);
     try {
@@ -82,6 +90,7 @@ export function CreateProductForm({ onCancel, onSuccess, section = 'bazaar' }: C
         funding_goal_amount: isFunding && fundingGoalType === 'amount' ? Number(fundingGoalAmount) : null,
         funding_goal_quantity: isFunding && fundingGoalType === 'quantity' ? Number(fundingGoalQuantity) : null,
         funding_deadline: fundingDeadlineIso,
+        payment_deadline: paymentDeadlineIso, // ← [2026-07-08] 결제 기한
       });
       onSuccess();
     } catch (e) {
@@ -220,6 +229,10 @@ export function CreateProductForm({ onCancel, onSuccess, section = 'bazaar' }: C
                 )}
                 <Field label="마감일 *">
                   <input type="datetime-local" value={fundingDeadline} onChange={(e) => setFundingDeadline(e.target.value)} disabled={saving} style={inputStyle} />
+                </Field>
+                {/* ← [2026-07-08] 결제 기한(절대 일시) — 성사 후 입금 마감. 자동취소 없음 */}
+                <Field label="결제 기한 (성사 후 입금 마감)">
+                  <input type="datetime-local" value={paymentDeadline} onChange={(e) => setPaymentDeadline(e.target.value)} disabled={saving} style={inputStyle} />
                 </Field>
               </div>
             </>

@@ -81,6 +81,7 @@ export function ProductEditForm({
   const [fundingGoalAmount, setFundingGoalAmount] = useState<number | ''>(product.funding_goal_amount ?? '');
   const [fundingGoalQuantity, setFundingGoalQuantity] = useState<number | ''>(product.funding_goal_quantity ?? '');
   const [fundingDeadline, setFundingDeadline] = useState<string>(isoToLocalInput(product.funding_deadline));
+  const [paymentDeadline, setPaymentDeadline] = useState<string>(isoToLocalInput(product.payment_deadline)); // ← [2026-07-08] 결제 기한
   const isFunding = isGoods && purchaseType === 'funding';
   const [finalizing, setFinalizing] = useState(false);
   // 마감확정 가능: 펀딩 + 진행중(live) + 마감일 도달
@@ -181,10 +182,17 @@ export function ProductEditForm({
           if (gAmt !== product.funding_goal_amount) patch.funding_goal_amount = gAmt;
           if (gQty !== product.funding_goal_quantity) patch.funding_goal_quantity = gQty;
           if (dlIso !== product.funding_deadline) patch.funding_deadline = dlIso;
+          // ← [2026-07-08] 결제 기한(절대 일시). 미입력 허용(폴백). 참여 마감 이후 권장(경고만).
+          const pdIso = paymentDeadline ? new Date(paymentDeadline).toISOString() : null;
+          if (pdIso && dlIso && new Date(pdIso) <= new Date(dlIso)) {
+            throw new Error('결제 기한은 참여 마감일보다 이후여야 합니다.');
+          }
+          if (pdIso !== product.payment_deadline) patch.payment_deadline = pdIso;
         } else if ((product.purchase_type ?? 'normal') === 'funding') {
           // funding → normal 전환: 펀딩 필드 정리
           patch.funding_goal_type = null; patch.funding_goal_amount = null;
           patch.funding_goal_quantity = null; patch.funding_deadline = null;
+          patch.payment_deadline = null; // ← [2026-07-08]
         }
       }
 
@@ -366,6 +374,15 @@ export function ProductEditForm({
                   <input type="datetime-local" value={fundingDeadline} onChange={(e) => setFundingDeadline(e.target.value)} disabled={busy} style={inputStyle} />
                 </Field>
               </div>
+              {/* ← [2026-07-08] 결제 기한(절대 일시) — 성사 후 이 기한까지 입금. 자동취소 없음·미입금 시 일일 안내 메일 */}
+              <Field label="결제 기한 (성사 후 입금 마감 · 절대 일시)">
+                <input type="datetime-local" value={paymentDeadline} onChange={(e) => setPaymentDeadline(e.target.value)} disabled={busy} style={inputStyle} />
+                <p style={{ margin: '6px 0 0', fontSize: 12, color: '#888', lineHeight: 1.5 }}>
+                  펀딩 성사 시 참여자에게 표시되는 입금 마감일입니다. 참여 마감일 이후로 설정하세요.<br />
+                  이 기한이 지나도 <strong>자동 취소되지 않으며</strong>, 입금 확인 전까지 매일 1회 입금 안내 메일이 발송됩니다.
+                  미설정 시 기본 정책(order_expire_hours)으로 폴백합니다.
+                </p>
+              </Field>
 
               {/* 진행 상태 + 마감확정 */}
               <div style={{ marginTop: 8, fontSize: 12, color: '#555' }}>

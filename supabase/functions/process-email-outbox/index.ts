@@ -436,7 +436,7 @@ function tmplBazaarOrderCreated(data: Record<string, unknown>): string {
 <h2 style="margin:0 0 12px;font-size:18px;color:#222;">🎉 펀딩이 성사되었습니다 — 입금(결제) 안내</h2>
 ${productHeaderBlock(data)}
 <p>${escapeHtml(data.user_name)}님이 참여하신 <strong>${escapeHtml(data.product_name)}</strong> 펀딩이 목표를 달성해 성사되었습니다.<br>아래 <strong>${escapeHtml(data.order_count)}건</strong>의 주문을 합산한 금액을 입금 기한 내에 결제(계좌이체)해 주세요.</p>
-${alertBox('아래 계좌로 <strong>입금자명 일치</strong>하여 <strong>합계 금액을 한 번에</strong> 송금해 주세요.<br><strong>입금 기한(아래 표기) 내</strong>에 입금이 확인되지 않으면 주문이 자동 취소됩니다.', 'warning')}
+${alertBox('아래 계좌로 <strong>입금자명 일치</strong>하여 <strong>합계 금액을 한 번에</strong> 송금해 주세요.<br><strong>결제 기한(아래 표기)</strong>까지 입금 부탁드립니다. 펀딩 참여는 <strong>취소되지 않으며</strong>, 입금이 확인될 때까지 안내 메일을 보내드립니다.', 'warning')}
 ${ordersTable}
 ${paymentGuideBlock(data)}
 ${button('내 주문 보기', `${APP_BASE_URL}/orders/${data.order_id}`)}
@@ -476,6 +476,17 @@ ${button('주문 상세 보기', `${APP_BASE_URL}/orders/${data.order_number}`)}
 
 // 3. 입금 리마인더 — 입금 기한 임박 안내(동적 expires_at). [2026-06-25] 바자회는 15분 정책상 리마인더 무의미 → 크론에서 제외(경매 전용 권장).
 function tmplBazaarPaymentReminder(data: Record<string, unknown>): string {
+  // ← [2026-07-08] 굿즈 펀딩: 자동취소 없음 · 결제 기한 안내 · 일일 발송
+  if (data.is_goods === true) {
+    return wrap(`
+<h2 style="margin:0 0 12px;font-size:18px;color:#222;">💳 입금 안내 — 펀딩 상품 결제</h2>
+<p>${escapeHtml(data.user_name)}님, 참여하신 펀딩 상품의 입금이 아직 확인되지 않았습니다.</p>
+${alertBox('아래 계좌로 <strong>결제 기한(' + formatKst(data.expires_at) + ' KST)</strong>까지 입금 부탁드립니다.<br>펀딩 참여는 <strong>취소되지 않으며</strong>, 입금이 확인될 때까지 매일 안내드립니다.', 'info')}
+${paymentGuideBlock(data)}
+${infoBox([['주문번호', escapeHtml(data.order_number)]])}
+${button('입금 안내 다시 보기', `${APP_BASE_URL}/orders/${data.order_id ?? ''}`)}
+`);
+  }
   const isBazaar = data.order_type === 'bazaar';
   return wrap(`
 <h2 style="margin:0 0 12px;font-size:18px;color:#222;">⏰ 입금 안내 (입금 기한 임박)</h2>

@@ -15,6 +15,7 @@
 // ============================================================================
 
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom'; // ← [2026-07-08] 성사 후 마이페이지 이동
 import { loadFundingProgress, createFundingPledge } from '@/lib/orders';
 import { getDisplayPrice } from '@/lib/products';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -51,6 +52,7 @@ function fmtDeadline(iso: string | null): string {
 
 export function FundingSidebar({ product }: { product: EsgProductRow }) {
   const { currentUser } = useCurrentUser();
+  const navigate = useNavigate(); // ← [2026-07-08]
   const [prog, setProg] = useState<Progress | null>(null);
   const [qty, setQty] = useState(1);
   const [busy, setBusy] = useState(false);
@@ -69,6 +71,16 @@ export function FundingSidebar({ product }: { product: EsgProductRow }) {
   const deadlineMs = product.funding_deadline ? new Date(product.funding_deadline).getTime() : 0;
   const timeLeft = deadlineMs - now;
   const isOpen = status === 'live' && timeLeft > 0;
+  // 마감됐지만 아직 확정(succeeded/failed) 전 — 크론/관리자 확정을 기다리는 상태
+  const collating = status === 'live' && deadlineMs > 0 && timeLeft <= 0;
+
+  // ← [2026-07-08] '집계 중' 동안 확정 여부를 폴링해 성사/무산 상태를 자동 반영
+  //   (관리자/크론이 다른 곳에서 확정하므로, 참여자 화면이 stale 'live'로 멈추지 않게)
+  useEffect(() => {
+    if (!collating) return;
+    const t = setInterval(() => { loadFundingProgress(product.id).then(setProg).catch(() => {}); }, 8000);
+    return () => clearInterval(t);
+  }, [collating, product.id]);
 
   const participate = async () => {
     if (!currentUser) { void signInWithMicrosoft(); return; }
@@ -147,7 +159,10 @@ export function FundingSidebar({ product }: { product: EsgProductRow }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, color: C.text, width: '100%' }}>
           <span style={{ fontSize: 14 }}>마감까지</span>
           <span style={{ fontFamily: NUM, fontSize: 24, letterSpacing: 0.72 }}>
-            {isOpen ? fmtCountdown(timeLeft) : status === 'live' ? '마감 집계 중' : status === 'succeeded' ? '목표 달성' : '무산'}
+            {isOpen ? fmtCountdown(timeLeft)
+              : status === 'succeeded' ? '🎉 펀딩 성공'
+              : status === 'failed' ? '펀딩 무산'
+              : '마감 집계 중'}
           </span>
         </div>
         <div style={{ display: 'flex', gap: 4, fontSize: 14, width: '100%' }}>
@@ -186,19 +201,36 @@ export function FundingSidebar({ product }: { product: EsgProductRow }) {
         <p style={{ margin: 0 }}>목표를 달성하면 참여자에게 입금 안내를 드립니다.</p>
       </div>
 
-      {/* 10) CTA */}
-      <button
-        type="button"
-        onClick={participate}
-        disabled={!isOpen || busy}
-        style={{
-          width: '100%', padding: '20px 16px', border: '1px solid #000', background: '#000',
-          color: '#fff', fontSize: 20, lineHeight: 1.4, cursor: !isOpen || busy ? 'not-allowed' : 'pointer',
-          opacity: !isOpen || busy ? 0.55 : 1,
-        }}
-      >
-        {busy ? '참여 중…' : !currentUser && isOpen ? '로그인하고 참여하기' : isOpen ? '펀딩 참여하기' : status === 'succeeded' ? '펀딩 종료 (목표 달성)' : status === 'failed' ? '펀딩 종료 (무산)' : '마감 집계 중'}
-      </button>
+      {/* 10) CTA — 상태별 플로우
+            진행중        : 펀딩 참여하기 / 로그인하고 참여하기 (참여 가능)
+            집계 중        : 마감 집계 중… (비활성, 확정 대기)
+            성사(succeeded): 🎉 펀딩 성공 — 마이페이지에서 입금하기 (클릭 시 이동)
+            무산(failed)   : 펀딩 종료 (무산) (비활성) */}
+      {(() => {
+        const succeeded = status === 'succeeded';
+        const clickable = !busy && (isOpen || succeeded);
+        const label = busy ? '참여 중…'
+          : succeeded ? '🎉 펀딩 성공 — 마이페이지에서 입금하기'
+          : status === 'failed' ? '펀딩 종료 (무산)'
+          : isOpen ? (currentUser ? '펀딩 참여하기' : '로그인하고 참여하기')
+          : '마감 집계 중…';
+        return (
+          <button
+            type="button"
+            onClick={() => { if (succeeded) { navigate('/mypage'); } else if (isOpen) { void participate(); } }}
+            disabled={!clickable}
+            style={{
+              width: '100%', padding: '20px 16px', border: '1px solid #000',
+              background: succeeded ? '#0f7b3f' : '#000', // 성사 시 초록 강조
+              color: '#fff', fontSize: 20, lineHeight: 1.4,
+              cursor: clickable ? 'pointer' : 'not-allowed',
+              opacity: clickable ? 1 : 0.55,
+            }}
+          >
+            {label}
+          </button>
+        );
+      })()}
     </div>
   );
 }

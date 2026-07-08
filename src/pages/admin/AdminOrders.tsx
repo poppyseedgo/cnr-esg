@@ -569,7 +569,13 @@ function OrderAdminCard({
               사용자 메모: {order.memo}
             </div>
           )}
-          {isPending && timeLeftMs > 0 && (
+          {/* ← [2026-07-08] 굿즈 펀딩: 자동취소 없음 → 결제 기한(절대날짜) 표시 */}
+          {isPending && order.order_type === 'goods' && (
+            <div style={{ marginTop: 4, fontSize: 11, color: '#3730a3' }}>
+              💳 결제 기한: {order.expires_at ? new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', month: 'long', day: 'numeric', hour: 'numeric', hour12: true }).format(new Date(order.expires_at)).replace(/\.\s*$/, '') : '별도 안내'} · 자동취소 없음
+            </div>
+          )}
+          {isPending && order.order_type !== 'goods' && timeLeftMs > 0 && (
             <div style={{ marginTop: 4, fontSize: 11, color: '#92400e' }}>
               ⏰ 입금 기한: {formatTimeLeft(timeLeftMs)}
             </div>

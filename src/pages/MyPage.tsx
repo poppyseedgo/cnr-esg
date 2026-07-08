@@ -184,8 +184,8 @@ export function MyPagePending() {
           lineHeight: 1.6,
         }}
       >
-        ℹ️ 주문 후 15분 이내에 입금하지 않으면 주문이 자동 취소됩니다.
-        주문 후 사용자가 직접 취소할 수는 없습니다.
+        ℹ️ <strong>바자회</strong> 주문은 15분 이내 미입금 시 자동 취소됩니다. <strong>굿즈 펀딩</strong> 주문은 자동 취소 없이 결제 기한까지 입금하시면 됩니다.
+        어느 경우든 주문 후 사용자가 직접 취소할 수는 없습니다.
       </div>
       {orders.map((o) => (
         <OrderCard key={o.id} order={o} showCountdown />
@@ -476,6 +476,8 @@ function OrderCard({
   const statusColor = PAYMENT_STATUS_COLORS[order.payment_status];
   const timeLeftMs = getOrderTimeLeft(order.expires_at);
   const isExpired = timeLeftMs <= 0 && order.payment_status === 'pending';
+  const isGoods = order.order_type === 'goods'; // ← [2026-07-08] 굿즈 펀딩: 자동취소 없음
+  const effExpired = isExpired && !isGoods;      // 굿즈는 '만료' 개념 없음(표시 억제)
   const totalQty = order.items.reduce((s, i) => s + i.quantity, 0);
   const firstItem = order.items[0];
 
@@ -517,7 +519,7 @@ function OrderCard({
           }}
         >
           {PAYMENT_STATUS_LABELS[order.payment_status]}
-          {isExpired && ' (만료)'}
+          {effExpired && ' (만료)'}
         </span>
       </div>
 
@@ -562,7 +564,14 @@ function OrderCard({
         </div>
       </div>
 
-      {showCountdown && order.payment_status === 'pending' && !isExpired && (
+      {/* ← [2026-07-08] 굿즈 펀딩 결제대기: 자동취소 없음 · 결제 기한(절대날짜) 안내 */}
+      {order.payment_status === 'pending' && isGoods && (
+        <div style={{ marginTop: 12, padding: '8px 10px', background: '#eef2ff', color: '#3730a3', borderRadius: 6, fontSize: 12, textAlign: 'center', lineHeight: 1.6 }}>
+          💳 결제 기한: <strong>{order.expires_at ? new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', month: 'long', day: 'numeric', hour: 'numeric', hour12: true }).format(new Date(order.expires_at)).replace(/\.\s*$/, '') : '별도 안내'}</strong>까지 입금 부탁드려요<br />
+          자동 취소되지 않으며, 관리자 입금 확인 시 완료됩니다.
+        </div>
+      )}
+      {showCountdown && order.payment_status === 'pending' && !isGoods && !isExpired && (
         <div
           style={{
             marginTop: 12,

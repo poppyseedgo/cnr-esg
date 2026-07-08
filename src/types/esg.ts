@@ -371,6 +371,7 @@ export interface EsgProductRow {
   funding_goal_quantity: number | null;           // 목표 수량
   funding_deadline: string | null;                // 마감일 ISO
   funding_status: EsgFundingStatus | null;         // 'live'|'succeeded'|'failed' (마감 후 확정)
+  payment_deadline: string | null;                // ← [2026-07-08] 결제(입금) 기한(절대 일시). 자동취소 없음
   created_at: string;
   updated_at: string;
   /** 클라이언트 보강(서버 컬럼 아님) — 리스트/상세에서 태그 표시용. // ← [2026-06-23] */

@@ -45,6 +45,7 @@ export interface CreateProductInput {
   funding_goal_amount?: number | null;
   funding_goal_quantity?: number | null;
   funding_deadline?: string | null;                                     // ISO
+  payment_deadline?: string | null;                                     // ← [2026-07-08] 결제 기한(절대 일시)
 }
 
 export type UpdateProductPatch = Partial<
@@ -70,6 +71,7 @@ export type UpdateProductPatch = Partial<
     | 'funding_goal_amount'   // ← [2026-07-07]
     | 'funding_goal_quantity' // ← [2026-07-07]
     | 'funding_deadline'      // ← [2026-07-07]
+    | 'payment_deadline'      // ← [2026-07-08] 결제 기한
   >
 >;
 
@@ -109,6 +111,7 @@ export async function createProduct(input: CreateProductInput): Promise<EsgProdu
         funding_goal_amount: goalType === 'amount' ? (input.funding_goal_amount ?? null) : null,
         funding_goal_quantity: goalType === 'quantity' ? (input.funding_goal_quantity ?? null) : null,
         funding_deadline: input.funding_deadline ?? null,
+        payment_deadline: input.payment_deadline ?? null, // ← [2026-07-08] 결제 기한
         funding_status: 'live', // 등록 즉시 진행중
       }
     : {
