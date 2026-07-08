@@ -15,7 +15,6 @@
 // ============================================================================
 
 import { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom'; // ← [2026-07-08] 모달/오버레이 뷰포트 이스케이프
 import { useNavigate } from 'react-router-dom'; // ← [2026-07-08] 성사 후 마이페이지 이동
 import { loadFundingProgress, createFundingPledge, loadMyFundingPledgeCount } from '@/lib/orders';
 import { subscribeProducts } from '@/lib/products'; // ← [2026-07-08] 관리자 편집/확정 실시간 반영
@@ -62,7 +61,6 @@ export function FundingSidebar({ product }: { product: EsgProductRow }) {
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [confirmOpen, setConfirmOpen] = useState(false); // ← [2026-07-08] 참여 확인 모달
-  const [success, setSuccess] = useState(false);         // ← [2026-07-08] 성공 오버레이
 
   const reload = () => { loadFundingProgress(product.id).then(setProg).catch(() => {}); };
   useEffect(() => { reload(); /* eslint-disable-next-line */ }, [product.id]);
@@ -113,12 +111,10 @@ export function FundingSidebar({ product }: { product: EsgProductRow }) {
       await createFundingPledge(product.id, qty);
       setConfirmOpen(false);
       setBusy(false);
-      burstConfetti();                 // 전체화면 컨페티
-      setSuccess(true);                // "펀딩 참여 성공!" 오버레이
+      burstConfetti();                 // 전체화면 컨페티(중앙 문구 없음)
       setQty(1);                       // 수량 초기화
       reload();                        // 달성률 즉시 갱신
       loadMyCount();                   // ← [2026-07-08] 내 참여 횟수 갱신(문구)
-      window.setTimeout(() => setSuccess(false), 2800); // 자동 소멸(링크 클릭 여유)
     } catch (e) {
       setBusy(false);
       alert(e instanceof Error ? e.message : '펀딩 참여에 실패했습니다.');
@@ -271,39 +267,14 @@ export function FundingSidebar({ product }: { product: EsgProductRow }) {
         );
       })()}
 
-      {/* 참여 확인 모달 (Figma 2341:126) */}
+      {/* 참여 확인 모달 (Figma 2349:315) — 확인 버튼만으로 닫힘 */}
       <FundingConfirmModal
         open={confirmOpen}
         qty={qty}
         totalAmount={unit * qty}
         busy={busy}
         onConfirm={doPledge}
-        onCancel={() => setConfirmOpen(false)}
       />
-
-      {/* 성공 오버레이 — Portal(뷰포트 중앙) + 컨페티, 후 자동 소멸 */}
-      {success && createPortal(
-        <div style={{ position: 'fixed', inset: 0, zIndex: 1101, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-          <div style={{ textAlign: 'center', pointerEvents: 'auto', animation: 'cnrSuccessPop 0.35s cubic-bezier(0.2,1.3,0.4,1) both' }}>
-            <div style={{ fontSize: 72, lineHeight: 1 }}>🎉</div>
-            <div style={{ marginTop: 14, fontSize: 34, fontWeight: 400, color: '#46FF68' }}>{/* ← [2026-07-08] 'Thank you' + confetti 색(#46FF68) */}
-              Thank you
-            </div>
-            {/* ← [2026-07-08] (A) 페이지 유지 + 마이페이지 바로가기 */}
-            <button
-              type="button"
-              onClick={() => navigate('/mypage')}
-              style={{
-                marginTop: 16, padding: '8px 16px', border: 'none', background: 'rgba(15,123,63,0.1)',
-                color: '#0f7b3f', fontSize: 14, fontWeight: 600, borderRadius: 999, cursor: 'pointer',
-              }}
-            >
-              마이페이지에서 확인 →
-            </button>
-          </div>
-        </div>,
-        document.body,
-      )}
     </div>
   );
 }
