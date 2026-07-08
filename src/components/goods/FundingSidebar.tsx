@@ -15,8 +15,9 @@
 // ============================================================================
 
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom'; // ← [2026-07-08] 모달/오버레이 뷰포트 이스케이프
 import { useNavigate } from 'react-router-dom'; // ← [2026-07-08] 성사 후 마이페이지 이동
-import { loadFundingProgress, createFundingPledge } from '@/lib/orders';
+import { loadFundingProgress, createFundingPledge, loadMyFundingPledgeCount } from '@/lib/orders';
 import { subscribeProducts } from '@/lib/products'; // ← [2026-07-08] 관리자 편집/확정 실시간 반영
 import { getDisplayPrice } from '@/lib/products';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -65,6 +66,14 @@ export function FundingSidebar({ product }: { product: EsgProductRow }) {
 
   const reload = () => { loadFundingProgress(product.id).then(setProg).catch(() => {}); };
   useEffect(() => { reload(); /* eslint-disable-next-line */ }, [product.id]);
+
+  // ← [2026-07-08] 내 참여 횟수(1회 이상 시 제목 위 문구) — 로그인·상품 변경·참여 후 갱신
+  const [myCount, setMyCount] = useState(0);
+  const loadMyCount = () => {
+    if (!currentUser) { setMyCount(0); return; }
+    loadMyFundingPledgeCount(product.id).then(setMyCount).catch(() => {});
+  };
+  useEffect(() => { loadMyCount(); /* eslint-disable-next-line */ }, [product.id, currentUser]);
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
 
   const unit = getDisplayPrice(product);
@@ -108,7 +117,8 @@ export function FundingSidebar({ product }: { product: EsgProductRow }) {
       setSuccess(true);                // "펀딩 참여 성공!" 오버레이
       setQty(1);                       // 수량 초기화
       reload();                        // 달성률 즉시 갱신
-      window.setTimeout(() => setSuccess(false), 2200); // 자동 소멸
+      loadMyCount();                   // ← [2026-07-08] 내 참여 횟수 갱신(문구)
+      window.setTimeout(() => setSuccess(false), 2800); // 자동 소멸(링크 클릭 여유)
     } catch (e) {
       setBusy(false);
       alert(e instanceof Error ? e.message : '펀딩 참여에 실패했습니다.');
@@ -134,6 +144,14 @@ export function FundingSidebar({ product }: { product: EsgProductRow }) {
           </span>
         )}
       </div>
+
+      {/* ← [2026-07-08] 1회 이상 참여 시 문구 (Figma 2341:208) — 초록 #0fe654 + 회색 #ccd3df, SemiBold 13 */}
+      {myCount >= 1 && (
+        <p style={{ margin: 0, fontSize: 13, lineHeight: 1.2, fontWeight: 600 }}>
+          <span style={{ color: '#0fe654' }}>{myCount}회 참여한 펀딩입니다. </span>
+          <span style={{ color: '#ccd3df' }}>중복 참여도 가능해요.</span>
+        </p>
+      )}
 
       {/* 2) 제목 (풀, 줄임 없음) */}
       <p style={{ margin: 0, width: '100%', fontSize: 30, lineHeight: 1.2, color: C.text, wordBreak: 'break-word' }}>
@@ -263,16 +281,28 @@ export function FundingSidebar({ product }: { product: EsgProductRow }) {
         onCancel={() => setConfirmOpen(false)}
       />
 
-      {/* 성공 오버레이 — 컨페티와 함께 중앙 표시 후 자동 소멸 */}
-      {success && (
+      {/* 성공 오버레이 — Portal(뷰포트 중앙) + 컨페티, 후 자동 소멸 */}
+      {success && createPortal(
         <div style={{ position: 'fixed', inset: 0, zIndex: 1101, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-          <div style={{ textAlign: 'center', animation: 'cnrSuccessPop 0.35s cubic-bezier(0.2,1.3,0.4,1) both' }}>
-            <div style={{ fontSize: 72, lineHeight: 1, filter: 'drop-shadow(0 6px 20px rgba(0,0,0,0.2))' }}>🎉</div>
-            <div style={{ marginTop: 14, fontSize: 34, fontWeight: 800, color: '#0f7b3f', textShadow: '0 2px 12px rgba(255,255,255,0.9)' }}>
+          <div style={{ textAlign: 'center', pointerEvents: 'auto', animation: 'cnrSuccessPop 0.35s cubic-bezier(0.2,1.3,0.4,1) both' }}>
+            <div style={{ fontSize: 72, lineHeight: 1 }}>🎉</div>
+            <div style={{ marginTop: 14, fontSize: 34, fontWeight: 400, color: '#0f7b3f' }}>
               펀딩 참여 성공!
             </div>
+            {/* ← [2026-07-08] (A) 페이지 유지 + 마이페이지 바로가기 */}
+            <button
+              type="button"
+              onClick={() => navigate('/mypage')}
+              style={{
+                marginTop: 16, padding: '8px 16px', border: 'none', background: 'rgba(15,123,63,0.1)',
+                color: '#0f7b3f', fontSize: 14, fontWeight: 600, borderRadius: 999, cursor: 'pointer',
+              }}
+            >
+              마이페이지에서 확인 →
+            </button>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

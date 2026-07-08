@@ -200,6 +200,13 @@ export async function loadFundingProgressBatch(
   return (data ?? {}) as Record<string, FundingProgressLite>;
 }
 
+// ── [2026-07-08] 내 펀딩 참여 횟수 — 상세 상단 '1회 이상 참여 문구'용 ──────────
+export async function loadMyFundingPledgeCount(productId: string): Promise<number> {
+  const { data, error } = await supabase.rpc('esg_my_funding_pledge_count', { p_product_id: productId });
+  if (error) throw error;
+  return (data as number) ?? 0;
+}
+
 export interface LoadMyOrdersOptions {
   /** 특정 상태만 필터링 (예: ['pending'] 결제대기만) */
   statuses?: EsgPaymentStatus[];

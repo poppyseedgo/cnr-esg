@@ -1,8 +1,12 @@
 // ============================================================================
-// FundingConfirmModal — 펀딩 참여 확인 모달 (Figma 2341:126 정밀 반영)
-//   [2026-07-08] 신규. "펀딩 참여하기" 클릭 시 노출.
+// FundingConfirmModal — 펀딩 참여 확인 모달 (Figma 2349:315 정밀 반영)
+//   [2026-07-08] 취소 버튼 삭제(단일 확인) · 헤딩 2줄 · Portal(뷰포트 중앙 고정).
 //   숫자는 전역 .num(Instrument Sans) 클래스 사용.
+//   Portal 사유: StickyPanel(translateY) 안에서 렌더되면 position:fixed 가 뷰포트가
+//   아니라 패널 기준이 되어 모달이 사이드바 안에서 열림 → document.body 로 이스케이프.
 // ============================================================================
+
+import { createPortal } from 'react-dom';
 
 function fmt(n: number) { return n.toLocaleString('ko-KR'); }
 
@@ -17,7 +21,7 @@ export function FundingConfirmModal({
   onCancel: () => void;
 }) {
   if (!open) return null;
-  return (
+  return createPortal(
     <div
       role="dialog" aria-modal="true"
       onClick={(e) => { if (e.target === e.currentTarget && !busy) onCancel(); }}
@@ -35,10 +39,11 @@ export function FundingConfirmModal({
           gap: 12, alignItems: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
         }}
       >
-        {/* 헤딩 20 / 서브 12 */}
-        <p style={{ margin: 0, fontSize: 20, lineHeight: 1.2, color: '#111', textAlign: 'center' }}>
-          참여해주셔서 감사합니다.
-        </p>
+        {/* 헤딩 2줄 20 / 서브 12 */}
+        <div style={{ fontSize: 20, lineHeight: 1.3, color: '#111', textAlign: 'center' }}>
+          <p style={{ margin: 0 }}>나무 심는 굿즈에</p>
+          <p style={{ margin: 0 }}>참여해주셔서 감사합니다.</p>
+        </div>
         <p style={{ margin: 0, fontSize: 12, lineHeight: 1.4, color: '#8e97a8' }}>
           지금은 결제 전이에요.
         </p>
@@ -69,18 +74,8 @@ export function FundingConfirmModal({
           <p style={{ margin: 0 }}>펀딩 목표 달성 시, 입금 안내를 드립니다.</p>
         </div>
 
-        {/* 버튼: 취소 / 확인 (pt12, gap12, flex1, px16 py12) */}
-        <div style={{ display: 'flex', gap: 12, alignItems: 'stretch', paddingTop: 12, width: '100%' }}>
-          <button
-            type="button" onClick={onCancel} disabled={busy}
-            style={{
-              flex: '1 0 0', minWidth: 0, padding: '12px 16px', border: 'none',
-              background: '#efefef', color: '#585858', fontSize: 14, lineHeight: 1.4,
-              cursor: busy ? 'not-allowed' : 'pointer',
-            }}
-          >
-            취소
-          </button>
+        {/* 버튼: 확인 단일 (pt12, flex1, px16 py12) — Figma 2349:315 취소 삭제 */}
+        <div style={{ display: 'flex', alignItems: 'stretch', paddingTop: 12, width: '100%' }}>
           <button
             type="button" onClick={onConfirm} disabled={busy}
             style={{
@@ -93,6 +88,7 @@ export function FundingConfirmModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
