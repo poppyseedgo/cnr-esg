@@ -58,7 +58,7 @@ export function SecondarySidebar({ mainCollapsed }: SecondarySidebarProps) {
     <aside
       className="secondary-sidebar"
       style={{
-        width: 400, flexShrink: 0, alignSelf: 'flex-start',
+        width: 320, flexShrink: 0, alignSelf: 'flex-start', // ← [2026-07-08] 2차 패널 폭 400→320
         position: 'sticky', top: 0, height: '100vh', overflowY: 'auto',
         boxSizing: 'border-box', padding: '24px 40px 20px 24px',
         background: '#fff', borderRight: '1px solid #eee',

@@ -220,7 +220,7 @@ function PrimaryItem({
       style={({ isActive }) => ({
         display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0',
         textDecoration: 'none', color: t.text,                       // ← [2026-06-23] 활성 초록텍스트 제거(기본색 유지)
-        fontSize: 24, fontWeight: isActive ? 700 : 400, lineHeight: 1.25, // ← [2026-06-23] 활성=볼드
+        fontSize: 28, fontWeight: isActive ? 600 : 400, lineHeight: 1.25, // ← [2026-07-08] 24→28, 활성 700→600
         whiteSpace: 'nowrap',
         transition: 'font-weight 0.12s, color 0.12s',               // ← [2026-06-23] 활성 초록 배경 알약 삭제
       })}
@@ -242,7 +242,7 @@ function AdminItem({ t, onNavigate }: { t: SideTokens; onNavigate?: () => void }
         display: 'flex', alignItems: 'center', padding: filled ? '8px 16px' : '8px 0',
         borderRadius: filled ? 99 : 0, textDecoration: 'none',
         color: filled ? '#000000' : t.adminText,                     // ← [2026-06-23] 활성 hover색 제거(초록 유지)
-        fontSize: 24, fontWeight: isActive ? 700 : 500, lineHeight: 1.25, whiteSpace: 'nowrap', // ← 활성=볼드
+        fontSize: 28, fontWeight: isActive ? 600 : 500, lineHeight: 1.25, whiteSpace: 'nowrap', // ← [2026-07-08] 24→28, 활성 700→600
         background: filled ? t.adminBg : 'transparent',              // ← [2026-06-23] 활성 초록 배경 삭제
         transition: 'font-weight 0.12s, color 0.12s',
       })}
@@ -344,7 +344,7 @@ function NavBody({
   t, isAdmin, currentUser, cartCount, unread, wishlistCount, hasPendingOrder, badges, onLogin, onSignOut, onNavigate, onCollapse,
 }: NavBodyProps) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 44, fontFamily: FONT }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, fontFamily: FONT }}>{/* ← [2026-07-08] 섹션 gap 44→20 */}
       {/* 로고 (+ 데스크톱 접기 버튼) */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         <Link to="/" onClick={onNavigate} aria-label="C&R ESG 홈" style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
@@ -360,7 +360,7 @@ function NavBody({
 
       {/* 1차 네비 (우측 정렬 — [2026-06-23] 캡쳐대로 복원: items-end + 뱃지 좌측) */}
       {/* ← [2026-07-08] 경매 오픈 개편(Figma 2284-1405): 경매(진행중) → 굿즈 → 기부하기 → 어드민. 바자회는 '지난 이벤트'로 이동. gap 4→12 */}
-      <nav style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'flex-end' }}>
+      <nav style={{ display: 'flex', flexDirection: 'column', gap: 0, alignItems: 'flex-end' }}>{/* ← [2026-07-08] 메뉴 gap 12→0 */}
         <PrimaryItem to="/auction" label="나무 심는 경매" badge={badges.auction} plainBadge t={t} activityKey="auction" onNavigate={onNavigate} />{/* ← [2026-07-08] 경매 최상단 + 진행중(라임 텍스트) */}
         <PrimaryItem to="/goods" label="나무 심는 굿즈" t={t} gated={false} onNavigate={onNavigate} />{/* ← [2026-07-08] 라벨 띄어쓰기 정정 */}
         <PrimaryItem to="/donate" label="기부하기" t={t} onNavigate={onNavigate} />
