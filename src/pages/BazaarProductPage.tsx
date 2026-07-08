@@ -37,6 +37,7 @@ import { PriceTag } from '@/components/PriceTag'; // ← [2026-06-25] 원가/판
 import { addToCart } from '@/lib/cart';
 import { signInWithMicrosoft } from '@/lib/auth';
 import { ProductEditForm } from '@/components/admin/ProductEditForm';
+import { AdminFundingParticipants } from '@/components/admin/AdminFundingParticipants'; // ← [2026-07-08] 펀딩 참여자 관리
 import { ProductDetailTabs } from '@/components/ProductDetailTabs';
 import { FundingSidebar } from '@/components/goods/FundingSidebar'; // ← [2026-07-08] 펀딩 사이드바(Figma 2320:55)
 import { CustomLabel } from '@/components/CustomLabel'; // ← [2026-07-06] 커스텀 라벨
@@ -319,6 +320,13 @@ export function BazaarProductPage({ section = 'bazaar' }: { section?: 'bazaar' |
                 navigate(listPath, { replace: true });
               }}
             />
+          )}
+
+          {/* ← [2026-07-08] 펀딩 상품: 참여자 관리(개별 참여 삭제) */}
+          {isFundingProduct && (
+            <div style={{ marginTop: 16 }}>
+              <AdminFundingParticipants productId={product.id} onChanged={() => void reload()} />
+            </div>
           )}
         </div>
       )}

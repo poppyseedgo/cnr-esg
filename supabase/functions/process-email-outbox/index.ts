@@ -536,6 +536,20 @@ ${isBazaar
 // 5. 바자회 강제 취소 (어드민)
 function tmplBazaarOrderCancelled(data: Record<string, unknown>): string {
   const isFunding = data.is_funding === true; // ← [2026-07-08] 펀딩 무산이면 문구 분기(합산)
+  // ← [2026-07-08] 관리자에 의한 펀딩 참여 취소(개별)
+  if (data.is_admin_removed === true) {
+    return wrap(`
+<h2 style="margin:0 0 12px;font-size:18px;color:#222;">ℹ️ 펀딩 참여가 취소되었습니다</h2>
+${productHeaderBlock(data)}
+<p>${escapeHtml(data.user_name)}님, <strong>${escapeHtml(data.product_name)}</strong> 펀딩 참여가 <strong>관리자에 의해 취소</strong>되었습니다. 참여는 결제 전 단계였으므로 <strong>결제된 금액은 없습니다.</strong></p>
+${infoBox([
+  ['상품', escapeHtml(data.product_name)],
+  ['주문번호', escapeHtml(data.order_number)],
+  ['사유', escapeHtml(data.reason)],
+])}
+<p style="font-size:13px;color:#666;">문의사항은 담당자에게 연락 주세요.</p>
+`);
+  }
   if (isFunding) {
     return wrap(`
 <h2 style="margin:0 0 12px;font-size:18px;color:#222;">ℹ️ 펀딩이 무산되었습니다</h2>

@@ -207,6 +207,28 @@ export async function loadMyFundingPledgeCount(productId: string): Promise<numbe
   return (data as number) ?? 0;
 }
 
+// ── [2026-07-08] 관리자: 펀딩 참여자 조회 + 참여 소프트 취소 ──────────────────
+export interface FundingParticipant {
+  order_id: string;
+  order_number: string;
+  user_id: string;
+  user_name: string;
+  user_email: string;
+  quantity: number;
+  total_amount: number;
+  payment_status: string;
+  created_at: string;
+}
+export async function loadFundingParticipants(productId: string): Promise<FundingParticipant[]> {
+  const { data, error } = await supabase.rpc('esg_admin_funding_participants', { p_product_id: productId });
+  if (error) throw error;
+  return (data ?? []) as FundingParticipant[];
+}
+export async function adminCancelFundingPledge(orderId: string, reason: string): Promise<void> {
+  const { error } = await supabase.rpc('esg_admin_cancel_funding_pledge', { p_order_id: orderId, p_reason: reason });
+  if (error) throw error;
+}
+
 export interface LoadMyOrdersOptions {
   /** 특정 상태만 필터링 (예: ['pending'] 결제대기만) */
   statuses?: EsgPaymentStatus[];
