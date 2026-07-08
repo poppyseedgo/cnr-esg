@@ -15,7 +15,9 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { BlurImage } from '@/components/BlurImage'; // ← [2026-06-19] 이미지 lazy+블러업
+import { Breadcrumb } from '@/components/Breadcrumb'; // ← [2026-07-08] 공용 브레드크럼(경매와 동일)
+import { ImageScroll } from '@/components/ImageScroll'; // ← [2026-07-08] 경매식 세로 스크롤 이미지
+import { StickyPanel } from '@/components/StickyPanel'; // ← [2026-07-08] 경매식 우측 정보 sticky
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useBazaarSale } from '@/hooks/useBazaarSale'; // ← [2026-06-25] 선판매 정책 훅
 import { BazaarHoursNotice } from '@/components/bazaar/BazaarHoursNotice'; // ← [2026-06-29] 운영시간 안내
@@ -70,7 +72,6 @@ export function BazaarProductPage({ section = 'bazaar' }: { section?: 'bazaar' |
   const [product, setProduct] = useState<EsgProductRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [imageIdx, setImageIdx] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionMessage, setActionMessage] = useState<{
@@ -231,15 +232,20 @@ export function BazaarProductPage({ section = 'bazaar' }: { section?: 'bazaar' |
   };
 
   return (
-    <article style={{ maxWidth: 960, margin: '0 auto' }}>
-      {/* Breadcrumb */}
-      <div style={{ marginBottom: 16, fontSize: 13 }}>
-        <Link to={listPath} style={{ color: '#888', textDecoration: 'none' }}>
-          {isGoods ? '🎁 굿즈' : '🛍 바자회'}
-        </Link>
-        <span style={{ color: '#bbb', margin: '0 6px' }}>›</span>
-        <span style={{ color: '#444' }}>{product.name}</span>
-      </div>
+    <article style={{ maxWidth: 1360, margin: '0 auto' }}>
+      {/* ← [2026-07-08] 경매 상세와 동일한 2열 그리드(좌 이미지 크게 / 우 정보). 모바일=단일열 */}
+      <style>{`
+        .pd-grid { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 40px; }
+        .pd-media { min-width: 0; }
+        .pd-side { min-width: 0; }
+        .pd-side > div { min-width: 0; }
+        @media (max-width: 1023px) {
+          .pd-grid { grid-template-columns: 1fr; gap: 24px; }
+        }
+      `}</style>
+
+      {/* Breadcrumb (경매와 동일 공용 컴포넌트) */}
+      <Breadcrumb items={[{ label: 'Home', to: '/' }, { label: isGoods ? 'Goods' : 'Bazaar', to: listPath }]} current={product.name} />
 
       {/* 어드민 편집 도구 */}
       {isAdmin && (
@@ -317,21 +323,15 @@ export function BazaarProductPage({ section = 'bazaar' }: { section?: 'bazaar' |
         </div>
       )}
 
-      <div
-        style={{
-          background: '#fff',
-          borderRadius: 12,
-          overflow: 'hidden',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-        }}
-      >
-        {/* 이미지 */}
-        <ImageCarousel images={images} currentIdx={imageIdx} onChange={setImageIdx} />
+      <div className="pd-grid">
+        {/* 이미지: 경매식 세로 스크롤 스택(썸네일+상세이미지 원본비율) */}
+        <div className="pd-media">
+          <ImageScroll images={images} placeholder={isGoods ? '🎁' : '🛍️'} />
+        </div>
 
-        {/* 정보 */}
-        <div style={{ padding: isFundingProduct ? 0 : 24, display: 'flex', flexDirection: 'column', gap: isFundingProduct ? 0 : 16 }}>
+        {/* 정보: 경매식 우측 sticky 패널 */}
+        <StickyPanel className="pd-side" offsetTop={24} offsetBottom={24}>
+        <div style={{ padding: 0, display: 'flex', flexDirection: 'column', gap: isFundingProduct ? 0 : 16 }}>
           {/* ← [2026-07-08] 펀딩 상품: 라벨~CTA 전체를 FundingSidebar(Figma 2320:55)가 담당 */}
           {isFundingProduct ? (
             <FundingSidebar product={product} />
@@ -560,6 +560,7 @@ export function BazaarProductPage({ section = 'bazaar' }: { section?: 'bazaar' |
           </>
           )}
         </div>
+        </StickyPanel>
       </div>
 
       {/* 하단 탭 영역 */}
@@ -572,121 +573,3 @@ export function BazaarProductPage({ section = 'bazaar' }: { section?: 'bazaar' |
   );
 }
 
-// ============================================================================
-// 이미지 캐러셀
-// ============================================================================
-
-function ImageCarousel({
-  images,
-  currentIdx,
-  onChange,
-}: {
-  images: string[];
-  currentIdx: number;
-  onChange: (idx: number) => void;
-}) {
-  const single = images.length <= 1;
-  const goPrev = () => onChange((currentIdx - 1 + images.length) % images.length);
-  const goNext = () => onChange((currentIdx + 1) % images.length);
-
-  if (images.length === 0) {
-    return (
-      <div
-        style={{
-          aspectRatio: '1 / 1',
-          background: 'linear-gradient(135deg, #e0f2fe, #ddd6fe)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: 64,
-          opacity: 0.3,
-        }}
-      >
-        🛍
-      </div>
-    );
-  }
-
-  return (
-    <div
-      style={{
-        position: 'relative',
-        background: '#000',
-        aspectRatio: '1 / 1',
-        overflow: 'hidden',
-      }}
-    >
-      <div style={{ position: 'absolute', inset: 0 }}>
-        <BlurImage url={images[currentIdx]} width={1440} quality={82} alt={`이미지 ${currentIdx + 1}`} />{/* ← [2026-07-08] 화질 개선 1080/78→1440/82 */}
-      </div>
-      {!single && (
-        <>
-          <button
-            type="button"
-            onClick={goPrev}
-            aria-label="이전 이미지"
-            style={{ ...arrowStyle, left: 12 }}
-          >
-            <img src="/icons/arrow-back.svg" alt="" aria-hidden="true" width={16} height={16} style={{ display: 'block' }} />
-          </button>
-          <button
-            type="button"
-            onClick={goNext}
-            aria-label="다음 이미지"
-            style={{ ...arrowStyle, right: 12 }}
-          >
-            <img src="/icons/arrow-forward.svg" alt="" aria-hidden="true" width={16} height={16} style={{ display: 'block' }} />
-          </button>
-          <div
-            style={{
-              position: 'absolute',
-              bottom: 12,
-              left: '50%',
-              transform: 'translateX(-50%)',
-              display: 'flex',
-              gap: 6,
-            }}
-          >
-            {images.map((_, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => onChange(i)}
-                aria-label={`이미지 ${i + 1}로 이동`}
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 4,
-                  border: 'none',
-                  padding: 0,
-                  background: i === currentIdx ? '#fff' : 'rgba(255,255,255,0.5)',
-                  cursor: 'pointer',
-                }}
-              />
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
-// [2026-06-10] 갤러리 화살표: 64×64 글래스 버튼 (Figma 1307:578/582)
-//   bg rgba(255,255,255,0.1) + backdrop-blur(글래스) + 미세 테두리. 아이콘은 24px SVG.
-const arrowStyle: React.CSSProperties = {
-  position: 'absolute',
-  top: '50%',
-  transform: 'translateY(-50%)',
-  width: 40,                                 // ← [2026-06-10] Figma 1308:615
-  height: 40,
-  borderRadius: '50%',
-  border: '1px solid rgb(241 241 241 / 25%)',               // Figma 1308:615
-  background: 'rgba(255, 255, 255, 0.1)',    // 10% 화이트 글래스
-  backdropFilter: 'blur(12px)',              // glass 효과
-  WebkitBackdropFilter: 'blur(12px)',        // Safari
-  cursor: 'pointer',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: 0,
-};

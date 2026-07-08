@@ -184,6 +184,22 @@ export async function loadFundingProgress(productId: string): Promise<{
   return res as never;
 }
 
+// ── [2026-07-08] 배치 진행률 — 리스트에서 여러 펀딩 상품을 1회 조회(폴링용) ──────
+export interface FundingProgressLite {
+  funding_status: 'live' | 'succeeded' | 'failed';
+  pledged_amount: number;
+  pledged_quantity: number;
+  backers: number;
+}
+export async function loadFundingProgressBatch(
+  productIds: string[]
+): Promise<Record<string, FundingProgressLite>> {
+  if (productIds.length === 0) return {};
+  const { data, error } = await supabase.rpc('esg_funding_progress_batch', { p_product_ids: productIds });
+  if (error) throw error;
+  return (data ?? {}) as Record<string, FundingProgressLite>;
+}
+
 export interface LoadMyOrdersOptions {
   /** 특정 상태만 필터링 (예: ['pending'] 결제대기만) */
   statuses?: EsgPaymentStatus[];

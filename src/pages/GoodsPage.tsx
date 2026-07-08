@@ -12,10 +12,11 @@
 // [2026-07-07] 신규 — 굿즈 섹션 Phase 2(스토어프론트).
 // ============================================================================
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 import { loadProducts, subscribeProducts } from '@/lib/products';
+import { loadFundingProgressBatch, type FundingProgressLite } from '@/lib/orders'; // ← [2026-07-08] 배치 진행률 폴링
 import { loadReservationStatus } from '@/lib/reservations';
 import { listAllTags, loadProductTagsBatch } from '@/lib/tags';
 import { GoodsSidebar } from '@/components/goods/GoodsSidebar';
@@ -81,6 +82,24 @@ export function GoodsPage() {
     return cleanup;
   }, [refresh, reloadCats]);
 
+  // ← [2026-07-08] 배치 진행률(설계 A): 목록의 펀딩 상품 달성률을 12초마다 1회 조회.
+  //   트리거/스키마 없이 준실시간 · 목록 전체 리로드 없이 카드 숫자만 갱신.
+  const fundingIds = useMemo(
+    () => products.filter((p) => p.purchase_type === 'funding').map((p) => p.id),
+    [products],
+  );
+  const fundingKey = fundingIds.join(',');
+  const [fundingProg, setFundingProg] = useState<Record<string, FundingProgressLite>>({});
+  useEffect(() => {
+    if (fundingIds.length === 0) { setFundingProg({}); return; }
+    let alive = true;
+    const tick = () => { loadFundingProgressBatch(fundingIds).then((m) => { if (alive) setFundingProg(m); }).catch(() => {}); };
+    tick(); // 최초 즉시
+    const t = setInterval(tick, 12000);
+    return () => { alive = false; clearInterval(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fundingKey]);
+
   return (
     <div>
       {/* 모바일(<1024) 전용 필터: 페이지 최상단 (데스크톱은 2차 사이드바가 대신) */}
@@ -139,6 +158,7 @@ export function GoodsPage() {
               basePath="/goods"
               canQuickAdd={p.purchase_type !== 'funding'} // ← [2026-07-07] 펀딩은 상세에서 참여(빠른담기 X)
               quickAddBlockReason={p.purchase_type === 'funding' ? '펀딩 상품 — 상세에서 참여' : null}
+              fundingProgress={p.purchase_type === 'funding' ? (fundingProg[p.id] ?? null) : undefined} // ← [2026-07-08] 배치 진행률 주입(N+1 방지)
             />
           ))}
         </div>

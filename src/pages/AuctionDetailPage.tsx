@@ -19,7 +19,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { BlurImage } from '@/components/BlurImage'; // ← [2026-06-19] 이미지 lazy+블러업
+import { Breadcrumb } from '@/components/Breadcrumb'; // ← [2026-07-08] 공용 브레드크럼
+import { ImageScroll } from '@/components/ImageScroll'; // ← [2026-07-08] 공용 이미지 스크롤
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEventPhase } from '@/hooks/useEventPhase';
 import {
@@ -300,14 +301,8 @@ export function AuctionDetailPage() {
         }
       `}</style>
 
-      {/* Breadcrumb (Home › Auction › 제목) */}
-      <nav aria-label="breadcrumb" style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8, fontSize: 16, lineHeight: 1.4, flexWrap: 'wrap' }}>
-        <Link to="/" style={{ color: '#848484', textDecoration: 'none' }}>Home</Link>
-        <span style={{ color: '#b8b8b8' }}>›</span>
-        <Link to="/auction" style={{ color: '#848484', textDecoration: 'none' }}>Auction</Link>
-        <span style={{ color: '#b8b8b8' }}>›</span>
-        <span style={{ color: '#111', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{auction.product_name}</span>
-      </nav>
+      {/* Breadcrumb (Home › Auction › 제목) — 공용 컴포넌트 */}
+      <Breadcrumb items={[{ label: 'Home', to: '/' }, { label: 'Auction', to: '/auction' }]} current={auction.product_name} />
 
       {/* 어드민 편집 도구 */}
       {isAdmin && (
@@ -391,7 +386,7 @@ export function AuctionDetailPage() {
       <div className="auction-detail-grid">
         {/* 이미지: 세로 스크롤 (썸네일+상세이미지 원본비율 스택) */}
         <div className="auction-detail-media">
-          <ImageScroll images={images} />
+          <ImageScroll images={images} placeholder="🔨" />
         </div>
 
         {/* 정보 (StickyPanel: 뷰포트보다 길어도 스크롤 방향에 맞춰 top↔bottom 고정) */}
@@ -1054,36 +1049,3 @@ function BidForm({
   );
 }
 
-// ============================================================================
-// 이미지 세로 스크롤 — 썸네일+상세이미지를 원본 비율로 위→아래 스택   // ← [2026-07-06] 캐러셀 대체
-//   - 갤러리 화살표/인디케이터 없음. 모든 이미지를 세로로 나열해 스크롤로 감상.
-//   - BlurImage intrinsic 모드로 원본 비율 유지 + lazy/블러업 로딩(기존 로직 재사용).
-// ============================================================================
-
-function ImageScroll({ images }: { images: string[] }) {
-  if (images.length === 0) {
-    return (
-      <div
-        style={{
-          aspectRatio: '1 / 1',
-          background: 'linear-gradient(135deg, #fef3c7, #fed7aa)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: 64,
-          opacity: 0.4,
-        }}
-      >
-        🔨
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, background: '#fff' }}>
-      {images.map((url, i) => (
-        <BlurImage key={i} url={url} width={1080} quality={78} intrinsic alt={`이미지 ${i + 1}`} />
-      ))}
-    </div>
-  );
-}
