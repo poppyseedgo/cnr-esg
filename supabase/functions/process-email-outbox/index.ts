@@ -360,6 +360,34 @@ function alertBox(content: string, color: 'warning' | 'success' | 'danger' | 'in
 // 템플릿 8개
 // ============================================================================
 
+// 공통 - 상품 헤더(썸네일 + 상품명) — 굿즈 펀딩 메일 상단  ← [2026-07-08]
+function productHeaderBlock(data: Record<string, unknown>): string {
+  const thumb = typeof data.product_thumb === 'string' && data.product_thumb ? (data.product_thumb as string) : '';
+  const imgCell = thumb
+    ? `<td width="76" style="padding-right:14px;vertical-align:middle;">
+         <img src="${escapeHtml(thumb)}" alt="${escapeHtml(data.product_name)}" width="72" height="72"
+              style="width:72px;height:72px;border-radius:10px;object-fit:cover;border:1px solid #eee;display:block;" />
+       </td>`
+    : '';
+  return `
+<table cellpadding="0" cellspacing="0" style="margin:4px 0 12px;width:100%;">
+  <tr>
+    ${imgCell}
+    <td style="vertical-align:middle;">
+      <div style="font-size:16px;font-weight:700;color:#111;">${escapeHtml(data.product_name)}</div>
+      <div style="font-size:12px;color:#888;margin-top:3px;">C&amp;R ESG 굿즈 펀딩</div>
+    </td>
+  </tr>
+</table>`;
+}
+
+// 공통 - 상품으로 이동하는 CTA 버튼 (product_id 없으면 미표시 → 깨진 링크 방지)  ← [2026-07-08]
+function productCtaBlock(data: Record<string, unknown>, label: string): string {
+  const pid = typeof data.product_id === 'string' && data.product_id ? (data.product_id as string) : '';
+  if (!APP_BASE_URL || !pid) return ''; // 링크 불완전하면 버튼 자체를 그리지 않음
+  return button(label, `${APP_BASE_URL}/goods/${pid}`, '#6b21a8');
+}
+
 // 공통 - 입금 안내 박스 (계좌 정보 + 입금자명 + 기한)
 function paymentGuideBlock(data: Record<string, unknown>): string {
   const bank = (data.bank_info ?? {}) as Record<string, unknown>;
@@ -406,11 +434,13 @@ function tmplBazaarOrderCreated(data: Record<string, unknown>): string {
 </table>`;
     return wrap(`
 <h2 style="margin:0 0 12px;font-size:18px;color:#222;">🎉 펀딩이 성사되었습니다 — 입금(결제) 안내</h2>
+${productHeaderBlock(data)}
 <p>${escapeHtml(data.user_name)}님이 참여하신 <strong>${escapeHtml(data.product_name)}</strong> 펀딩이 목표를 달성해 성사되었습니다.<br>아래 <strong>${escapeHtml(data.order_count)}건</strong>의 주문을 합산한 금액을 입금 기한 내에 결제(계좌이체)해 주세요.</p>
 ${alertBox('아래 계좌로 <strong>입금자명 일치</strong>하여 <strong>합계 금액을 한 번에</strong> 송금해 주세요.<br><strong>입금 기한(아래 표기) 내</strong>에 입금이 확인되지 않으면 주문이 자동 취소됩니다.', 'warning')}
 ${ordersTable}
 ${paymentGuideBlock(data)}
 ${button('내 주문 보기', `${APP_BASE_URL}/orders/${data.order_id}`)}
+${productCtaBlock(data, '상품 보러가기 →')}
 <p style="font-size:12px;color:#888;">입금 후 관리자 확인을 거쳐 메일로 다시 알려드립니다.</p>
 `);
   }
@@ -481,6 +511,7 @@ function tmplBazaarOrderCancelled(data: Record<string, unknown>): string {
   if (isFunding) {
     return wrap(`
 <h2 style="margin:0 0 12px;font-size:18px;color:#222;">ℹ️ 펀딩이 무산되었습니다</h2>
+${productHeaderBlock(data)}
 <p>${escapeHtml(data.user_name)}님, 아쉽게도 <strong>${escapeHtml(data.product_name)}</strong> 펀딩이 목표에 도달하지 못해 무산되어 참여가 자동 취소되었습니다. <strong>결제된 금액은 없습니다.</strong></p>
 ${infoBox([
   ['상품', escapeHtml(data.product_name)],
@@ -488,6 +519,7 @@ ${infoBox([
   ['합계 금액', `${formatAmount(data.total_amount)}원 (결제 없음)`],
 ])}
 ${alertBox('참여해 주셔서 감사합니다. 다음 펀딩에서 다시 만나요!', 'info')}
+${productCtaBlock(data, '상품 보러가기 →')}
 `);
   }
   return wrap(`
