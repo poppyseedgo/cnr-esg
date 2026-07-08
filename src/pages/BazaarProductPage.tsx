@@ -36,7 +36,7 @@ import { addToCart } from '@/lib/cart';
 import { signInWithMicrosoft } from '@/lib/auth';
 import { ProductEditForm } from '@/components/admin/ProductEditForm';
 import { ProductDetailTabs } from '@/components/ProductDetailTabs';
-import { FundingPanel } from '@/components/goods/FundingPanel'; // ← [2026-07-07] 펀딩 상세 참여
+import { FundingSidebar } from '@/components/goods/FundingSidebar'; // ← [2026-07-08] 펀딩 사이드바(Figma 2320:55)
 import { CustomLabel } from '@/components/CustomLabel'; // ← [2026-07-06] 커스텀 라벨
 import { getProductTags, splitTagsByKind } from '@/lib/tags'; // ← [2026-06-23] 상세 태그
 import type { EsgProductRow, EsgTagRow } from '@/types/esg';
@@ -331,7 +331,12 @@ export function BazaarProductPage({ section = 'bazaar' }: { section?: 'bazaar' |
         <ImageCarousel images={images} currentIdx={imageIdx} onChange={setImageIdx} />
 
         {/* 정보 */}
-        <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ padding: isFundingProduct ? 0 : 24, display: 'flex', flexDirection: 'column', gap: isFundingProduct ? 0 : 16 }}>
+          {/* ← [2026-07-08] 펀딩 상품: 라벨~CTA 전체를 FundingSidebar(Figma 2320:55)가 담당 */}
+          {isFundingProduct ? (
+            <FundingSidebar product={product} />
+          ) : (
+          <>
           <div>
             {isNewProduct(product) && (
               <span
@@ -405,7 +410,7 @@ export function BazaarProductPage({ section = 'bazaar' }: { section?: 'bazaar' |
           {/* 설명은 하단 탭 영역에서 마크다운으로 표시 */}
 
           {/* ← [2026-07-07] 펀딩 상품: 일반 구매영역 대신 펀딩 참여 패널 */}
-          {isFundingProduct && <FundingPanel product={product} />}
+          {/* ← [2026-07-08] 펀딩은 상단 FundingSidebar 전담(여기 도달 안 함) */}
 
           {/* 수량 선택 */}
           {canPurchase && (
@@ -551,6 +556,8 @@ export function BazaarProductPage({ section = 'bazaar' }: { section?: 'bazaar' |
                 ? '품절된 상품입니다'
                 : blockReason ?? '지금은 구매할 수 없습니다'}
             </div>
+          )}
+          </>
           )}
         </div>
       </div>

@@ -29,6 +29,7 @@ const supabase = _supabase as any;
 export interface CreateProductInput {
   name: string;
   description?: string | null;
+  short_description?: string | null; // ← [2026-07-08] 간단 설명
   price: number;
   stock: number;
   thumbnail_url?: string | null;
@@ -51,6 +52,7 @@ export type UpdateProductPatch = Partial<
     EsgProductRow,
     | 'name'
     | 'description'
+    | 'short_description' // ← [2026-07-08] 간단 설명
     | 'price'
     | 'stock'
     | 'thumbnail_url'
@@ -121,6 +123,7 @@ export async function createProduct(input: CreateProductInput): Promise<EsgProdu
       {
         name: input.name.trim(),
         description: input.description ?? null,
+        short_description: input.short_description ?? null, // ← [2026-07-08] 간단 설명
         price: input.price,
         stock: input.stock,
         thumbnail_url: input.thumbnail_url ?? null,

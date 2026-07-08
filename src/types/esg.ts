@@ -349,6 +349,7 @@ export interface EsgProductRow {
   id: string;
   name: string;
   description: string | null;
+  short_description: string | null; // ← [2026-07-08] 상세 상단 '간단 설명'(마크다운 아님, 1~2줄)
   price: number;
   stock: number;
   reserved_stock: number;

@@ -64,6 +64,7 @@ export function ProductEditForm({
   };
   const [name, setName] = useState(product.name);
   const [description, setDescription] = useState(product.description ?? '');
+  const [shortDescription, setShortDescription] = useState(product.short_description ?? ''); // ← [2026-07-08] 간단 설명
   const [price, setPrice] = useState(product.price);
   const [stock, setStock] = useState(product.stock);
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(product.thumbnail_url);
@@ -141,6 +142,7 @@ export function ProductEditForm({
       const patch: Record<string, unknown> = {};
       if (name !== product.name) patch.name = name;
       if (description !== (product.description ?? '')) patch.description = description || null;
+      if (shortDescription !== (product.short_description ?? '')) patch.short_description = shortDescription || null; // ← [2026-07-08]
       if (price !== product.price) patch.price = price;
       if (stock !== product.stock) patch.stock = stock;
       if (thumbnailUrl !== product.thumbnail_url) patch.thumbnail_url = thumbnailUrl;
@@ -255,6 +257,18 @@ export function ProductEditForm({
           onChange={(e) => setName(e.target.value)}
           disabled={busy}
           style={inputStyle}
+        />
+      </Field>
+      {/* ← [2026-07-08] 간단 설명 — 상세 상단(제목/가격 아래) 1~2줄. 마크다운 아님 */}
+      <Field label="간단 설명 (상세 상단 노출 · 1~2줄)">
+        <textarea
+          value={shortDescription}
+          onChange={(e) => setShortDescription(e.target.value)}
+          disabled={busy}
+          rows={2}
+          maxLength={120}
+          placeholder="상품을 한두 줄로 소개하는 문구 (예: 나무 심는 데 쓰이는 친환경 스티커팩)"
+          style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.5 }}
         />
       </Field>
       <Field label="상세 설명">
