@@ -235,7 +235,7 @@ export function BazaarProductPage({ section = 'bazaar' }: { section?: 'bazaar' |
     <article style={{ maxWidth: 1360, margin: '0 auto' }}>
       {/* ← [2026-07-08] 경매 상세와 동일한 2열 그리드(좌 이미지 크게 / 우 정보). 모바일=단일열 */}
       <style>{`
-        .pd-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 40px; }
+        .pd-grid { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 40px; }
         .pd-media { min-width: 0; }
         .pd-side { min-width: 0; }
         .pd-side > div { min-width: 0; }
