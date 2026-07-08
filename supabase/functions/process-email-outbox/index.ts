@@ -376,12 +376,22 @@ ${bank.memo ? `<p style="font-size:12px;color:#888;margin-top:8px;">${escapeHtml
 `;
 }
 
-// 1. 바자회 주문 생성
+// 1. 바자회 주문 생성 / (재사용) 굿즈 펀딩 성사 입금 안내  ← [2026-07-08] is_funding 분기
 function tmplBazaarOrderCreated(data: Record<string, unknown>): string {
+  const isFunding = data.is_funding === true; // ← [2026-07-08] 펀딩 성사 입금 안내면 문구 분기
+  const heading = isFunding
+    ? '🎉 펀딩이 성사되었습니다 — 입금(결제) 안내'
+    : '🛍 바자회 주문이 접수되었습니다';
+  const intro = isFunding
+    ? `${escapeHtml(data.user_name)}님이 참여하신 펀딩이 목표를 달성해 성사되었습니다. 아래 안내에 따라 입금 기한 내에 결제(계좌이체)를 진행해 주세요.`
+    : `${escapeHtml(data.user_name)}님, 주문해 주셔서 감사합니다.`;
+  const warn = isFunding
+    ? '아래 계좌로 <strong>입금자명 일치</strong>하여 송금해 주세요.<br><strong>입금 기한(아래 표기) 내</strong>에 입금이 확인되지 않으면 주문이 자동 취소됩니다.'
+    : '아래 계좌로 <strong>입금자명 일치</strong>하여 송금해 주세요.<br><strong>주문 후 15분 이내</strong>(아래 입금 기한)에 입금이 확인되지 않으면 주문이 자동 취소됩니다.';
   return wrap(`
-<h2 style="margin:0 0 12px;font-size:18px;color:#222;">🛍 바자회 주문이 접수되었습니다</h2>
-<p>${escapeHtml(data.user_name)}님, 주문해 주셔서 감사합니다.</p>
-${alertBox('아래 계좌로 <strong>입금자명 일치</strong>하여 송금해 주세요.<br><strong>주문 후 15분 이내</strong>(아래 입금 기한)에 입금이 확인되지 않으면 주문이 자동 취소됩니다.', 'warning')}
+<h2 style="margin:0 0 12px;font-size:18px;color:#222;">${heading}</h2>
+<p>${intro}</p>
+${alertBox(warn, 'warning')}
 ${paymentGuideBlock(data)}
 ${infoBox([['주문번호', escapeHtml(data.order_number)]])}
 ${button('주문 상세 보기', `${APP_BASE_URL}/orders/${data.order_number}`)}
@@ -440,13 +450,18 @@ ${isBazaar
 
 // 5. 바자회 강제 취소 (어드민)
 function tmplBazaarOrderCancelled(data: Record<string, unknown>): string {
+  const isFunding = data.is_funding === true; // ← [2026-07-08] 펀딩 무산이면 문구 분기
+  const heading = isFunding ? 'ℹ️ 펀딩이 무산되었습니다' : '🚫 주문이 취소되었습니다';
+  const intro = isFunding
+    ? `${escapeHtml(data.user_name)}님, 아쉽게도 목표에 도달하지 못해 펀딩이 무산되어 참여가 자동 취소되었습니다. (결제된 금액은 없습니다.)`
+    : `${escapeHtml(data.user_name)}님, 관리자에 의해 주문이 취소되었습니다.`;
   return wrap(`
-<h2 style="margin:0 0 12px;font-size:18px;color:#222;">🚫 주문이 취소되었습니다</h2>
-<p>${escapeHtml(data.user_name)}님, 관리자에 의해 주문이 취소되었습니다.</p>
+<h2 style="margin:0 0 12px;font-size:18px;color:#222;">${heading}</h2>
+<p>${intro}</p>
 ${infoBox([
   ['주문번호', escapeHtml(data.order_number)],
   ['금액', `${formatAmount(data.total_amount)}원`],
-  ['취소 사유', escapeHtml(data.cancelled_reason ?? '(사유 미기재)')],
+  [isFunding ? '무산 사유' : '취소 사유', escapeHtml(data.cancelled_reason ?? '(사유 미기재)')],
 ])}
 ${alertBox('자세한 사항은 아래 문의 이메일로 연락 주세요.', 'info')}
 `);
