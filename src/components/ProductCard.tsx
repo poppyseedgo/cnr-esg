@@ -28,10 +28,10 @@
 // [Figma SSOT] node 1791:216 / 1791:194 / 1791:411 (file ydfT0xP6nc83VxFd7GyEx4)
 // ============================================================================
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getAvailableStock, isNewProduct, getDisplayStatus } from '@/lib/products'; // ← [2026-06-25] getDisplayStatus
-import { formatShortCountdown } from '@/lib/orders'; // ← [2026-06-25] MM:SS 카운트다운
+import { getAvailableStock, isNewProduct, getDisplayStatus, getDisplayPrice } from '@/lib/products'; // ← [2026-07-08] getDisplayPrice
+import { formatShortCountdown, loadFundingProgress } from '@/lib/orders'; // ← [2026-07-08] 펀딩 진행률
 import { useNowTick } from '@/hooks/useNowTick'; // ← [2026-06-25] 공유 1초 틱
 import { useProductReservation } from '@/hooks/useProductReservation'; // ← [2026-06-25] 활성 예약
 import { BlurImage } from './BlurImage'; // ← 썸네일 lazy+블러업
@@ -44,6 +44,16 @@ import { CustomLabel } from '@/components/CustomLabel'; // ← [2026-07-06] 커�
 import type { EsgProductRow } from '@/types/esg';
 
 // 호버 액션바/카드 스타일은 전역 index.css(.pcard*)로 이관됨 (런타임 주입 제거).
+
+// ── [2026-07-08] 펀딩 카드 헬퍼 ──────────────────────────────────────────────
+const NUM = "'Instrument Sans', 'Pretendard Variable', 'Pretendard', sans-serif"; // 숫자=Instrument, 한글=Pretendard fallback
+const wonNum = (n: number) => n.toLocaleString('ko-KR');
+function fmtCardDeadline(iso: string | null): string {
+  if (!iso) return '';
+  return new Intl.DateTimeFormat('ko-KR', {
+    timeZone: 'Asia/Seoul', month: 'long', day: 'numeric', hour: 'numeric', hour12: true,
+  }).format(new Date(iso)).replace(/\.\s*$/, ''); // "7월 13일 오후 1시"
+}
 
 interface ProductCardProps {
   product: EsgProductRow;
@@ -72,6 +82,24 @@ export function ProductCard({ product, canQuickAdd = true, quickAddBlockReason =
 
   const [adding, setAdding] = useState(false); // ← [2026-06-24] 담기 진행/완료 transient
   const [justAdded, setJustAdded] = useState(false);
+
+  // ── [2026-07-08] 펀딩 카드(Figma 2330:106) — 진행률/마감 표시 ──────────────
+  const isFunding = product.purchase_type === 'funding';
+  const [fundingPct, setFundingPct] = useState<number | null>(null);
+  useEffect(() => {
+    if (!isFunding) return;
+    let alive = true;
+    loadFundingProgress(product.id)
+      .then((p) => {
+        if (!alive || !p) return;
+        const gt = product.funding_goal_type ?? 'quantity';
+        const goal = gt === 'amount' ? (product.funding_goal_amount ?? 0) : (product.funding_goal_quantity ?? 0);
+        const ach = gt === 'amount' ? p.pledged_amount : p.pledged_quantity;
+        setFundingPct(goal > 0 ? Math.min(100, Math.round((ach / goal) * 100)) : 0);
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [isFunding, product.id, product.funding_goal_type, product.funding_goal_amount, product.funding_goal_quantity]);
 
   // 빠른 담기 — 카드는 Link이므로 버튼 클릭 시 네비게이션 차단
   const handleAddToCart = async (e: React.MouseEvent) => {
@@ -153,8 +181,21 @@ export function ProductCard({ product, canQuickAdd = true, quickAddBlockReason =
           </div>
         )}
 
-        {/* 호버 액션바 [Add To Cart | 찜/이미 찜 함] — 판매중일 때만 노출(품절/입금대기 미노출) */}
-        {!blocked && (
+        {/* 호버 액션바 — 펀딩: [프리오더 펀딩하기 | 찜] / 일반: [Add To Cart | 찜] */}
+        {isFunding ? (
+          <div className="pcard-actions">
+            {/* ← [2026-07-08] 클릭 시 Link 가 상세(/goods/:id)로 이동 → 거기서 수량+참여 */}
+            <div className="pcard-btn" style={{ background: '#000', color: '#fff' }}>프리오더 펀딩하기</div>
+            <button
+              type="button"
+              className="pcard-btn"
+              onClick={handleToggleWishlist}
+              style={{ background: wishlisted ? '#beff9b' : '#fff', color: '#111' }}
+            >
+              {wishlisted ? '이미 찜 함' : '찜'}
+            </button>
+          </div>
+        ) : !blocked ? (
           <div className="pcard-actions">
             <button
               type="button"
@@ -180,10 +221,38 @@ export function ProductCard({ product, canQuickAdd = true, quickAddBlockReason =
               {wishlisted ? '이미 찜 함' : '찜'}
             </button>
           </div>
-        )}
+        ) : null}
       </div>
 
-      {/* ── 본문(좌 패딩 0 = Figma) ── */}
+      {/* ── 본문 ── */}
+      {isFunding ? (
+        // ← [2026-07-08] 펀딩 카드 본문(Figma 2330:113): pt16 pb20 px0
+        <div style={{ background: '#fff', padding: '16px 0 20px', display: 'flex', flexDirection: 'column', width: '100%' }}>
+          {/* 달성률 | 프리오더 마감 */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
+            <div style={{ display: 'flex', gap: 4, alignItems: 'flex-start', fontSize: 16, letterSpacing: '0.16px', lineHeight: 1.4 }}>
+              <span style={{ color: '#ff5959', fontFamily: NUM }}>{fundingPct ?? 0}%</span>
+              <span style={{ color: '#000' }}>달성</span>
+            </div>
+            <div style={{ display: 'flex', gap: 4, alignItems: 'center', fontSize: 14, letterSpacing: '0.14px', lineHeight: 1.4 }}>
+              <span style={{ color: '#bbb' }}>프리오더 마감</span>
+              <span style={{ color: '#000', fontFamily: NUM, whiteSpace: 'nowrap' }}>{fmtCardDeadline(product.funding_deadline)}</span>
+            </div>
+          </div>
+          {/* 제목 + 가격 */}
+          <div style={{ display: 'flex', flexDirection: 'column', padding: '8px 0' }}>
+            <p style={{
+              margin: 0, fontSize: 24, lineHeight: 1.4, color: '#111', letterSpacing: '-0.24px',
+              display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+            }}>
+              {product.name}
+            </p>
+            <p style={{ margin: 0, fontSize: 20, lineHeight: 1.4, color: '#000', letterSpacing: '0.2px', fontFamily: NUM }}>
+              {wonNum(getDisplayPrice(product))}원
+            </p>
+          </div>
+        </div>
+      ) : (
       <div
         style={{
           background: '#fff',
@@ -241,6 +310,7 @@ export function ProductCard({ product, canQuickAdd = true, quickAddBlockReason =
           </span>
         )}
       </div>
+      )}
     </Link>
   );
 }
