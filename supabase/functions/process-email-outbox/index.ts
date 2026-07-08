@@ -406,6 +406,23 @@ ${bank.memo ? `<p style="font-size:12px;color:#888;margin-top:8px;">${escapeHtml
 
 // 1. 바자회 주문 생성 / (재사용) 굿즈 펀딩 성사 입금 안내  ← [2026-07-08] is_funding 분기 + 합산 주문 테이블
 function tmplBazaarOrderCreated(data: Record<string, unknown>): string {
+  // ← [2026-07-08] 펀딩 '참여 완료(예약)' 확인 — 참여 시점 발송
+  if (data.is_pledge === true) {
+    return wrap(`
+<h2 style="margin:0 0 12px;font-size:18px;color:#222;">🎯 펀딩에 참여되었습니다</h2>
+${productHeaderBlock(data)}
+<p>${escapeHtml(data.user_name)}님, <strong>${escapeHtml(data.product_name)}</strong> 펀딩에 참여(예약)하셨습니다.<br><strong>지금은 결제 전</strong>이며, 마감일까지 목표를 달성하면 결제(입금) 안내를 드립니다.</p>
+${alertBox('펀딩 참여는 <strong>취소할 수 없습니다.</strong> 목표 미달로 무산될 경우 자동으로 취소되며 결제는 발생하지 않습니다.', 'info')}
+${infoBox([
+  ['주문번호', escapeHtml(data.order_number)],
+  ['수량', `${escapeHtml(data.quantity)}개`],
+  ['참여 금액', `${formatAmount(data.total_amount)}원 (결제 전)`],
+])}
+${button('내 참여 내역 보기', `${APP_BASE_URL}/orders/${data.order_id ?? ''}`)}
+${productCtaBlock(data, '상품 보러가기 →')}
+<p style="font-size:12px;color:#888;">참여 내역은 마이페이지 > 주문에서도 확인할 수 있어요.</p>
+`);
+  }
   const isFunding = data.is_funding === true; // ← [2026-07-08] 펀딩 성사 입금 안내면 문구 분기
   if (isFunding) {
     // ── [2026-07-08] (사용자×상품) 합산: 개별 주문 라인 + 합계 ───────────────
