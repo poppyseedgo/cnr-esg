@@ -286,8 +286,8 @@ export function FundingSidebar({ product }: { product: EsgProductRow }) {
         <div style={{ position: 'fixed', inset: 0, zIndex: 1101, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
           <div style={{ textAlign: 'center', pointerEvents: 'auto', animation: 'cnrSuccessPop 0.35s cubic-bezier(0.2,1.3,0.4,1) both' }}>
             <div style={{ fontSize: 72, lineHeight: 1 }}>🎉</div>
-            <div style={{ marginTop: 14, fontSize: 34, fontWeight: 400, color: '#0f7b3f' }}>
-              펀딩 참여 성공!
+            <div style={{ marginTop: 14, fontSize: 34, fontWeight: 400, color: '#46FF68' }}>{/* ← [2026-07-08] 'Thank you' + confetti 색(#46FF68) */}
+              Thank you
             </div>
             {/* ← [2026-07-08] (A) 페이지 유지 + 마이페이지 바로가기 */}
             <button

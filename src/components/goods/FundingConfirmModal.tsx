@@ -34,25 +34,25 @@ export function FundingConfirmModal({
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: '#fff', width: '100%', maxWidth: 360, borderRadius: 12,
+          background: '#fff', width: '100%', maxWidth: 360, borderRadius: 0, // ← [2026-07-08] border-radius 삭제
           padding: '24px 12px 12px', display: 'flex', flexDirection: 'column',
           gap: 12, alignItems: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
         }}
       >
-        {/* 헤딩 2줄 20 / 서브 12 */}
+        {/* 헤딩 2줄 20 / 서브 14 */}
         <div style={{ fontSize: 20, lineHeight: 1.3, color: '#111', textAlign: 'center' }}>
           <p style={{ margin: 0 }}>나무 심는 굿즈에</p>
           <p style={{ margin: 0 }}>참여해주셔서 감사합니다.</p>
         </div>
-        <p style={{ margin: 0, fontSize: 12, lineHeight: 1.4, color: '#8e97a8' }}>
+        <p style={{ margin: 0, fontSize: 14, lineHeight: 1.4, color: '#8e97a8' }}>{/* ← [2026-07-08] 12→14 */}
           지금은 결제 전이에요.
         </p>
 
-        {/* 요약: 2개 * 14,000원 (py8, gap4) */}
+        {/* 요약: 2개 * 14,000원 (py8, gap4) — 24px, 개/원 Regular */}
         <div style={{ display: 'flex', gap: 4, alignItems: 'center', justifyContent: 'center', padding: '8px 0', width: '100%' }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', lineHeight: 1.2, color: '#111', fontSize: 20 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', lineHeight: 1.2, color: '#111', fontSize: 24 }}>
             <span className="num">{fmt(qty)}</span>
-            <span style={{ fontWeight: 300 }}>개</span>
+            <span>개</span>
           </span>
           {/* 구분자 * (Figma vector 10px) */}
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden style={{ display: 'block', flexShrink: 0 }}>
@@ -62,14 +62,14 @@ export function FundingConfirmModal({
               <line x1="8" y1="3.3" x2="2" y2="6.7" />
             </g>
           </svg>
-          <span style={{ display: 'inline-flex', alignItems: 'center', lineHeight: 1.2, color: '#111', fontSize: 20 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', lineHeight: 1.2, color: '#111', fontSize: 24 }}>
             <span className="num">{fmt(totalAmount)}</span>
-            <span style={{ fontWeight: 300 }}>원</span>
+            <span>원</span>
           </span>
         </div>
 
-        {/* 경고 문구 12 / #8e97a8 / 2줄 */}
-        <div style={{ width: '100%', fontSize: 12, lineHeight: 1.4, color: '#8e97a8', textAlign: 'center' }}>
+        {/* 경고 문구 14 / #8e97a8 / 2줄 */}
+        <div style={{ width: '100%', fontSize: 14, lineHeight: 1.4, color: '#8e97a8', textAlign: 'center' }}>{/* ← [2026-07-08] 12→14 */}
           <p style={{ margin: 0 }}>프리오더 펀딩은 취소할 수 없어요.</p>
           <p style={{ margin: 0 }}>펀딩 목표 달성 시, 입금 안내를 드립니다.</p>
         </div>
@@ -80,7 +80,7 @@ export function FundingConfirmModal({
             type="button" onClick={onConfirm} disabled={busy}
             style={{
               flex: '1 0 0', minWidth: 0, padding: '12px 16px', border: '1px solid #00ff2f',
-              background: '#46ff68', color: '#000', fontSize: 14, lineHeight: 1.4,
+              background: '#46ff68', color: '#000', fontSize: 20, lineHeight: 1.4, // ← [2026-07-08] 버튼 14→20
               cursor: busy ? 'not-allowed' : 'pointer', opacity: busy ? 0.7 : 1,
             }}
           >

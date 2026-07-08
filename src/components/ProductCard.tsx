@@ -265,15 +265,15 @@ export function ProductCard({ product, canQuickAdd = true, quickAddBlockReason =
       {isFunding ? (
         // ← [2026-07-08] 펀딩 카드 본문(Figma 2330:113): pt16 pb20 px0
         <div style={{ background: '#fff', padding: '16px 0 20px', display: 'flex', flexDirection: 'column', width: '100%' }}>
-          {/* 달성률 | 프리오더 마감 */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
-            <div style={{ display: 'flex', gap: 4, alignItems: 'flex-start', fontSize: 16, letterSpacing: '0.16px', lineHeight: 1.4 }}>
+          {/* 달성률 | 프리오더 마감 — 좁으면 줄바꿈(글자단위 쪼개짐 방지) */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%', flexWrap: 'wrap', gap: '4px 12px' }}>
+            <div style={{ display: 'flex', gap: 4, alignItems: 'flex-start', fontSize: 16, letterSpacing: '0.16px', lineHeight: 1.4, whiteSpace: 'nowrap' }}>
               <span style={{ color: '#ff5959', fontFamily: NUM }}>{fundingPct ?? 0}%</span>
               <span style={{ color: '#000' }}>{fundingStatus === 'succeeded' ? '달성 성공' : fundingStatus === 'failed' ? '달성 실패' : '달성'}</span>
             </div>
-            <div style={{ display: 'flex', gap: 4, alignItems: 'center', fontSize: 14, letterSpacing: '0.14px', lineHeight: 1.4 }}>
+            <div style={{ display: 'flex', gap: 4, alignItems: 'center', fontSize: 14, letterSpacing: '0.14px', lineHeight: 1.4, whiteSpace: 'nowrap' }}>
               <span style={{ color: '#bbb' }}>프리오더 마감</span>
-              <span style={{ color: '#000', fontFamily: NUM, whiteSpace: 'nowrap' }}>{fmtCardDeadline(product.funding_deadline)}</span>
+              <span style={{ color: '#000', fontFamily: NUM }}>{fmtCardDeadline(product.funding_deadline)}</span>
             </div>
           </div>
           {/* 제목 + 가격 */}

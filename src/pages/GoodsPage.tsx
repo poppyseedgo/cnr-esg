@@ -149,7 +149,7 @@ export function GoodsPage() {
       ) : (
         <div
           className="goods-grid"
-          style={{ marginTop: 24, display: 'grid', gap: 16, gridTemplateColumns: 'repeat(2, 1fr)' }}
+          style={{ marginTop: 24, display: 'grid', gap: 16, gridTemplateColumns: '1fr' }}
         >
           {products.map((p) => (
             <ProductCard
@@ -222,7 +222,7 @@ function SortOption({ label, active, onClick }: { label: string; active: boolean
 
 function GoodsSkeleton() {
   return (
-    <div className="goods-grid" style={{ marginTop: 24, display: 'grid', gap: 16, gridTemplateColumns: 'repeat(2, 1fr)' }}>
+    <div className="goods-grid" style={{ marginTop: 24, display: 'grid', gap: 16, gridTemplateColumns: '1fr' }}>
       {[1, 2, 3].map((i) => (
         <div key={i} style={{ background: '#fff', borderRadius: 12, border: '1px solid #eee', overflow: 'hidden' }}>
           <div style={{ aspectRatio: '1 / 1', background: '#f5f5f5' }} />
