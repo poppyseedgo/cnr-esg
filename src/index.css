@@ -309,6 +309,8 @@ button {
   background: #d7d7d7;          /* Figma image placeholder */
   overflow: hidden;
 }
+/* ← [2026-07-09] 굿즈 목록 썸네일: 1:1 → 3:4(살짝 세로로 김). ProductCard가 section=goods 일 때 부여 */
+.pcard-img--tall { aspect-ratio: 3 / 4; }
 /* 호버 시 등장하는 액션바(터치기기는 상시 노출) */
 .pcard-actions {
   position: absolute;

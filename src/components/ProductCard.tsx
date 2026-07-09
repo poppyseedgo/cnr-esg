@@ -157,7 +157,7 @@ export function ProductCard({ product, canQuickAdd = true, quickAddBlockReason =
       }}
     >
       {/* ── 이미지(정사각 full-bleed, 컨테이너 쿼리 기준) ── */}
-      <div className="pcard-img">
+      <div className={`pcard-img${product.section === 'goods' ? ' pcard-img--tall' : ''}`}>{/* ← [2026-07-09] 굿즈만 3:4 */}
         {product.thumbnail_url && (
           <div style={{ position: 'absolute', inset: 0 }}>
             <BlurImage url={product.thumbnail_url} width={1000} quality={80} />{/* ← [2026-07-08] 화질 개선 680/70→1000/80 */}
