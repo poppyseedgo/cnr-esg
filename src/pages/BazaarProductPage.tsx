@@ -232,6 +232,26 @@ export function BazaarProductPage({ section = 'bazaar' }: { section?: 'bazaar' |
     }
   };
 
+  // ← [2026-07-09] 굿즈 단일 CTA 'Cart' — 장바구니에 담고 /cart(담긴 상품 페이지)로 이동.
+  //   (기존 바로구매가 /checkout=바자회로 가서 굿즈가 '비어있음' 뜨던 버그 대체)
+  const handleGoToCart = async () => {
+    if (!currentUser) {
+      signInWithMicrosoft().catch(console.error);
+      return;
+    }
+    if (!canPurchase || quantity < 1) return;
+    setActionLoading(true);
+    setActionMessage(null);
+    try {
+      await addToCart({ id: currentUser.id, email: currentUser.email }, product.id, quantity);
+      navigate('/cart'); // ← [2026-07-09] 담긴 장바구니로 이동
+    } catch (e) {
+      console.error('[BazaarProductPage] add & go to cart error:', e);
+      setActionMessage({ type: 'error', text: e instanceof Error ? e.message : '장바구니 추가에 실패했습니다.' });
+      setActionLoading(false);
+    }
+  };
+
   return (
     <article style={{ maxWidth: 1360, margin: '0 auto' }}>
       {/* ← [2026-07-08] 경매 상세와 동일한 2열 그리드(좌 이미지 크게 / 우 정보). 모바일=단일열 */}
@@ -349,8 +369,7 @@ export function BazaarProductPage({ section = 'bazaar' }: { section?: 'bazaar' |
               blockReason={blockReason}
               actionLoading={actionLoading}
               actionMessage={actionMessage}
-              onAddToCart={handleAddToCart}
-              onBuyNow={handleBuyNow}
+              onCart={handleGoToCart}
             />
           ) : (
           <>

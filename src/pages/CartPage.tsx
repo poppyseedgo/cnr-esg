@@ -179,24 +179,9 @@ export function CartPage() {
         >
           <div style={{ fontSize: 48, marginBottom: 12, opacity: 0.5 }}>🛒</div>
           <h3 style={{ margin: '0 0 8px' }}>장바구니가 비어있어요</h3>
-          <p style={{ color: '#888', marginBottom: 24 }}>
-            바자회에서 마음에 드는 상품을 담아보세요.
+          <p style={{ color: '#888', margin: 0 }}>{/* ← [2026-07-09] '바자회로 가기' 버튼 삭제 + 문구 중립화 */}
+            마음에 드는 상품을 담아보세요.
           </p>
-          <Link
-            to="/bazaar"
-            style={{
-              display: 'inline-block',
-              padding: '10px 20px',
-              background: '#1a1a1a',
-              color: '#fff',
-              borderRadius: 8,
-              textDecoration: 'none',
-              fontSize: 14,
-              fontWeight: 600,
-            }}
-          >
-            🛍 바자회로 가기
-          </Link>
         </div>
       ) : (
         <>
