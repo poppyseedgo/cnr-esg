@@ -255,7 +255,7 @@ export function FundingSidebar({ product }: { product: EsgProductRow }) {
             onClick={() => { if (succeeded) { navigate('/mypage'); } else if (isOpen) { openConfirm(); } }}
             disabled={!clickable}
             style={{
-              width: '100%', padding: '20px 16px', border: '1px solid #000',
+              width: '100%', padding: '20px 16px', border: '1px solid #000', borderRadius: 0, // ← [2026-07-09] 라운드 제거(구매 CTA 통일)
               background: succeeded ? '#0f7b3f' : '#000', // 성사 시 초록 강조
               color: '#fff', fontSize: 20, lineHeight: 1.4,
               cursor: clickable ? 'pointer' : 'not-allowed',

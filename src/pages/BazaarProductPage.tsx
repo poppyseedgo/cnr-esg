@@ -39,6 +39,7 @@ import { signInWithMicrosoft } from '@/lib/auth';
 import { ProductEditForm } from '@/components/admin/ProductEditForm';
 import { ProductDetailTabs } from '@/components/ProductDetailTabs';
 import { FundingSidebar } from '@/components/goods/FundingSidebar'; // ← [2026-07-08] 펀딩 사이드바(Figma 2320:55)
+import { GoodsNormalSidebar } from '@/components/goods/GoodsNormalSidebar'; // ← [2026-07-09] 굿즈 일반구매 사이드바(펀딩 스타일)
 import { CustomLabel } from '@/components/CustomLabel'; // ← [2026-07-06] 커스텀 라벨
 import { getProductTags, splitTagsByKind } from '@/lib/tags'; // ← [2026-06-23] 상세 태그
 import type { EsgProductRow, EsgTagRow } from '@/types/esg';
@@ -331,10 +332,26 @@ export function BazaarProductPage({ section = 'bazaar' }: { section?: 'bazaar' |
 
         {/* 정보: 경매식 우측 sticky 패널 */}
         <StickyPanel className="pd-side" offsetTop={24} offsetBottom={24}>
-        <div style={{ padding: 0, display: 'flex', flexDirection: 'column', gap: isFundingProduct ? 0 : 16 }}>
+        <div style={{ padding: 0, display: 'flex', flexDirection: 'column', gap: (isFundingProduct || isGoods) ? 0 : 16 }}>
           {/* ← [2026-07-08] 펀딩 상품: 라벨~CTA 전체를 FundingSidebar(Figma 2320:55)가 담당 */}
+          {/* ← [2026-07-09] 굿즈 일반구매: 펀딩 플랫 스타일 GoodsNormalSidebar 로 통일(바자회는 기존 인라인 유지) */}
           {isFundingProduct ? (
             <FundingSidebar product={product} />
+          ) : isGoods ? (
+            <GoodsNormalSidebar
+              product={product}
+              quantity={quantity}
+              onQtyChange={(q) => setQuantity(q)} // ← [2026-07-09] 부모 수량 상태 갱신
+              available={available}
+              soldOut={soldOut}
+              paymentPending={paymentPending}
+              canPurchase={canPurchase}
+              blockReason={blockReason}
+              actionLoading={actionLoading}
+              actionMessage={actionMessage}
+              onAddToCart={handleAddToCart}
+              onBuyNow={handleBuyNow}
+            />
           ) : (
           <>
           <div>

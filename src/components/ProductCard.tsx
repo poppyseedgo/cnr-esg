@@ -48,11 +48,16 @@ import type { EsgProductRow } from '@/types/esg';
 // ── [2026-07-08] 펀딩 카드 헬퍼 ──────────────────────────────────────────────
 const NUM = "'Instrument Sans', 'Pretendard Variable', 'Pretendard', sans-serif"; // 숫자=Instrument, 한글=Pretendard fallback
 const wonNum = (n: number) => n.toLocaleString('ko-KR');
-function fmtCardDeadline(iso: string | null): string {
-  if (!iso) return '';
-  return new Intl.DateTimeFormat('ko-KR', {
-    timeZone: 'Asia/Seoul', month: 'long', day: 'numeric', hour: 'numeric', hour12: true,
-  }).format(new Date(iso)).replace(/\.\s*$/, ''); // "7월 13일 오후 1시"
+// ← [2026-07-09] 카드용 카운트다운 시계 — 24h 이상이면 "N일 HH:MM:SS", 아니면 "HH:MM:SS", 마감 시 "마감"
+function fmtCardCountdown(ms: number): string {
+  if (ms <= 0) return '마감';
+  const s = Math.floor(ms / 1000);
+  const d = Math.floor(s / 86400);
+  const h = Math.floor((s % 86400) / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  const hms = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+  return d > 0 ? `${d}일 ${hms}` : hms;
 }
 
 interface ProductCardProps {
@@ -277,8 +282,10 @@ export function ProductCard({ product, canQuickAdd = true, quickAddBlockReason =
               <span style={{ color: '#000' }}>{fundingStatus === 'succeeded' ? '달성 성공' : fundingStatus === 'failed' ? '달성 실패' : '달성'}</span>
             </div>
             <div style={{ display: 'flex', gap: 4, alignItems: 'center', fontSize: 14, letterSpacing: '0.14px', lineHeight: 1.4, whiteSpace: 'nowrap' }}>
-              <span style={{ color: '#bbb' }}>프리오더 마감</span>
-              <span style={{ color: '#000', fontFamily: NUM }}>{fmtCardDeadline(product.funding_deadline)}</span>
+              <span style={{ color: '#bbb' }}>마감까지</span>{/* ← [2026-07-09] '프리오더 마감'→'마감까지'(카운트다운 라벨) */}
+              <span style={{ color: '#000', fontFamily: NUM }}>
+                {fmtCardCountdown((product.funding_deadline ? new Date(product.funding_deadline).getTime() : 0) - nowMs)}{/* ← [2026-07-09] 마감일→실시간 카운트다운 시계(1초 틱) */}
+              </span>
             </div>
           </div>
           {/* 제목 + 가격 */}
