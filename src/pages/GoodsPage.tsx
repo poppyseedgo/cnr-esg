@@ -25,21 +25,11 @@ import { InfiniteScrollFooter } from '@/components/InfiniteScrollFooter';
 import type { EsgProductRow, EsgTagRow } from '@/types/esg';
 
 export function GoodsPage() {
-  // ── 필터 상태 단일 소스 = URL 파라미터 (cat/q/sort) ──
-  const [searchParams, setSearchParams] = useSearchParams();
+  // ── 필터 상태 단일 소스 = URL 파라미터 (cat/q) ── // ← [2026-07-09] 정렬(sort) 제거
+  const [searchParams] = useSearchParams();
   const activeCatSlugs = (searchParams.get('cat') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
   const search = (searchParams.get('q') ?? '').trim();
-  const sortParam = searchParams.get('sort');
-  const sort: 'reg' | 'price_desc' | 'price_asc' =
-    sortParam === 'price_desc' ? 'price_desc' : sortParam === 'price_asc' ? 'price_asc' : 'reg';
-
-  const setSort = (next: 'reg' | 'price_desc' | 'price_asc') => {
-    setSearchParams((prev) => {
-      const p = new URLSearchParams(prev);
-      if (next === 'reg') p.delete('sort'); else p.set('sort', next);
-      return p;
-    }, { replace: true });
-  };
+  // ← [2026-07-09] 정렬 UI(등록순/가격순) 삭제 — 항상 등록순(loadProducts 기본 sort='reg')
 
   // 굿즈 카테고리 태그 — slug→id 해석용(칩 렌더는 GoodsSidebar가 담당)
   const [cats, setCats] = useState<EsgTagRow[]>([]);
@@ -57,16 +47,16 @@ export function GoodsPage() {
   // 무한 스크롤 — 12개씩 (section='goods' 고정)
   const fetchPage = useCallback(
     async (offset: number, limit: number) => {
-      const rows = await loadProducts({ section: 'goods', scope: 'all', offset, limit, search, tagGroups, sort });
+      const rows = await loadProducts({ section: 'goods', scope: 'all', offset, limit, search, tagGroups }); // ← [2026-07-09] 정렬 삭제(기본 등록순)
       const tagMap = await loadProductTagsBatch(rows.map((r) => r.id));
       return rows.map((r) => ({ ...r, tags: tagMap.get(r.id) ?? [] }));
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [search, catKey, sort],
+    [search, catKey],
   );
   const {
     items: products, initialLoading, loadingMore, error, sentinelRef, reload, refresh,
-  } = useInfiniteScroll<EsgProductRow>(fetchPage, { pageSize: 12, deps: [search, catKey, sort] });
+  } = useInfiniteScroll<EsgProductRow>(fetchPage, { pageSize: 12, deps: [search, catKey] });
 
   // ← [2026-07-08] 검색/필터 없이 등록 굿즈가 0이면 "Coming soon" 화면(Figma 2292-56)
   const showComingSoon = !initialLoading && !error && products.length === 0 && !search && !anyActive;
@@ -114,14 +104,7 @@ export function GoodsPage() {
         <span style={{ color: '#111' }}>Goods</span>
       </nav>
 
-      {/* 정렬 행 (Coming soon 상태에선 숨김) */}
-      {!showComingSoon && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginTop: 16 }}>
-          <SortOption label="등록 순" active={sort === 'reg'} onClick={() => setSort('reg')} />
-          <SortOption label="높은 가격 순" active={sort === 'price_desc'} onClick={() => setSort('price_desc')} />
-          <SortOption label="낮은 가격 순" active={sort === 'price_asc'} onClick={() => setSort('price_asc')} />
-        </div>
-      )}
+      {/* ← [2026-07-09] 정렬 행(등록순/가격순 라디오) 삭제 */}
 
       {/* 그리드 / Coming soon */}
       {initialLoading ? (
@@ -200,23 +183,6 @@ export function GoodsPage() {
         }
       `}</style>
     </div>
-  );
-}
-
-// ── 정렬 옵션 (바자회와 동일 UI) ──
-function SortOption({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px 0', fontFamily: 'inherit' }}
-    >
-      <span style={{ width: 14, height: 14, flexShrink: 0, borderRadius: 999, border: '1px solid #000', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-        {active && <span style={{ width: 8, height: 8, borderRadius: 999, background: '#000' }} />}
-      </span>
-      <span style={{ fontSize: 16, lineHeight: 1.4, color: active ? '#111' : '#848484', whiteSpace: 'nowrap' }}>{label}</span>
-    </button>
   );
 }
 
