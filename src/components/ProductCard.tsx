@@ -88,6 +88,11 @@ export function ProductCard({ product, canQuickAdd = true, quickAddBlockReason =
 
   // ── [2026-07-08] 펀딩 카드(Figma 2330:106) — 진행률/마감/성사 표시 ──────────
   const isFunding = product.purchase_type === 'funding';
+  // ← [2026-07-09] 커스텀 라벨 칩(라벨1=label_text, 라벨2·3=extra_labels[굿즈]). 텍스트 있는 것만.
+  const customLabelChips = [
+    { text: product.label_text, bg: product.label_bg, color: product.label_color },
+    ...(product.extra_labels ?? []),
+  ].filter((l) => (l.text ?? '').trim().length > 0);
   const fundingStatus = product.funding_status ?? 'live'; // ← 목록 실시간 리로드(subscribeProducts)로 갱신됨
   const [fundingPct, setFundingPct] = useState<number | null>(null);
   useEffect(() => {
@@ -154,25 +159,25 @@ export function ProductCard({ product, canQuickAdd = true, quickAddBlockReason =
           </div>
         )}
 
-        {/* ← [2026-07-06] 커스텀 라벨 (이미지 좌상단 오버레이). 텍스트 없으면 CustomLabel 이 null */}
-        {!isFunding && product.label_text && product.label_text.trim() && (
-          <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 1, pointerEvents: 'none' }}>
-            <CustomLabel text={product.label_text} bg={product.label_bg} color={product.label_color} />
-          </div>
-        )}
-
-        {/* ← [2026-07-08] 펀딩 라벨: Pre-Order + 상태(성사 시 달성률 성공) */}
-        {isFunding && (
-          <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 1, pointerEvents: 'none', display: 'flex', gap: 6 }}>
-            <span style={{ background: '#000', color: '#fff', fontSize: 13, lineHeight: 1.3, padding: '4px 8px', whiteSpace: 'nowrap' }}>Pre-Order</span>
-            {fundingStatus === 'succeeded' && (
+        {/* ← [2026-07-09] 상단 좌측 오버레이 통합: 펀딩(Pre-Order+상태) 배지 + 커스텀 라벨(라벨1~3).
+             프리오더 상품도 커스텀 라벨 노출(과거 !isFunding 게이트로 굿즈 목록에서 숨던 문제 해결).
+             배지가 많아지면 카드 폭 안에서 줄바꿈(flexWrap). */}
+        {(isFunding || customLabelChips.length > 0) && (
+          <div style={{ position: 'absolute', top: 8, left: 8, right: 8, zIndex: 1, pointerEvents: 'none', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {isFunding && ( // ← [2026-07-09] 펀딩 Pre-Order 배지(기존 유지)
+              <span style={{ background: '#000', color: '#fff', fontSize: 13, lineHeight: 1.3, padding: '4px 8px', whiteSpace: 'nowrap' }}>Pre-Order</span>
+            )}
+            {isFunding && fundingStatus === 'succeeded' && ( // ← [2026-07-09] 성사 배지(기존 유지)
               <span style={{ background: '#a6ff6d', color: '#000', fontSize: 13, lineHeight: 1.3, padding: '4px 8px', whiteSpace: 'nowrap' }}>
                 <span style={{ fontFamily: NUM }}>{fundingPct ?? 0}%</span> 달성 성공
               </span>
             )}
-            {fundingStatus === 'failed' && (
+            {isFunding && fundingStatus === 'failed' && ( // ← [2026-07-09] 무산 배지(기존 유지)
               <span style={{ background: '#bdbdbd', color: '#111', fontSize: 13, lineHeight: 1.3, padding: '4px 8px', whiteSpace: 'nowrap' }}>펀딩 무산</span>
             )}
+            {customLabelChips.map((l, i) => ( // ← [2026-07-09] 커스텀 라벨 라벨1~3(프리오더 배지 뒤로 이어붙임)
+              <CustomLabel key={i} text={l.text} bg={l.bg} color={l.color} />
+            ))}
           </div>
         )}
 

@@ -117,10 +117,10 @@ export function CreateProductForm({ onCancel, onSuccess, section = 'bazaar' }: C
         />
       </Field>
       <Field label="썸네일">
-        <ThumbnailUploader kind="bazaar" ownerId={tempId} value={thumbnailUrl} onChange={setThumbnailUrl} disabled={saving} />
+        <ThumbnailUploader kind="bazaar" ownerId={tempId} value={thumbnailUrl} onChange={setThumbnailUrl} disabled={saving} maxSizeMB={isGoods ? 20 : undefined} />{/* ← [2026-07-09] 굿즈 20MB */}
       </Field>
       <Field label="상세 이미지">
-        <DetailImagesUploader kind="bazaar" ownerId={tempId} values={detailImages} onChange={setDetailImages} maxCount={5} disabled={saving} />
+        <DetailImagesUploader kind="bazaar" ownerId={tempId} values={detailImages} onChange={setDetailImages} maxCount={isGoods ? 10 : 5} disabled={saving} maxSizeMB={isGoods ? 20 : undefined} />{/* ← [2026-07-09] 굿즈 10장·20MB */}
       </Field>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, marginTop: 12 }}>

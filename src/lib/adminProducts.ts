@@ -63,9 +63,10 @@ export type UpdateProductPatch = Partial<
     | 'is_pinned'     // ← [2026-06-17] 상품 고정
     | 'is_new'        // ← [2026-06-09]
     | 'sale_price'    // ← [2026-06-09]
-    | 'label_text'    // ← [2026-07-06] 커스텀 라벨
+    | 'label_text'    // ← [2026-07-06] 커스텀 라벨(라벨1)
     | 'label_bg'      // ← [2026-07-06]
     | 'label_color'   // ← [2026-07-06]
+    | 'extra_labels'  // ← [2026-07-09] 굿즈 추가 라벨(라벨2·3)
     | 'purchase_type'         // ← [2026-07-07] 펀딩
     | 'funding_goal_type'     // ← [2026-07-07]
     | 'funding_goal_amount'   // ← [2026-07-07]

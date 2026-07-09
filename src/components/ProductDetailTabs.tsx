@@ -72,9 +72,9 @@ export function ProductDetailTabs({
   onActiveTabChange,          // ← [2026-07-06]
   id,                         // ← [2026-07-06] 스크롤 앵커
 }: ProductDetailTabsProps) {
-  // 경매면 입찰내역 탭부터, 바자회면 상세설명부터
+  // 경매면 입찰내역, 바자회면 상세설명부터. 단 상세설명 탭이 숨겨지면(굿즈) 첫 노출 탭으로 폴백. // ← [2026-07-09]
   const [internalTab, setInternalTab] = useState<TabKey>(
-    productType === 'auction' ? 'bids' : 'description',
+    productType === 'auction' ? 'bids' : showDescriptionTab ? 'description' : 'delivery', // ← [2026-07-09] 숨김 시 '상품수령'
   );
   const activeTab = controlledTab ?? internalTab; // ← [2026-07-06] 제어형이면 외부값 우선
   const setActiveTab = (t: TabKey) => {           // ← [2026-07-06] 외부/내부 동기

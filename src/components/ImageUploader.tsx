@@ -42,6 +42,8 @@ interface ThumbnailUploaderProps {
   disabled?: boolean;
   /** [2026-06-08 추가] 업로드 전 압축(모바일 폰 사진 대비). 기본 false. */
   compress?: boolean;
+  /** [2026-07-09] 허용 최대 용량(MB). 미지정=10, 굿즈=20. */
+  maxSizeMB?: number;
 }
 
 export function ThumbnailUploader({
@@ -51,6 +53,7 @@ export function ThumbnailUploader({
   onChange,
   disabled,
   compress,
+  maxSizeMB, // ← [2026-07-09] 용량 상한 전달
 }: ThumbnailUploaderProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -65,7 +68,7 @@ export function ThumbnailUploader({
       if (value) {
         await deleteProductImage(value).catch(() => {});
       }
-      const url = await uploadProductImage(file, { kind, ownerId, compress });
+      const url = await uploadProductImage(file, { kind, ownerId, compress, maxSizeMB }); // ← [2026-07-09] 용량 상한
       onChange(url);
     } catch (err) {
       alert(err instanceof Error ? err.message : '업로드 실패');
@@ -183,6 +186,8 @@ interface DetailImagesUploaderProps {
   /** [2026-06-08 추가] 압축 강도 조절(미지정 시 uploadProductImage 기본값 1600/0.82). */
   compressMaxDimension?: number;
   compressQuality?: number;
+  /** [2026-07-09] 허용 최대 용량(MB). 미지정=10, 굿즈=20. */
+  maxSizeMB?: number;
 }
 
 export function DetailImagesUploader({
@@ -195,6 +200,7 @@ export function DetailImagesUploader({
   compress,
   compressMaxDimension,
   compressQuality,
+  maxSizeMB, // ← [2026-07-09] 용량 상한 전달
 }: DetailImagesUploaderProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -220,6 +226,7 @@ export function DetailImagesUploader({
           compress,
           maxDimension: compressMaxDimension,
           quality: compressQuality,
+          maxSizeMB, // ← [2026-07-09] 용량 상한
         });
         uploaded.push(url);
       }
@@ -329,7 +336,7 @@ export function DetailImagesUploader({
         )}
       </div>
       <p style={{ marginTop: 6, fontSize: 11, color: '#888' }}>
-        최대 {maxCount}장, 각 10MB 이하 · jpg/png/webp
+        최대 {maxCount}장, 각 {maxSizeMB ?? 10}MB 이하 · jpg/png/webp {/* ← [2026-07-09] 용량 동적 표기 */}
       </p>
 
       {/* ← [2026-06-22] 타일 클릭 확대(여러 장 좌우 네비) */}

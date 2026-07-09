@@ -345,6 +345,13 @@ export interface EsgCommentInsert {
 // esg_products
 // ============================================================================
 
+/** 커스텀 라벨 1개(텍스트+색). label_text/bg/color=라벨1, extra_labels[]=라벨2·3(굿즈). */ // ← [2026-07-09]
+export interface EsgProductLabel {
+  text: string;
+  bg: string;    // #rrggbb (빈 문자열이면 기본색)
+  color: string; // #rrggbb
+}
+
 export interface EsgProductRow {
   id: string;
   name: string;
@@ -360,9 +367,10 @@ export interface EsgProductRow {
   is_pinned: boolean;         // ← [2026-06-17] 상품 고정(리스트 맨 앞). 최대 8개.
   is_new: boolean;            // ← [2026-06-09] "새 상품" 라벨(수동)
   sale_price: number | null;  // ← [2026-06-09] 세일가(수동). NULL=세일 아님. 앱에서 sale_price<price 일 때만 세일
-  label_text: string | null;  // ← [2026-07-06] 커스텀 라벨 문구(NULL/공백=미표시)
+  label_text: string | null;  // ← [2026-07-06] 커스텀 라벨 문구(NULL/공백=미표시) = 라벨1(전 섹션 공용)
   label_bg: string | null;    // ← [2026-07-06] 커스텀 라벨 배경색 HEX
   label_color: string | null; // ← [2026-07-06] 커스텀 라벨 폰트색 HEX
+  extra_labels: EsgProductLabel[]; // ← [2026-07-09] 굿즈 추가 라벨(라벨2·3). 최대 2개. 바자회/경매 미사용([])
   section: EsgProductSection; // ← [2026-07-07] 'bazaar'(기본) | 'goods' — 목록/어드민 분리
   // ── [2026-07-07] 굿즈 Funding(All-or-Nothing pre-order) ──
   purchase_type: EsgPurchaseType;                 // 'normal'(기본) | 'funding'
@@ -897,11 +905,12 @@ export interface Database {
       };
       esg_products: {
         Row: EsgProductRow;
-        Insert: Omit<EsgProductRow, 'id' | 'created_at' | 'updated_at' | 'reserved_stock' | 'is_new' | 'sale_price'> & {
+        Insert: Omit<EsgProductRow, 'id' | 'created_at' | 'updated_at' | 'reserved_stock' | 'is_new' | 'sale_price' | 'extra_labels'> & { // ← [2026-07-09] extra_labels 제외(DB default [])
           id?: string;
           reserved_stock?: number;
           is_new?: boolean;            // ← [2026-06-09] 기본 false
           sale_price?: number | null;  // ← [2026-06-09] 기본 NULL
+          extra_labels?: EsgProductLabel[]; // ← [2026-07-09] 기본 [] (DB default)
         };
         Update: Partial<EsgProductRow>;
         Relationships: [];

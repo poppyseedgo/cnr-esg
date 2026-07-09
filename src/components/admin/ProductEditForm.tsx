@@ -94,6 +94,10 @@ export function ProductEditForm({
     bg: product.label_bg ?? '',
     color: product.label_color ?? '',
   });
+  // ← [2026-07-09] 굿즈 전용 추가 라벨(라벨2·3). 라벨1(label) 포함 총 최대 3개(= extra 최대 2개).
+  const [extraLabels, setExtraLabels] = useState<CustomLabelValue[]>(
+    (product.extra_labels ?? []).map((l) => ({ text: l.text ?? '', bg: l.bg ?? '', color: l.color ?? '' })), // ← [2026-07-09]
+  );
 
   // ── [2026-06-22 → 2026-06-23] 상품 태그(카테고리/브랜드 분리) ──────────────
   const [categoryTags, setCategoryTags] = useState<EsgTagRow[]>([]); // ← #유아용품 #식품
@@ -165,6 +169,15 @@ export function ProductEditForm({
       if (lt !== (product.label_text ?? null)) patch.label_text = lt;
       if (lb !== (product.label_bg ?? null)) patch.label_bg = lb;
       if (lc !== (product.label_color ?? null)) patch.label_color = lc;
+
+      // ← [2026-07-09] 굿즈 추가 라벨(라벨2·3) diff. 텍스트 있는 것만 저장, 최대 2개. 바자회/경매는 항상 [].
+      if (isGoods) {
+        const nextExtra = extraLabels
+          .map((l) => ({ text: l.text.trim(), bg: l.bg.trim(), color: l.color.trim() })) // ← [2026-07-09] 공백 정리
+          .filter((l) => l.text.length > 0) // ← [2026-07-09] 텍스트 없는 라벨 제외
+          .slice(0, 2);                     // ← [2026-07-09] 라벨1 포함 총 3개 상한
+        if (JSON.stringify(nextExtra) !== JSON.stringify(product.extra_labels ?? [])) patch.extra_labels = nextExtra; // ← [2026-07-09]
+      }
 
       // ← [2026-07-07] 펀딩 diff(굿즈 전용). normal↔funding 전환 및 목표/마감 변경 반영.
       if (isGoods) {
@@ -317,6 +330,7 @@ export function ProductEditForm({
           value={thumbnailUrl}
           onChange={setThumbnailUrl}
           disabled={busy}
+          maxSizeMB={isGoods ? 20 : undefined} // ← [2026-07-09] 굿즈 20MB
         />
       </Field>
       <Field label="상세 이미지">
@@ -325,8 +339,9 @@ export function ProductEditForm({
           ownerId={product.id}
           values={detailImages}
           onChange={setDetailImages}
-          maxCount={5}
+          maxCount={isGoods ? 10 : 5} // ← [2026-07-09] 굿즈 10장
           disabled={busy}
+          maxSizeMB={isGoods ? 20 : undefined} // ← [2026-07-09] 굿즈 20MB
         />
       </Field>
 
@@ -537,10 +552,47 @@ export function ProductEditForm({
         </Field>
       </div>
 
-      {/* ← [2026-07-06] 커스텀 라벨 — 리스트/상세 이미지 좌상단 오버레이 배지 */}
-      <Field label="커스텀 라벨 (텍스트를 비우면 표시 안 됨)">
+      {/* ← [2026-07-06] 커스텀 라벨(라벨1) — 리스트/상세 이미지 좌상단 오버레이 배지 */}
+      <Field label={`커스텀 라벨${isGoods ? ' 1' : ''} (텍스트를 비우면 표시 안 됨)`}>
         <CustomLabelEditor value={label} onChange={setLabel} disabled={busy} />
       </Field>
+
+      {/* ← [2026-07-09] 굿즈 전용: 추가 라벨(라벨2·3) — 라벨1 포함 총 최대 3개 */}
+      {isGoods && (
+        <Field label={`추가 라벨 (굿즈 · 라벨1 포함 총 ${1 + extraLabels.length}/3)`}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {extraLabels.map((v, i) => (
+              <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <CustomLabelEditor
+                    value={v}
+                    onChange={(nv) => setExtraLabels((arr) => arr.map((x, ix) => (ix === i ? nv : x)))} // ← [2026-07-09]
+                    disabled={busy}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setExtraLabels((arr) => arr.filter((_, ix) => ix !== i))} // ← [2026-07-09] 라벨 삭제
+                  disabled={busy}
+                  style={{ flexShrink: 0, height: 36, padding: '0 12px', fontSize: 13, color: '#991b1b', background: '#fff', border: '1px solid #fecaca', borderRadius: 6, cursor: busy ? 'not-allowed' : 'pointer' }}
+                >
+                  삭제
+                </button>
+              </div>
+            ))}
+            {extraLabels.length < 2 && ( // ← [2026-07-09] 라벨1 포함 총 3개 상한(= extra 2개)
+              <button
+                type="button"
+                onClick={() => setExtraLabels((arr) => [...arr, { text: '', bg: '', color: '' }])} // ← [2026-07-09] 라벨 추가
+                disabled={busy}
+                style={{ alignSelf: 'flex-start', height: 36, padding: '0 14px', fontSize: 13, color: '#111', background: '#f5f5f5', border: '1px dashed #ccc', borderRadius: 6, cursor: busy ? 'not-allowed' : 'pointer' }}
+              >
+                + 라벨 추가
+              </button>
+            )}
+          </div>
+        </Field>
+      )}
 
       <div style={{ display: 'flex', gap: 6, marginTop: 16 }}>
         <button

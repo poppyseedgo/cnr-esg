@@ -568,6 +568,7 @@ export function BazaarProductPage({ section = 'bazaar' }: { section?: 'bazaar' |
         productType="bazaar"
         productId={product.id}
         description={product.description}
+        showDescriptionTab={!isGoods /* ← [2026-07-09] 굿즈는 상세설명 탭 숨김(바자회는 유지) */}
       />
     </article>
   );

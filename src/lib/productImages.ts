@@ -36,6 +36,8 @@ export interface UploadProductImageOptions {
   maxDimension?: number;
   /** 압축 시 JPEG 품질(0~1). 기본 0.82 */
   quality?: number;
+  /** [2026-07-09] 허용 최대 용량(MB). 미지정 시 10. 굿즈는 20 전달. */
+  maxSizeMB?: number;
 }
 
 /**
@@ -106,8 +108,9 @@ export async function uploadProductImage(
     outFile = await compressImage(file, opts.maxDimension, opts.quality);
   }
 
-  if (outFile.size > 10 * 1024 * 1024) {
-    throw new Error('파일 크기는 10MB 이하여야 합니다.');
+  const maxSizeMB = opts.maxSizeMB ?? 10; // ← [2026-07-09] 미지정=10MB(기존), 굿즈=20MB
+  if (outFile.size > maxSizeMB * 1024 * 1024) {
+    throw new Error(`파일 크기는 ${maxSizeMB}MB 이하여야 합니다.`); // ← [2026-07-09] 문구 동적화
   }
 
   // 파일명 생성: timestamp-random.ext
