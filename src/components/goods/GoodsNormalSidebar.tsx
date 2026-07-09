@@ -7,7 +7,7 @@
 //   · FundingSidebar 는 무손상(별도 컴포넌트, 프리미티브만 동일 스펙으로 재현).
 //   · 구매 로직(수량/장바구니/바로구매/재고·입금대기 상태)은 BazaarProductPage 가
 //     보유 → 이 컴포넌트는 props 로 받아 그리기만 하는 프레젠테이션 컴포넌트.
-//   · CTA: 가로 2개(반반) — [장바구니에 담기](아웃라인) | [바로 구매](검정).
+//   · CTA: 단일 'Cart'(전폭, 검정) — 담고 /cart(담긴 상품 페이지)로 이동. 바로구매 없음. // ← [2026-07-09]
 //
 // [타이포] 숫자 = Instrument Sans, 그 외 = Pretendard (FundingSidebar 와 동일 스택).
 // ============================================================================
@@ -33,8 +33,7 @@ interface GoodsNormalSidebarProps {
   blockReason: string | null;       // 굿즈는 null(상시), 하위호환 위해 수신
   actionLoading: boolean;
   actionMessage: { type: 'success' | 'error'; text: string } | null;
-  onAddToCart: () => void;
-  onBuyNow: () => void;
+  onCart: () => void; // ← [2026-07-09] 장바구니에 담고 /cart 로 이동
 }
 
 export function GoodsNormalSidebar({
@@ -48,8 +47,7 @@ export function GoodsNormalSidebar({
   blockReason,
   actionLoading,
   actionMessage,
-  onAddToCart,
-  onBuyNow,
+  onCart,
 }: GoodsNormalSidebarProps) {
   const unit = getDisplayPrice(product);
   const onSale = product.sale_price != null && product.sale_price < product.price;
@@ -99,9 +97,9 @@ export function GoodsNormalSidebar({
         </div>
       </div>
 
-      {/* 4) 간단 설명 — 없으면 미표시 */}
+      {/* 4) 간단 설명 — 없으면 미표시. 엔터/문단 줄바꿈 + Pretendard 400 // ← [2026-07-09] */}
       {product.short_description && product.short_description.trim() && (
-        <p style={{ margin: 0, width: '100%', fontSize: 20, lineHeight: 1.3, color: C.text, wordBreak: 'break-word' }}>
+        <p style={{ margin: 0, width: '100%', fontSize: 20, lineHeight: 1.3, color: C.text, wordBreak: 'break-word', whiteSpace: 'pre-wrap', fontFamily: "'Pretendard Variable', 'Pretendard', system-ui, sans-serif", fontWeight: 400 }}>{/* ← [2026-07-09] pre-wrap(엔터/문단) + Pretendard 400 */}
           {product.short_description}
         </p>
       )}
@@ -148,34 +146,20 @@ export function GoodsNormalSidebar({
         </div>
       )}
 
-      {/* 9) CTA — 가로 2개(반반): [장바구니에 담기] 아웃라인 | [바로 구매] 검정 */}
+      {/* CTA — 단일 'Cart': 담고 /cart(담긴 상품 페이지)로 이동. 바로구매 삭제 — [2026-07-09] */}
       {canPurchase ? (
-        <div style={{ display: 'flex', gap: 8, width: '100%' }}>
-          <button
-            type="button"
-            onClick={onAddToCart}
-            disabled={actionLoading}
-            style={{
-              flex: 1, padding: '20px 16px', border: '1px solid #000', borderRadius: 0, // ← [2026-07-09] 라운드 제거
-              background: '#fff', color: '#000', fontSize: 20, lineHeight: 1.4,
-              cursor: actionLoading ? 'not-allowed' : 'pointer', opacity: actionLoading ? 0.55 : 1,
-            }}
-          >
-            장바구니에 담기
-          </button>
-          <button
-            type="button"
-            onClick={onBuyNow}
-            disabled={actionLoading}
-            style={{
-              flex: 1, padding: '20px 16px', border: '1px solid #000', borderRadius: 0, // ← [2026-07-09] 라운드 제거
-              background: '#000', color: '#fff', fontSize: 20, lineHeight: 1.4,
-              cursor: actionLoading ? 'not-allowed' : 'pointer', opacity: actionLoading ? 0.55 : 1,
-            }}
-          >
-            바로 구매
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={onCart}
+          disabled={actionLoading}
+          style={{
+            width: '100%', padding: '20px 16px', border: '1px solid #000', borderRadius: 0, // ← [2026-07-09] 라운드 제거
+            background: '#000', color: '#fff', fontSize: 20, lineHeight: 1.4,
+            cursor: actionLoading ? 'not-allowed' : 'pointer', opacity: actionLoading ? 0.55 : 1,
+          }}
+        >
+          Cart
+        </button>
       ) : (
         // 구매 불가(품절/입금대기/차단) — 플랫 안내 박스
         <div style={{
