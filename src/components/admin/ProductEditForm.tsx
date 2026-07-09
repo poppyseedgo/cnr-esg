@@ -287,7 +287,7 @@ export function ProductEditForm({
           onChange={(e) => setShortDescription(e.target.value)}
           disabled={busy}
           rows={2}
-          maxLength={120}
+          maxLength={400}
           placeholder="상품을 한두 줄로 소개하는 문구 (예: 나무 심는 데 쓰이는 친환경 스티커팩)"
           style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.5 }}
         />

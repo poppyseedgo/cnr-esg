@@ -99,7 +99,7 @@ export function GoodsNormalSidebar({
 
       {/* 4) 간단 설명 — 없으면 미표시. 엔터/문단 줄바꿈 + Pretendard 400 // ← [2026-07-09] */}
       {product.short_description && product.short_description.trim() && (
-        <p style={{ margin: 0, width: '100%', fontSize: 20, lineHeight: 1.3, color: C.text, wordBreak: 'break-word', whiteSpace: 'pre-wrap', fontFamily: "'Pretendard Variable', 'Pretendard', system-ui, sans-serif", fontWeight: 400 }}>{/* ← [2026-07-09] pre-wrap(엔터/문단) + Pretendard 400 */}
+        <p style={{ margin: 0, width: '100%', fontSize: 18, lineHeight: 1.4, color: C.text, wordBreak: 'break-word', whiteSpace: 'pre-wrap', fontFamily: "'Pretendard Variable', 'Pretendard', system-ui, sans-serif", fontWeight: 300 }}>{/* ← [2026-07-09] pre-wrap + Pretendard 300 / 18px / lh1.4 */}
           {product.short_description}
         </p>
       )}
