@@ -21,9 +21,10 @@ import type { EsgTagRow } from '@/types/esg';
 
 interface GoodsSidebarProps {
   variant: 'sidebar' | 'mobile';
+  hideFilter?: boolean; // ← [2026-07-09] 상세에선 카테고리 칩 숨김(타이틀 유지)
 }
 
-export function GoodsSidebar({ variant }: GoodsSidebarProps) {
+export function GoodsSidebar({ variant, hideFilter = false }: GoodsSidebarProps) {
   const isMobile = variant === 'mobile';
   const [cats, setCats] = useState<EsgTagRow[]>([]);
 
@@ -64,8 +65,8 @@ export function GoodsSidebar({ variant }: GoodsSidebarProps) {
         </Link>
       </h1>
 
-      {/* ── 카테고리 칩 (ECO Bag / Sticker / Reusable Bag / Key-ring / Ornaments) ── */}
-      {cats.length > 0 && (
+      {/* ── 카테고리 칩 — 상세(hideFilter)에선 숨김. // ← [2026-07-09] ── */}
+      {!hideFilter && cats.length > 0 && (
         <div
           className={isMobile ? 'chip-scroll-row' : undefined}
           style={isMobile ? undefined : { display: 'flex', flexWrap: 'wrap', gap: 8 }}

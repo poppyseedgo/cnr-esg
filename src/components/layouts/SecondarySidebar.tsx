@@ -45,6 +45,8 @@ export function SecondarySidebar({ mainCollapsed }: SecondarySidebarProps) {
   const location = useLocation(); // ← [2026-07-06] /auction → 경매 사이드바, 그 외(/bazaar) → 바자회 필터
   const isAuction = /^\/auction(\/|$)/.test(location.pathname);
   const isGoods = /^\/goods(\/|$)/.test(location.pathname); // ← [2026-07-07] 굿즈 라우트
+  // ← [2026-07-09] 경매·굿즈 '상세'(/section/:id) 진입 시 필터 칩만 숨김(사이드바 틀·보조네비는 유지)
+  const isDetail = /^\/(auction|goods)\/[^/]+/.test(location.pathname);
 
   const { cartCount, unread, wishlistCount } = useNavCounts(); // ← [2026-06-24] 1차 사이드바와 동일 소스
   const { expiries } = useMyPendingOrders();                    // ← [2026-06-25] 결제대기 주문
@@ -73,11 +75,11 @@ export function SecondarySidebar({ mainCollapsed }: SecondarySidebarProps) {
     >
       {/* ← [2026-07-06/07] 경매→경매 사이드바 / 굿즈→굿즈 사이드바 / 그 외→바자회 필터. 보조내비는 공통 */}
       {isAuction ? (
-        <AuctionSidebar variant="sidebar" mainCollapsed={mainCollapsed} />
+        <AuctionSidebar variant="sidebar" mainCollapsed={mainCollapsed} hideFilter={isDetail} />
       ) : (
         <>
           {/* 필터(타이틀 포함) */}
-          {isGoods ? <GoodsSidebar variant="sidebar" /> : <BazaarFilters showTitle />}
+          {isGoods ? <GoodsSidebar variant="sidebar" hideFilter={isDetail} /> : <BazaarFilters showTitle />}
 
           {/* 보조내비 — 메인 사이드바 접힘일 때만(펼치면 1차 패널이 가짐) */}
           {mainCollapsed && (

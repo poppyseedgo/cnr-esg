@@ -30,6 +30,7 @@ interface AuctionSidebarProps {
   variant: 'sidebar' | 'mobile';
   /** 데스크톱: 메인 사이드바 접힘일 때만 보조내비 노출(펼치면 1차 패널이 내비를 가짐). */
   mainCollapsed?: boolean;
+  hideFilter?: boolean; // ← [2026-07-09] 상세에선 기부자 필터 숨김(타이틀·보조네비 유지)
 }
 
 // 보조내비 (Figma 2215:134) — 경매 전용 항목
@@ -39,7 +40,7 @@ const AUCTION_NAV: Array<{ to: string; label: string }> = [
   { to: '/notifications', label: 'Notification' },
 ];
 
-export function AuctionSidebar({ variant, mainCollapsed = false }: AuctionSidebarProps) {
+export function AuctionSidebar({ variant, mainCollapsed = false, hideFilter = false }: AuctionSidebarProps) {
   const isMobile = variant === 'mobile';
   const [donors, setDonors] = useState<AuctionDonor[]>([]);
   const [donorsOpen, setDonorsOpen] = useState(true); // ← [2026-07-06] 펼침/접힘(기본 펼침) — 아이콘이 상태 반영
@@ -82,7 +83,8 @@ export function AuctionSidebar({ variant, mainCollapsed = false }: AuctionSideba
         </Link>
       </h1>
 
-      {/* ── 경매 물품 기부자 (펼침/접힘 토글) ── */}
+      {/* ── 경매 물품 기부자 — 상세(hideFilter)에선 숨김. // ← [2026-07-09] ── */}
+      {!hideFilter && (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
         <button
           type="button"
@@ -127,6 +129,7 @@ export function AuctionSidebar({ variant, mainCollapsed = false }: AuctionSideba
           </div>
         )}
       </div>
+      )}
 
       {/* ── 보조내비 (데스크톱 사이드바 + 메인 접힘일 때만) ── */}
       {!isMobile && mainCollapsed && (
