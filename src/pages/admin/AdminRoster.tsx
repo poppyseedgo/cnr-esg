@@ -277,8 +277,9 @@ function ItemDonorsAgg({
   onClearVis: (key: string) => void;
 }) {
   const people = rows.length;
-  const totalQty = rows.reduce((s, r) => s + r.total_qty, 0);
-  const totalValue = rows.reduce((s, r) => s + r.total_value, 0);
+  const totalSold = rows.reduce((s, r) => s + r.total_sold, 0);    // ← [2026-07-10] 실판매 합계
+  const soldQty = rows.reduce((s, r) => s + r.sold_qty, 0);        // ← [2026-07-10] 실판매 수량
+  const totalValue = rows.reduce((s, r) => s + r.total_value, 0);  // 책정가 합(참고)
   // 물품 기부자 기본 노출 = true. override 있으면 우선.
   const effShow = (key: string) => overrides.get(key) ?? true;
   const shownCount = rows.filter((r) => effShow(r.key)).length;
@@ -286,14 +287,17 @@ function ItemDonorsAgg({
   const handleExport = () =>
     downloadCsv(
       `물품기부자_집계_${todayStampKst()}.csv`,
-      ['기부자', '부서', '구분', '물품종류수', '총수량', '책정가합', '메인노출'],
+      // ← [2026-07-10] 실판매수량/실판매액 컬럼 추가 (책정가합은 참고용으로 유지)
+      ['기부자', '부서', '구분', '물품종류수', '총기부수량', '판매수량', '실판매액', '책정가합', '메인노출'],
       rows.map((r) => [
         r.donor_name,
         r.donor_dept ?? '',
         r.is_internal ? '임직원' : '외부',
         r.item_kinds,
         r.total_qty,
-        r.total_value,
+        r.sold_qty,        // ← [2026-07-10]
+        r.total_sold,      // ← [2026-07-10] 실판매액
+        r.total_value,     // 책정가합(참고)
         effShow(r.key) ? '노출' : '숨김',
       ])
     );
@@ -302,14 +306,16 @@ function ItemDonorsAgg({
     <RosterShell
       summary={[
         ['기부자', `${people}명`],
-        ['총 수량', `${totalQty}개`],
-        ['책정가 합계', `${totalValue.toLocaleString()}원`],
+        ['판매수량', `${soldQty}개`],                                  // ← [2026-07-10]
+        ['실판매 합계', `${totalSold.toLocaleString()}원`],            // ← [2026-07-10] 핵심 지표
+        ['책정가 합계(참고)', `${totalValue.toLocaleString()}원`],     // ← [2026-07-10] 참고로 강등
         ['메인 노출', `${shownCount}/${people}명`],
       ]}
       onExport={handleExport}
       empty={rows.length === 0}
     >
-      <Table head={['', '기부자', '부서', '구분', '물품종류', '총수량', '책정가합', '메인 노출']}>
+      {/* ← [2026-07-10] '책정가합' → '실판매액'(책정가 병기)로 컬럼 재구성 */}
+      <Table head={['', '기부자', '부서', '구분', '물품종류', '총수량', '판매수량', '실판매액', '메인 노출']}>
         {rows.map((r) => {
           const open = expanded.has(r.key);
           return (
@@ -321,7 +327,14 @@ function ItemDonorsAgg({
                 <Td muted>{r.is_internal ? '임직원' : '외부'}</Td>
                 <Td right>{r.item_kinds}종</Td>
                 <Td right>{r.total_qty}개</Td>
-                <Td right strong>{r.total_value.toLocaleString()}원</Td>
+                <Td right>{r.sold_qty}개</Td>{/* ← [2026-07-10] 실판매 수량 */}
+                <Td right strong>
+                  {/* ← [2026-07-10] 실판매액(강조) + 책정가(참고) 병기 */}
+                  {r.total_sold.toLocaleString()}원
+                  <div style={{ fontSize: 10, fontWeight: 400, color: '#aaa' }}>
+                    책정가 {r.total_value.toLocaleString()}
+                  </div>
+                </Td>
                 <Td>
                   <VisibilityToggle
                     subjectKey={r.key}
@@ -335,12 +348,17 @@ function ItemDonorsAgg({
               </tr>
               {open && (
                 <tr>
-                  <td colSpan={8} style={detailCell}>
+                  <td colSpan={9} style={detailCell}>{/* ← [2026-07-10] 8→9 (판매수량 컬럼 추가) */}
                     {r.items.map((it, i) => (
                       <div key={i} style={detailLine}>
                         <span style={{ flex: 1 }}>{it.name}</span>
                         <span style={{ color: '#888', width: 90 }}>{it.category_label}</span>
-                        <span style={{ color: '#888', width: 60, textAlign: 'right' }}>{it.qty}개</span>
+                        {/* ← [2026-07-10] 기부수량 → 판매수량 → 실판매액 순서로 표시 */}
+                        <span style={{ color: '#888', width: 70, textAlign: 'right' }}>기부 {it.qty}</span>
+                        <span style={{ color: '#16a34a', width: 70, textAlign: 'right' }}>판매 {it.sold_qty}</span>
+                        <span style={{ width: 100, textAlign: 'right', fontWeight: 600 }}>
+                          {it.sold_amount.toLocaleString()}원
+                        </span>
                         <span style={{ color: '#888', width: 80, textAlign: 'right' }}>
                           {INTAKE_STATUS_LABELS[it.status] ?? it.status}
                         </span>
@@ -542,7 +560,8 @@ function ItemDonorsRaw({ rows }: { rows: ItemDonorRow[] }) {
   const handleExport = () =>
     downloadCsv(
       `물품기부자_전체내역_${todayStampKst()}.csv`,
-      ['기부자', '부서', '물품명', '카테고리', '책정가', '수량', '상태', '비고', '접수일시'],
+      // ← [2026-07-10] 판매수량/실판매액 컬럼 추가
+      ['기부자', '부서', '물품명', '카테고리', '책정가', '기부수량', '판매수량', '실판매액', '상태', '비고', '접수일시'],
       rows.map((r) => [
         r.donor_name,
         r.donor_dept ?? '',
@@ -550,6 +569,8 @@ function ItemDonorsRaw({ rows }: { rows: ItemDonorRow[] }) {
         r.category_label,
         r.listed_price,
         r.quantity,
+        r.sold_qty,        // ← [2026-07-10]
+        r.sold_amount,     // ← [2026-07-10] 실판매액
         INTAKE_STATUS_LABELS[r.publish_status] ?? r.publish_status,
         r.note ?? '',
         fmtKst(r.created_at),
@@ -557,7 +578,8 @@ function ItemDonorsRaw({ rows }: { rows: ItemDonorRow[] }) {
     );
   return (
     <RosterShell summary={[['물품 수', `${rows.length}건`]]} onExport={handleExport} empty={rows.length === 0}>
-      <Table head={['기부자', '부서', '물품명', '카테고리', '책정가', '수량', '상태', '접수일']}>
+      {/* ← [2026-07-10] 판매수량·실판매액 컬럼 추가 */}
+      <Table head={['기부자', '부서', '물품명', '카테고리', '책정가', '기부수량', '판매수량', '실판매액', '상태', '접수일']}>
         {rows.map((r) => (
           <tr key={r.id}>
             <Td strong>{r.donor_name}</Td>
@@ -566,6 +588,8 @@ function ItemDonorsRaw({ rows }: { rows: ItemDonorRow[] }) {
             <Td muted>{r.category_label}</Td>
             <Td right>{r.listed_price.toLocaleString()}원</Td>
             <Td right>{r.quantity}</Td>
+            <Td right>{r.sold_qty}</Td>{/* ← [2026-07-10] 실판매 수량 */}
+            <Td right strong>{r.sold_amount.toLocaleString()}원</Td>{/* ← [2026-07-10] 실판매액 */}
             <Td muted>{INTAKE_STATUS_LABELS[r.publish_status] ?? r.publish_status}</Td>
             <Td muted>{fmtKst(r.created_at)}</Td>
           </tr>

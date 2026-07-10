@@ -9,11 +9,22 @@
 //   5. 게시판 활동 (카테고리별)
 // ============================================================================
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import { loadAdminStats, type AdminStats } from '@/lib/adminStats';
 import { loadSetting } from '@/lib/settings';
 import type { EsgPostCategory } from '@/types/esg';
+// ← [2026-07-10] 실판매 수익 SSOT (전체/이벤트별/랭킹)
+import {
+  loadRevenueDashboard,
+  loadTopItems,
+  type RevenueDashboardData,
+  type RevenueOverview,
+  type TopItem,
+  type TopItemDonor,
+  type TopBuyer,
+  type RevenueEvent,
+} from '@/lib/adminRevenue';
 
 const CATEGORY_LABELS: Record<EsgPostCategory, string> = {
   zero_waste: '♻️ 제로 웨이스트',
@@ -22,6 +33,7 @@ const CATEGORY_LABELS: Record<EsgPostCategory, string> = {
 
 export function AdminDashboard() {
   const [stats, setStats] = useState<AdminStats | null>(null);
+  const [revenue, setRevenue] = useState<RevenueDashboardData | null>(null); // ← [2026-07-10] 실판매 수익
   const [goal, setGoal] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -30,9 +42,14 @@ export function AdminDashboard() {
   const reload = async () => {
     try {
       setError(null);
-      const [s, g] = await Promise.all([loadAdminStats(), loadSetting('donation_goal')]);
+      const [s, g, rev] = await Promise.all([
+        loadAdminStats(),
+        loadSetting('donation_goal'),
+        loadRevenueDashboard(), // ← [2026-07-10] 실판매 수익 SSOT 병렬 로드
+      ]);
       setStats(s);
       setGoal(g ?? 0);
+      setRevenue(rev); // ← [2026-07-10]
     } catch (e) {
       console.error('[AdminDashboard]', e);
       setError(e instanceof Error ? e.message : '통계를 불러오지 못했습니다.');
@@ -55,7 +72,7 @@ export function AdminDashboard() {
   if (loading) {
     return <div style={{ padding: 48, textAlign: 'center', color: '#888' }}>통계 불러오는 중…</div>;
   }
-  if (error || !stats) {
+  if (error || !stats || !revenue) { // ← [2026-07-10] revenue 도 필수
     return (
       <div style={{ padding: 16, background: '#fee2e2', color: '#991b1b', borderRadius: 8 }}>
         ⚠️ {error ?? '데이터 없음'}
@@ -94,10 +111,13 @@ export function AdminDashboard() {
       </div>
 
       {/* 1. 큰 숫자 카드 4개 */}
-      <BigStatsRow stats={stats} goal={goal} />
+      <BigStatsRow stats={stats} goal={goal} revenue={revenue.overview} />{/* ← [2026-07-10] 실판매 총수익 */}
 
-      {/* 2. 모금 분포 */}
-      <DonationBreakdown stats={stats} />
+      {/* 2. 수익 분포 (바자회/경매/굿즈/기부 4분할) ← [2026-07-10] 굿즈+기부 포함 SSOT */}
+      <EventRevenueBreakdown overview={revenue.overview} />
+
+      {/* 2-B. 수익 분석 — 최다수익 물건(전체/이벤트별) · 최다수익 기부자 · 최다구매자 ← [2026-07-10] */}
+      <RevenueAnalysisSection data={revenue} />
 
       {/* 3. 운영 알림 */}
       <OperationsBox stats={stats} />
@@ -127,8 +147,20 @@ export function AdminDashboard() {
 // 1. 큰 숫자 카드 4개
 // ============================================================================
 
-function BigStatsRow({ stats, goal }: { stats: AdminStats; goal: number }) {
-  const totalRaised = stats.donation.total_raised;
+function BigStatsRow({
+  stats,
+  goal,
+  revenue,
+}: {
+  stats: AdminStats;
+  goal: number;
+  revenue: RevenueOverview; // ← [2026-07-10] 실판매 총수익 SSOT
+}) {
+  // ← [2026-07-10] 총 모금액 = 실판매 전체수익(바자회+경매+굿즈+기부). 기존 total_raised(굿즈 누락·기부 제외) 대체
+  const totalRaised = revenue.total_revenue;
+  // ← [2026-07-10] 완료된 구매 주문 수(기부 제외) = 이벤트별 orders 합
+  const paidPurchaseOrders =
+    revenue.events.bazaar.orders + revenue.events.auction.orders + revenue.events.goods.orders;
   const progress = goal > 0 ? Math.min(Math.round((totalRaised / goal) * 100), 100) : 0;
 
   return (
@@ -169,11 +201,12 @@ function BigStatsRow({ stats, goal }: { stats: AdminStats; goal: number }) {
         bg="#fef3c7"
         link="/admin/orders"
       />
+      {/* ← [2026-07-10] 참여자 = 구매 OR 기부한 순 인원 (revenue SSOT) */}
       <BigStatCard
         icon="👥"
         label="참여자 수"
-        value={`${stats.donation.total_participants}명`}
-        sub={`완료된 주문 ${stats.donation.total_paid_orders}건`}
+        value={`${revenue.total_participants}명`}
+        sub={`구매 ${paidPurchaseOrders}건 · 기부 ${revenue.events.donation.orders}건`}
         color="#6b21a8"
         bg="#fdf4ff"
       />
@@ -260,23 +293,29 @@ function BigStatCard({
 }
 
 // ============================================================================
-// 2. 모금 분포 (바자회 vs 경매)
+// 2. 수익 분포 (바자회 / 경매 / 굿즈 / 기부 4분할)
+//    ← [2026-07-10] 기존 DonationBreakdown 대체. 굿즈 누락·기부 제외 문제 해결.
+//      실판매 SSOT(esg_admin_revenue_overview) 기반 4-way 분해.
 // ============================================================================
 
-function DonationBreakdown({ stats }: { stats: AdminStats }) {
-  const bazaar = stats.donation.bazaar_raised;
-  const auction = stats.donation.auction_raised;
-  const donation = stats.donation.donation_raised; // ← [2026-06-16 버그#3] 자발적 기부 분포
-  const total = bazaar + auction + donation;
+function EventRevenueBreakdown({ overview }: { overview: RevenueOverview }) {
+  const bazaar = overview.events.bazaar.revenue;
+  const auction = overview.events.auction.revenue;
+  const goods = overview.events.goods.revenue;
+  const donation = overview.events.donation.revenue;
+  const total = overview.total_revenue;
   const pct = (v: number) => (total > 0 ? Math.round((v / total) * 100) : 0);
+
+  // 앞 3조각은 반올림, 마지막(기부)은 잔여로 보정해 합계 100% 유지
   const bazaarPct = pct(bazaar);
   const auctionPct = pct(auction);
-  // 마지막 조각은 잔여(%)로 보정해 합계 100% 유지 (반올림 오차 흡수)
-  const donationPct = total > 0 ? Math.max(0, 100 - bazaarPct - auctionPct) : 0;
+  const goodsPct = pct(goods);
+  const donationPct = total > 0 ? Math.max(0, 100 - bazaarPct - auctionPct - goodsPct) : 0;
 
   const slices = [
     { key: 'bazaar', color: '#111', icon: '🛍', label: '바자회', amount: bazaar, pct: bazaarPct },
     { key: 'auction', color: '#a855f7', icon: '🔨', label: '경매', amount: auction, pct: auctionPct },
+    { key: 'goods', color: '#2563eb', icon: '🎁', label: '굿즈', amount: goods, pct: goodsPct },
     { key: 'donation', color: '#16a34a', icon: '💚', label: '기부', amount: donation, pct: donationPct },
   ];
 
@@ -289,13 +328,21 @@ function DonationBreakdown({ stats }: { stats: AdminStats }) {
         boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
       }}
     >
-      <h3 style={{ margin: '0 0 16px', fontSize: 15 }}>💸 모금 분포</h3>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
+        <h3 style={{ margin: 0, fontSize: 15 }}>💸 수익 분포</h3>
+        <div style={{ fontSize: 13, color: '#666' }}>
+          전체 <strong style={{ color: '#111' }}>{total.toLocaleString()}원</strong>
+          <span style={{ color: '#aaa', marginLeft: 8, fontSize: 11 }}>
+            구매 {overview.purchase_revenue.toLocaleString()} · 기부 {overview.donation_revenue.toLocaleString()}
+          </span>
+        </div>
+      </div>
 
       {total === 0 ? (
-        <div style={{ color: '#aaa', fontSize: 13 }}>아직 모금이 시작되지 않았습니다.</div>
+        <div style={{ color: '#aaa', fontSize: 13 }}>아직 수익이 발생하지 않았습니다.</div>
       ) : (
         <>
-          {/* 가로 막대 (3분할) */}
+          {/* 가로 막대 (4분할) */}
           <div
             style={{
               display: 'flex',
@@ -344,6 +391,225 @@ function DonationBreakdown({ stats }: { stats: AdminStats }) {
     </section>
   );
 }
+
+// ============================================================================
+// 2-B. 수익 분석 — 최다수익 물건(전체/이벤트별) · 최다수익 기부자 · 최다구매자
+//    ← [2026-07-10] 요구사항 ④ 데이터 판정 UI
+// ============================================================================
+
+const EVENT_TABS: { key: RevenueEvent | 'all'; label: string }[] = [
+  { key: 'all', label: '전체' },
+  { key: 'bazaar', label: '🛍 바자회' },
+  { key: 'auction', label: '🔨 경매' },
+  { key: 'goods', label: '🎁 굿즈' },
+];
+
+function RevenueAnalysisSection({ data }: { data: RevenueDashboardData }) {
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
+        gap: 16,
+      }}
+    >
+      <TopItemsBox initialItems={data.topItems} />
+      <TopDonorsBox donors={data.topDonors} />
+      <TopBuyersBox buyers={data.topBuyers} />
+    </div>
+  );
+}
+
+// 최다수익 물건 — 전체/이벤트별 탭 전환 (탭 클릭 시 해당 이벤트 랭킹 재조회)
+function TopItemsBox({ initialItems }: { initialItems: TopItem[] }) {
+  const [tab, setTab] = useState<RevenueEvent | 'all'>('all');
+  const [items, setItems] = useState<TopItem[]>(initialItems);
+  const [loading, setLoading] = useState(false);
+
+  const switchTab = async (key: RevenueEvent | 'all') => {
+    if (key === tab) return;
+    setTab(key);
+    setLoading(true);
+    try {
+      const rows = await loadTopItems(key === 'all' ? null : key, 10); // ← [2026-07-10] 이벤트별 재조회
+      setItems(rows);
+    } catch {
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const eventIcon = (t: string) => (t === 'auction' ? '🔨' : t === 'goods' ? '🎁' : '🛍');
+
+  return (
+    <RankCard title="🏆 최다수익 물건 TOP">
+      {/* 이벤트 탭 */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 12, flexWrap: 'wrap' }}>
+        {EVENT_TABS.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => void switchTab(t.key)}
+            style={{
+              padding: '5px 10px',
+              borderRadius: 6,
+              border: '1px solid',
+              borderColor: tab === t.key ? '#111' : '#e5e5e5',
+              background: tab === t.key ? '#111' : '#fff',
+              color: tab === t.key ? '#fff' : '#666',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <EmptyRank text="불러오는 중…" />
+      ) : items.length === 0 ? (
+        <EmptyRank text="실판매 내역이 없습니다." />
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {items.map((it, idx) => (
+            <div key={it.item_key} style={rankRow}>
+              <RankBadge n={idx + 1} />
+              <span style={{ flex: 1, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {tab === 'all' && (
+                  <span style={{ marginRight: 4 }}>{eventIcon(it.event_type)}</span>
+                )}
+                {it.item_name}
+              </span>
+              <span style={{ fontSize: 11, color: '#999', width: 52, textAlign: 'right' }}>{it.sold_qty}개</span>
+              <strong style={{ fontSize: 13, width: 92, textAlign: 'right' }}>
+                {it.revenue.toLocaleString()}원
+              </strong>
+            </div>
+          ))}
+        </div>
+      )}
+    </RankCard>
+  );
+}
+
+// 최다수익 물품 기부자 (바자회+경매 낙찰 귀속)
+function TopDonorsBox({ donors }: { donors: TopItemDonor[] }) {
+  return (
+    <RankCard title="🎖 최다수익 물품 기부자 TOP">
+      {donors.length === 0 ? (
+        <EmptyRank text="판매된 기부물품이 없습니다." />
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {donors.map((d, idx) => (
+            <div key={d.donor_key} style={rankRow}>
+              <RankBadge n={idx + 1} />
+              <span style={{ flex: 1, fontSize: 13 }}>
+                {d.donor_name}
+                <span style={{ color: '#aaa', fontSize: 11, marginLeft: 6 }}>
+                  {d.donor_dept ?? (d.is_internal ? '' : '외부')}
+                </span>
+              </span>
+              <span style={{ fontSize: 11, color: '#999', width: 60, textAlign: 'right' }}>
+                {d.item_kinds}종·{d.sold_qty}개
+              </span>
+              <strong style={{ fontSize: 13, width: 92, textAlign: 'right' }}>
+                {d.revenue.toLocaleString()}원
+              </strong>
+            </div>
+          ))}
+        </div>
+      )}
+    </RankCard>
+  );
+}
+
+// 최다구매자 (구매 총액 기준, 이벤트별 분해 툴팁)
+function TopBuyersBox({ buyers }: { buyers: TopBuyer[] }) {
+  return (
+    <RankCard title="💳 최다구매자 TOP">
+      {buyers.length === 0 ? (
+        <EmptyRank text="완료된 구매가 없습니다." />
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {buyers.map((b, idx) => (
+            <div
+              key={b.buyer_key}
+              style={rankRow}
+              title={`바자회 ${b.bazaar_amount.toLocaleString()} · 경매 ${b.auction_amount.toLocaleString()} · 굿즈 ${b.goods_amount.toLocaleString()}`}
+            >
+              <RankBadge n={idx + 1} />
+              <span style={{ flex: 1, fontSize: 13 }}>
+                {b.buyer_name}
+                <span style={{ color: '#aaa', fontSize: 11, marginLeft: 6 }}>{b.buyer_dept ?? ''}</span>
+              </span>
+              <span style={{ fontSize: 11, color: '#999', width: 44, textAlign: 'right' }}>{b.order_count}건</span>
+              <strong style={{ fontSize: 13, width: 92, textAlign: 'right' }}>
+                {b.total_amount.toLocaleString()}원
+              </strong>
+            </div>
+          ))}
+        </div>
+      )}
+    </RankCard>
+  );
+}
+
+// 랭킹 카드 공용 셸 / 배지 / 빈 상태 / 행 스타일
+function RankCard({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section
+      style={{
+        background: '#fff',
+        borderRadius: 12,
+        padding: 20,
+        boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+      }}
+    >
+      <h3 style={{ margin: '0 0 12px', fontSize: 15 }}>{title}</h3>
+      {children}
+    </section>
+  );
+}
+
+function RankBadge({ n }: { n: number }) {
+  const medal = n === 1 ? '#f59e0b' : n === 2 ? '#9ca3af' : n === 3 ? '#b45309' : '#e5e7eb';
+  const fg = n <= 3 ? '#fff' : '#666';
+  return (
+    <span
+      style={{
+        width: 22,
+        height: 22,
+        borderRadius: 6,
+        background: medal,
+        color: fg,
+        fontSize: 12,
+        fontWeight: 700,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+      }}
+    >
+      {n}
+    </span>
+  );
+}
+
+function EmptyRank({ text }: { text: string }) {
+  return <div style={{ color: '#aaa', fontSize: 13, padding: 12, textAlign: 'center' }}>{text}</div>;
+}
+
+const rankRow: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  padding: '6px 8px',
+  borderRadius: 8,
+  background: '#f9fafb',
+};
 
 function BreakdownLabel({
   color,

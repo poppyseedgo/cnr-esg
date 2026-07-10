@@ -20,10 +20,9 @@
 import { supabase as _supabase } from './supabase';
 import { categoryLabel } from './bazaarIntake';
 import type {
-  EsgBazaarIntakeRow,
   EsgDonationRow,
   EsgOrderRow,
-} from '@/types/esg';
+} from '@/types/esg'; // ← [2026-07-10] EsgBazaarIntakeRow 미사용(RPC 전환)으로 제거
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const supabase = _supabase as any;
@@ -41,30 +40,51 @@ export interface ItemDonorRow {
   item_name: string;
   category_label: string;
   listed_price: number;
-  quantity: number;
+  quantity: number;               // 기부(접수) 수량
+  sold_qty: number;               // ← [2026-07-10] 실제 판매 수량 (paid 주문 기준)
+  sold_amount: number;            // ← [2026-07-10] 실제 판매 금액 (실판매의 근거)
   publish_status: string;
   note: string | null;
   created_at: string;
 }
 
+// ← [2026-07-10] RPC esg_admin_item_donor_sales() 반환 행 타입 (실판매 집계 SSOT)
+interface ItemDonorSalesRpcRow {
+  intake_id: string;
+  donor_id: string | null;
+  donor_name: string;
+  donor_dept: string | null;
+  destination: string;
+  product_id: string | null;
+  auction_id: string | null;
+  item_name: string;
+  category: string;
+  listed_price: number;
+  quantity: number;
+  publish_status: string;
+  note: string | null;
+  created_at: string;
+  sold_qty: number;               // bigint → JS number
+  sold_amount: number;            // bigint → JS number
+}
+
 export async function loadItemDonors(): Promise<ItemDonorRow[]> {
-  const { data, error } = await supabase
-    .from('esg_bazaar_intake')
-    .select(
-      'id, donor_id, donor_name_snapshot, donor_dept_snapshot, name, category, listed_price, quantity, publish_status, note, created_at'
-    )
-    .order('created_at', { ascending: false })
-    .limit(MAX_ROWS);
+  // [2026-07-10 근본수정] 책정가×수량이 아닌 '실제 판매 금액'을 집계한다.
+  //   물품→기부자 귀속(product_id/auction_id) + paid 주문 실판매액을 DB RPC(SSOT)가 계산.
+  //   기존: esg_bazaar_intake 직접 SELECT → listed_price 만 있고 실판매 정보 없음.
+  const { data, error } = await supabase.rpc('esg_admin_item_donor_sales'); // ← [2026-07-10] RPC 사용
   if (error) throw error;
-  return ((data ?? []) as EsgBazaarIntakeRow[]).map((r) => ({
-    id: r.id,
+  return ((data ?? []) as ItemDonorSalesRpcRow[]).map((r) => ({
+    id: r.intake_id,
     donor_id: r.donor_id,
-    donor_name: r.donor_name_snapshot,
-    donor_dept: r.donor_dept_snapshot,
-    item_name: r.name,
+    donor_name: r.donor_name,
+    donor_dept: r.donor_dept,
+    item_name: r.item_name,
     category_label: categoryLabel(r.category),
     listed_price: r.listed_price,
     quantity: r.quantity,
+    sold_qty: Number(r.sold_qty ?? 0),        // ← [2026-07-10] bigint 문자열 방지 위해 Number()
+    sold_amount: Number(r.sold_amount ?? 0),  // ← [2026-07-10]
     publish_status: r.publish_status,
     note: r.note,
     created_at: r.created_at,
@@ -166,9 +186,18 @@ export interface ItemDonorAgg {
   donor_dept: string | null;
   is_internal: boolean;           // donor_id 존재 = 임직원
   item_kinds: number;             // 물품 종류(행) 수
-  total_qty: number;              // 총 수량
-  total_value: number;            // 책정가 × 수량 합
-  items: { name: string; category_label: string; qty: number; status: string }[];
+  total_qty: number;              // 총 기부 수량
+  total_value: number;            // 책정가 × 수량 합 (참고용)
+  sold_qty: number;               // ← [2026-07-10] 실제 판매 수량 합
+  total_sold: number;             // ← [2026-07-10] 실제 판매 금액 합 (핵심 지표)
+  items: {
+    name: string;
+    category_label: string;
+    qty: number;
+    sold_qty: number;             // ← [2026-07-10]
+    sold_amount: number;          // ← [2026-07-10]
+    status: string;
+  }[];
 }
 
 export function aggregateItemDonors(rows: ItemDonorRow[]): ItemDonorAgg[] {
@@ -185,6 +214,8 @@ export function aggregateItemDonors(rows: ItemDonorRow[]): ItemDonorAgg[] {
         item_kinds: 0,
         total_qty: 0,
         total_value: 0,
+        sold_qty: 0,               // ← [2026-07-10]
+        total_sold: 0,             // ← [2026-07-10]
         items: [],
       };
       map.set(key, agg);
@@ -192,14 +223,19 @@ export function aggregateItemDonors(rows: ItemDonorRow[]): ItemDonorAgg[] {
     agg.item_kinds += 1;
     agg.total_qty += r.quantity;
     agg.total_value += r.listed_price * r.quantity;
+    agg.sold_qty += r.sold_qty;          // ← [2026-07-10] 실판매 수량 누적
+    agg.total_sold += r.sold_amount;     // ← [2026-07-10] 실판매 금액 누적
     agg.items.push({
       name: r.item_name,
       category_label: r.category_label,
       qty: r.quantity,
+      sold_qty: r.sold_qty,              // ← [2026-07-10]
+      sold_amount: r.sold_amount,        // ← [2026-07-10]
       status: r.publish_status,
     });
   }
-  return Array.from(map.values()).sort((a, b) => b.total_qty - a.total_qty);
+  // ← [2026-07-10] 정렬 기준 total_qty → total_sold (실판매액 내림차순)
+  return Array.from(map.values()).sort((a, b) => b.total_sold - a.total_sold);
 }
 
 /** 금액 기부자 집계 — 이름 1회 노출, 누적 기부액 */
