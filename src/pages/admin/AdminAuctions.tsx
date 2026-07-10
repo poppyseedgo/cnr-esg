@@ -21,10 +21,12 @@ import { deleteAuctionAdmin, reorderAuctions } from '@/lib/adminAuctions'; // �
 import { AuctionEditForm } from '@/components/admin/AuctionEditForm';
 import { CreateAuctionForm } from '@/components/admin/CreateAuctionForm';
 import { BidManagerModal } from '@/components/admin/BidManagerModal'; // ← [2026-07-07] 입찰 삭제 관리
+import { AuctionMetricsPanel } from '@/components/admin/AuctionMetricsPanel'; // ← [2026-07-10] 경매 지표 뷰
 import type { EsgAuctionRow } from '@/types/esg';
 
 export function AdminAuctions() {
   const [auctions, setAuctions] = useState<EsgAuctionRow[]>([]);
+  const [view, setView] = useState<'manage' | 'metrics'>('manage'); // ← [2026-07-10] 관리/지표 전환
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -89,23 +91,56 @@ export function AdminAuctions() {
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
         <h2 style={{ margin: 0 }}>🔨 경매 관리</h2>
-        <button
-          type="button"
-          onClick={() => setCreating(true)}
-          style={{
-            padding: '8px 14px',
-            background: '#111',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 6,
-            cursor: 'pointer',
-            fontSize: 13,
-            fontWeight: 600,
-          }}
-        >
-          ➕ 새 경매 등록
-        </button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {/* ← [2026-07-10] 관리/지표 뷰 토글 */}
+          <div style={{ display: 'flex', gap: 4, background: '#f0f0f0', borderRadius: 8, padding: 3 }}>
+            {(['manage', 'metrics'] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setView(v)}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: 6,
+                  border: 'none',
+                  background: view === v ? '#fff' : 'transparent',
+                  color: view === v ? '#111' : '#888',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  boxShadow: view === v ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                }}
+              >
+                {v === 'manage' ? '⚙️ 관리' : '📊 지표'}
+              </button>
+            ))}
+          </div>
+          {view === 'manage' && (
+            <button
+              type="button"
+              onClick={() => setCreating(true)}
+              style={{
+                padding: '8px 14px',
+                background: '#111',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 6,
+                cursor: 'pointer',
+                fontSize: 13,
+                fontWeight: 600,
+              }}
+            >
+              ➕ 새 경매 등록
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* ← [2026-07-10] 지표 뷰: 경매별 입찰수·고유입찰자·최종 낙찰가·낙찰자 + 입찰자 명단 */}
+      {view === 'metrics' ? (
+        <AuctionMetricsPanel />
+      ) : (
+        <>
       <p style={{ fontSize: 12, color: '#888', margin: '0 0 16px' }}>
         이름, 설명, 이미지, 호가 단위, 시작/종료 시각을 관리. 상세 페이지에서도 편집 가능합니다.
         {/* ← [2026-07-06] 드래그 재정렬 안내 */}
@@ -211,6 +246,8 @@ export function AdminAuctions() {
           ))}
         </div>
       )}
+        </>
+      )}
     </div>
   );
 }
@@ -292,6 +329,21 @@ function AuctionAdminCard({ auction, onChange }: { auction: EsgAuctionRow; onCha
               · 호가 {auction.bid_unit.toLocaleString()}원
             </span>
           </div>
+          {/* ← [2026-07-10] 종료 경매: 최종 낙찰가/낙찰자 한 줄 표기 (없으면 유찰) */}
+          {auction.status === 'ended' && (
+            <div style={{ fontSize: 12, marginTop: 4 }}>
+              {auction.winner_id ? (
+                <span style={{ color: '#16a34a', fontWeight: 600 }}>
+                  🏆 낙찰 {(auction.winner_final_price ?? auction.current_price).toLocaleString()}원
+                  {auction.winner_email && (
+                    <span style={{ color: '#888', fontWeight: 400, marginLeft: 6 }}>· {auction.winner_email}</span>
+                  )}
+                </span>
+              ) : (
+                <span style={{ color: '#999' }}>유찰 (입찰 없음)</span>
+              )}
+            </div>
+          )}
         </div>
 
         {!editing && (

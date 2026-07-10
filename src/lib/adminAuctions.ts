@@ -214,8 +214,57 @@ export async function setAuctionDonor(
 }
 
 // ============================================================================
-// [2026-07-07] 입찰 관리(관리자) — 잘못된 입찰 건 조회/삭제
+// [2026-07-10] 경매 지표(관리자) — 경매별 입찰수/고유입찰자/최종 낙찰가·낙찰자
+//   집계는 esg_admin_auction_metrics() RPC(SSOT). 입찰자 '명단'은 adminListAuctionBids 재사용.
 // ============================================================================
+
+export interface AuctionMetric {
+  auction_id: string;
+  product_name: string;
+  thumbnail_url: string | null;
+  status: EsgAuctionStatus;
+  start_price: number;
+  current_price: number;
+  bid_count: number;          // 실제 입찰 행 수
+  unique_bidders: number;     // 고유 입찰자 수
+  highest_bid: number;        // 최고 입찰가(진행 중이면 현재가)
+  winner_id: string | null;
+  winner_name: string | null; // 낙찰자 이름(낙찰 입찰 스냅샷)
+  winner_email: string | null;
+  winner_anonymous: boolean | null;
+  winner_final_price: number | null; // 최종 낙찰가(종료·낙찰 시)
+  donor_name: string | null;
+  donor_dept: string | null;
+  starts_at: string;
+  ends_at: string;
+}
+
+/** 경매별 지표 일괄 조회 (관리자). esg_admin_auction_metrics() RPC. */
+export async function loadAuctionMetrics(): Promise<AuctionMetric[]> {
+  const { data, error } = await supabase.rpc('esg_admin_auction_metrics'); // ← [2026-07-10]
+  if (error) throw error;
+  const num = (v: unknown) => Number(v ?? 0);
+  return ((data ?? []) as Array<Record<string, unknown>>).map((x) => ({
+    auction_id: String(x.auction_id),
+    product_name: String(x.product_name ?? ''),
+    thumbnail_url: (x.thumbnail_url as string | null) ?? null,
+    status: x.status as EsgAuctionStatus,
+    start_price: num(x.start_price),
+    current_price: num(x.current_price),
+    bid_count: num(x.bid_count),
+    unique_bidders: num(x.unique_bidders),
+    highest_bid: num(x.highest_bid),
+    winner_id: (x.winner_id as string | null) ?? null,
+    winner_name: (x.winner_name as string | null) ?? null,
+    winner_email: (x.winner_email as string | null) ?? null,
+    winner_anonymous: (x.winner_anonymous as boolean | null) ?? null,
+    winner_final_price: x.winner_final_price == null ? null : num(x.winner_final_price),
+    donor_name: (x.donor_name as string | null) ?? null,
+    donor_dept: (x.donor_dept as string | null) ?? null,
+    starts_at: String(x.starts_at),
+    ends_at: String(x.ends_at),
+  }));
+}
 
 /**
  * 경매 실입찰 목록(관리자용, 실명 포함).
