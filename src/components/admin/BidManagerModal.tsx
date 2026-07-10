@@ -5,6 +5,8 @@
 //   최고가/최고입찰자/입찰수를 남은 입찰로 재산정 → 목록/상세 즉시 갱신.
 //
 // [2026-07-07] 신규 — 경매 입찰 삭제 관리(어드민).
+// [2026-07-10] 낙찰자 뒤바뀜(0.01초 차이) 감사: 입찰/종료 시각을 밀리초·24시간제까지 표시.
+//              (DB timestamptz엔 이미 마이크로초 저장 — 표시만 분 단위로 잘려 있던 문제. 마이그레이션 불필요)
 // ============================================================================
 
 import { useEffect, useState } from 'react';
@@ -19,8 +21,16 @@ interface BidManagerModalProps {
 }
 
 const won = (n: number) => `${n.toLocaleString('ko-KR')}원`;
-const kst = (iso: string) =>
-  new Date(iso).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+// [2026-07-10] 낙찰자 뒤바뀜(0.01초) 감사용 — 초 단위로는 sub-second 차이가 안 보여 밀리초(3자리)까지 표시.
+//              24시간제(hour12:false)로 AM/PM 혼동 제거. 밀리초는 Intl fractionalSecondDigits 대신 getMilliseconds()로 직접 조립.
+//              (이 프로젝트 tsconfig lib이 ES2020 → fractionalSecondDigits 타입 미존재로 tsc TS2769 발생. ms는 TZ 오프셋 무관이라 직접 조립이 안전·호환.)
+//              timestamptz엔 이미 마이크로초가 저장돼 있어 표시만 바꾸면 됨(마이그레이션 불필요).
+const kst = (iso: string) => {
+  const d = new Date(iso);
+  const base = d.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }); // ← [2026-07-10] second 추가 + 24시간제
+  const ms = String(d.getMilliseconds()).padStart(3, '0'); // ← [2026-07-10] 밀리초 3자리(앞자리 0 패딩) 직접 조립
+  return `${base}.${ms}`;                                   // ← [2026-07-10] 최종 형태 "07. 08. 23:59:59.987"
+};
 
 export function BidManagerModal({ auction, onClose, onChanged }: BidManagerModalProps) {
   const [bids, setBids] = useState<EsgAuctionBidRow[]>([]);
@@ -94,6 +104,10 @@ export function BidManagerModal({ auction, onClose, onChanged }: BidManagerModal
           <div style={{ marginTop: 8, fontSize: 13, color: '#555' }}>
             현재 최고가 <strong>{won(curPrice)}</strong> · 입찰 <strong>{curCount}</strong>건 · 상태 <strong>{auction.status}</strong>
           </div>
+          {/* ← [2026-07-10] 낙찰자 뒤바뀜 감사: 종료 시각을 밀리초까지 노출 → 아래 입찰 시각과 직접 비교(이 시각 이전 입찰만 유효) */}
+          <div style={{ marginTop: 4, fontSize: 12, color: '#888' }}>
+            경매 종료 <strong style={{ color: '#dc2626', fontFamily: 'monospace' }}>{kst(auction.ends_at)}</strong> — 이 시각 이전 입찰만 유효
+          </div>
           {locked && (
             <div style={{ marginTop: 8, padding: '8px 10px', background: '#fef3c7', color: '#92400e', borderRadius: 6, fontSize: 12 }}>
               ⚠️ {auction.status === 'ended' ? '종료(낙찰)된' : '취소된'} 경매입니다 — 정산 보호를 위해 입찰 삭제가 차단됩니다.
@@ -130,7 +144,11 @@ export function BidManagerModal({ auction, onClose, onChanged }: BidManagerModal
                         {b.is_anonymous && <span style={{ marginLeft: 6, fontSize: 11, color: '#888' }}>🕶 익명</span>}
                       </div>
                       <div style={{ fontSize: 12, color: '#666', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {b.user_name_snapshot} · {b.user_email} · {kst(b.created_at)}
+                        {b.user_name_snapshot} · {b.user_email}
+                      </div>
+                      {/* ← [2026-07-10] 입찰 시각 밀리초 표시 — 종료 시각과 대조해 낙찰 유효성 감사. 이메일이 길어도 안 잘리게 별도 줄+monospace */}
+                      <div style={{ fontSize: 12, color: '#444', fontFamily: 'monospace', marginTop: 2 }}>
+                        🕒 {kst(b.created_at)}
                       </div>
                     </div>
                     <button
