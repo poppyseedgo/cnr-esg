@@ -18,13 +18,18 @@ import type { EsgPostCategory } from '@/types/esg';
 import {
   loadRevenueDashboard,
   loadTopItems,
+  loadEventBuyers, // ← [2026-07-10] 카드 세부내역(이벤트별 구매자)
   type RevenueDashboardData,
   type RevenueOverview,
   type TopItem,
   type TopItemDonor,
   type TopBuyer,
   type RevenueEvent,
+  type EventBuyer, // ← [2026-07-10]
 } from '@/lib/adminRevenue';
+import { loadMoneyDonors, aggregateMoneyDonors } from '@/lib/adminRoster'; // ← [2026-07-10] 기부 세부내역
+import { buildReportSvg, downloadSvg } from '@/utils/svgExport'; // ← [2026-07-10] 대시보드 SVG
+import { downloadCsv, toCsv, todayStampKst } from '@/utils/csv'; // ← [2026-07-10] 대시보드/세부내역 CSV
 
 const CATEGORY_LABELS: Record<EsgPostCategory, string> = {
   zero_waste: '♻️ 제로 웨이스트',
@@ -34,6 +39,7 @@ const CATEGORY_LABELS: Record<EsgPostCategory, string> = {
 export function AdminDashboard() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [revenue, setRevenue] = useState<RevenueDashboardData | null>(null); // ← [2026-07-10] 실판매 수익
+  const [detailEvent, setDetailEvent] = useState<RevenueEvent | 'donation' | null>(null); // ← [2026-07-10] 카드 세부내역 모달
   const [goal, setGoal] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -93,31 +99,69 @@ export function AdminDashboard() {
         }}
       >
         <h2 style={{ margin: 0 }}>📊 대시보드</h2>
-        <button
-          type="button"
-          onClick={handleRefresh}
-          disabled={refreshing}
-          style={{
-            padding: '6px 12px',
-            background: refreshing ? '#ccc' : '#fff',
-            border: '1px solid #ddd',
-            borderRadius: 6,
-            cursor: refreshing ? 'not-allowed' : 'pointer',
-            fontSize: 12,
-          }}
-        >
-          {refreshing ? '🔄 갱신 중…' : '🔄 새로고침'}
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {/* ← [2026-07-10] 대시보드 데이터 전체 내보내기 (CSV 실무용 / SVG 이미지용) */}
+          <button
+            type="button"
+            onClick={() => handleExportCsv(revenue)}
+            style={{
+              padding: '6px 12px',
+              background: '#fff',
+              border: '1px solid #ddd',
+              borderRadius: 6,
+              cursor: 'pointer',
+              fontSize: 12,
+              fontWeight: 600,
+            }}
+          >
+            ⬇ CSV
+          </button>
+          <button
+            type="button"
+            onClick={() => handleExportSvg(revenue)}
+            style={{
+              padding: '6px 12px',
+              background: '#fff',
+              border: '1px solid #ddd',
+              borderRadius: 6,
+              cursor: 'pointer',
+              fontSize: 12,
+              fontWeight: 600,
+            }}
+          >
+            ⬇ SVG
+          </button>
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            style={{
+              padding: '6px 12px',
+              background: refreshing ? '#ccc' : '#fff',
+              border: '1px solid #ddd',
+              borderRadius: 6,
+              cursor: refreshing ? 'not-allowed' : 'pointer',
+              fontSize: 12,
+            }}
+          >
+            {refreshing ? '🔄 갱신 중…' : '🔄 새로고침'}
+          </button>
+        </div>
       </div>
 
       {/* 1. 큰 숫자 카드 4개 */}
-      <BigStatsRow stats={stats} goal={goal} revenue={revenue.overview} />{/* ← [2026-07-10] 실판매 총수익 */}
+      <BigStatsRow stats={stats} goal={goal} revenue={revenue.overview} onOpenDetail={() => setDetailEvent('bazaar')} />{/* ← [2026-07-10] 실판매 총수익 + 카드 클릭 세부내역 */}
 
       {/* 2. 수익 분포 (바자회/경매/굿즈/기부 4분할) ← [2026-07-10] 굿즈+기부 포함 SSOT */}
-      <EventRevenueBreakdown overview={revenue.overview} />
+      <EventRevenueBreakdown overview={revenue.overview} onOpenDetail={setDetailEvent} />
 
       {/* 2-B. 수익 분석 — 최다수익 물건(전체/이벤트별) · 최다수익 기부자 · 최다구매자 ← [2026-07-10] */}
       <RevenueAnalysisSection data={revenue} />
+
+      {/* ← [2026-07-10] 카드/분포 클릭 시 열리는 전체 세부내역 모달 */}
+      {detailEvent && (
+        <RevenueDetailModal event={detailEvent} onClose={() => setDetailEvent(null)} />
+      )}
 
       {/* 3. 운영 알림 */}
       <OperationsBox stats={stats} />
@@ -151,10 +195,12 @@ function BigStatsRow({
   stats,
   goal,
   revenue,
+  onOpenDetail,
 }: {
   stats: AdminStats;
   goal: number;
   revenue: RevenueOverview; // ← [2026-07-10] 실판매 총수익 SSOT
+  onOpenDetail: () => void; // ← [2026-07-10] 총 모금액 카드 클릭 → 세부내역
 }) {
   // ← [2026-07-10] 총 모금액 = 실판매 전체수익(바자회+경매+굿즈+기부). 기존 total_raised(굿즈 누락·기부 제외) 대체
   const totalRaised = revenue.total_revenue;
@@ -178,10 +224,11 @@ function BigStatsRow({
         sub={
           goal > 0
             ? `목표 ${goal.toLocaleString()}원 (${progress}%)`
-            : '모금 목표 미설정'
+            : '눌러서 전체 세부내역 보기' /* ← [2026-07-10] */
         }
         color="#16a34a"
         bg="#dcfce7"
+        onClick={onOpenDetail} /* ← [2026-07-10] 카드 클릭 → 세부내역 모달 */
       />
       <BigStatCard
         icon="🎯"
@@ -223,6 +270,7 @@ function BigStatCard({
   bg,
   progress,
   link,
+  onClick, // ← [2026-07-10] 클릭 핸들러(세부내역 모달)
 }: {
   icon: string;
   label: string;
@@ -232,7 +280,9 @@ function BigStatCard({
   bg: string;
   progress?: number;
   link?: string;
+  onClick?: () => void; // ← [2026-07-10]
 }) {
+  const clickable = !!onClick || !!link; // ← [2026-07-10] 커서/호버 표시용
   const content = (
     <div
       style={{
@@ -243,6 +293,7 @@ function BigStatCard({
         border: '1px solid #eee',
         position: 'relative',
         overflow: 'hidden',
+        cursor: clickable ? 'pointer' : 'default', // ← [2026-07-10]
       }}
     >
       {progress !== undefined && (
@@ -289,6 +340,14 @@ function BigStatCard({
       </Link>
     );
   }
+  if (onClick) {
+    // ← [2026-07-10] 클릭 가능한 카드 (세부내역 모달)
+    return (
+      <div role="button" tabIndex={0} onClick={onClick} style={{ display: 'block' }}>
+        {content}
+      </div>
+    );
+  }
   return content;
 }
 
@@ -298,7 +357,13 @@ function BigStatCard({
 //      실판매 SSOT(esg_admin_revenue_overview) 기반 4-way 분해.
 // ============================================================================
 
-function EventRevenueBreakdown({ overview }: { overview: RevenueOverview }) {
+function EventRevenueBreakdown({
+  overview,
+  onOpenDetail,
+}: {
+  overview: RevenueOverview;
+  onOpenDetail: (e: RevenueEvent | 'donation') => void; // ← [2026-07-10] 분포 클릭 → 세부내역
+}) {
   const bazaar = overview.events.bazaar.revenue;
   const auction = overview.events.auction.revenue;
   const goods = overview.events.goods.revenue;
@@ -374,16 +439,23 @@ function EventRevenueBreakdown({ overview }: { overview: RevenueOverview }) {
             )}
           </div>
 
-          {/* 라벨 */}
-          <div style={{ display: 'flex', gap: 24, fontSize: 13, flexWrap: 'wrap' }}>
+          {/* 라벨 (클릭 → 해당 이벤트 세부내역) ← [2026-07-10] */}
+          <div style={{ display: 'flex', gap: 12, fontSize: 13, flexWrap: 'wrap' }}>
             {slices.map((s) => (
-              <BreakdownLabel
+              <button
                 key={s.key}
-                color={s.color}
-                label={`${s.icon} ${s.label}`}
-                amount={s.amount}
-                pct={s.pct}
-              />
+                type="button"
+                onClick={() => onOpenDetail(s.key as RevenueEvent | 'donation')}
+                style={{ border: 'none', background: 'transparent', padding: '4px 6px', borderRadius: 6, cursor: 'pointer', textAlign: 'left' }}
+                title="눌러서 세부내역 보기"
+              >
+                <BreakdownLabel
+                  color={s.color}
+                  label={`${s.icon} ${s.label}`}
+                  amount={s.amount}
+                  pct={s.pct}
+                />
+              </button>
             ))}
           </div>
         </>
@@ -1164,6 +1236,376 @@ function EmailStatChip({
     >
       <div style={{ fontSize: 11, color, opacity: 0.8, marginBottom: 4 }}>{label}</div>
       <div style={{ fontSize: 20, fontWeight: 700, color }}>{value}</div>
+    </div>
+  );
+}
+
+// ============================================================================
+// [2026-07-10] 대시보드 데이터 전체 SVG 다운로드
+// ============================================================================
+function handleExportSvg(data: RevenueDashboardData) {
+  const ov = data.overview;
+  const money = (v: number) => `${v.toLocaleString()}원`;
+  const svg = buildReportSvg({
+    title: 'ESG 수익 대시보드',
+    subtitle: `내보낸 시각 ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`,
+    kpis: [
+      { label: '전체 수익', value: money(ov.total_revenue) },
+      { label: '구매 수익', value: money(ov.purchase_revenue) },
+      { label: '기부 수익', value: money(ov.donation_revenue) },
+      { label: '참여자', value: `${ov.total_participants}명` },
+    ],
+    sections: [
+      {
+        heading: '이벤트별 수익',
+        columns: [
+          { header: '이벤트', width: 160 },
+          { header: '건수', width: 100, align: 'right' },
+          { header: '수익', width: 160, align: 'right' },
+        ],
+        rows: [
+          ['바자회', `${ov.events.bazaar.orders}건`, money(ov.events.bazaar.revenue)],
+          ['경매', `${ov.events.auction.orders}건`, money(ov.events.auction.revenue)],
+          ['굿즈', `${ov.events.goods.orders}건`, money(ov.events.goods.revenue)],
+          ['기부', `${ov.events.donation.orders}건`, money(ov.events.donation.revenue)],
+        ],
+      },
+      {
+        heading: '최다수익 물건 TOP',
+        columns: [
+          { header: '순위', width: 56, align: 'center' },
+          { header: '물품', width: 280 },
+          { header: '수량', width: 80, align: 'right' },
+          { header: '수익', width: 140, align: 'right' },
+        ],
+        rows: data.topItems.map((it, i) => [`${i + 1}`, it.item_name, `${it.sold_qty}개`, money(it.revenue)]),
+      },
+      {
+        heading: '최다수익 물품 기부자 TOP',
+        columns: [
+          { header: '순위', width: 56, align: 'center' },
+          { header: '기부자', width: 180 },
+          { header: '부서', width: 180 },
+          { header: '수익', width: 140, align: 'right' },
+        ],
+        rows: data.topDonors.map((d, i) => [`${i + 1}`, d.donor_name, d.donor_dept ?? '', money(d.revenue)]),
+      },
+      {
+        heading: '최다구매자 TOP',
+        columns: [
+          { header: '순위', width: 56, align: 'center' },
+          { header: '구매자', width: 180 },
+          { header: '부서', width: 180 },
+          { header: '구매액', width: 140, align: 'right' },
+        ],
+        rows: data.topBuyers.map((b, i) => [`${i + 1}`, b.buyer_name, b.buyer_dept ?? '', money(b.total_amount)]),
+      },
+    ],
+  });
+  downloadSvg(`ESG수익대시보드_${todayStampKst()}.svg`, svg);
+}
+
+// ============================================================================
+// [2026-07-10] 대시보드 데이터 전체 CSV 다운로드
+//   섹션이 여러 개라 toCsv 로 블록을 조립해 한 파일에 담는다(섹션 사이 빈 줄 + 제목행).
+//   금액/건수는 숫자 그대로 넣어 엑셀에서 바로 집계 가능.
+// ============================================================================
+function handleExportCsv(data: RevenueDashboardData) {
+  const ov = data.overview;
+  const blocks: string[] = [];
+
+  blocks.push(
+    toCsv(
+      ['구분', '값'],
+      [
+        ['전체 수익', ov.total_revenue],
+        ['구매 수익(바자회+경매+굿즈)', ov.purchase_revenue],
+        ['기부 수익', ov.donation_revenue],
+        ['참여자 수', ov.total_participants],
+        ['내보낸 시각', new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })],
+      ]
+    )
+  );
+
+  blocks.push(
+    toCsv(
+      ['이벤트', '건수', '수익'],
+      [
+        ['바자회', ov.events.bazaar.orders, ov.events.bazaar.revenue],
+        ['경매', ov.events.auction.orders, ov.events.auction.revenue],
+        ['굿즈', ov.events.goods.orders, ov.events.goods.revenue],
+        ['기부', ov.events.donation.orders, ov.events.donation.revenue],
+        ['합계', '', ov.total_revenue],
+      ]
+    )
+  );
+
+  blocks.push(
+    toCsv(
+      ['[최다수익 물건] 순위', '물품명', '이벤트', '판매수량', '수익', '주문건수'],
+      data.topItems.map((it, i) => [
+        i + 1,
+        it.item_name,
+        it.event_type === 'auction' ? '경매' : it.event_type === 'goods' ? '굿즈' : '바자회',
+        it.sold_qty,
+        it.revenue,
+        it.order_count,
+      ])
+    )
+  );
+
+  blocks.push(
+    toCsv(
+      ['[최다수익 물품 기부자] 순위', '기부자', '부서', '구분', '팔린종류', '판매수량', '실판매수익'],
+      data.topDonors.map((d, i) => [
+        i + 1,
+        d.donor_name,
+        d.donor_dept ?? '',
+        d.is_internal ? '임직원' : '외부',
+        d.item_kinds,
+        d.sold_qty,
+        d.revenue,
+      ])
+    )
+  );
+
+  blocks.push(
+    toCsv(
+      ['[최다구매자] 순위', '구매자', '부서', '이메일', '주문건수', '총구매액', '바자회', '경매', '굿즈'],
+      data.topBuyers.map((b, i) => [
+        i + 1,
+        b.buyer_name,
+        b.buyer_dept ?? '',
+        b.user_email,
+        b.order_count,
+        b.total_amount,
+        b.bazaar_amount,
+        b.auction_amount,
+        b.goods_amount,
+      ])
+    )
+  );
+
+  // 섹션 사이 빈 줄로 구분 (엑셀에서 블록이 명확히 분리됨)
+  const csv = blocks.join('\r\n\r\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `ESG수익대시보드_${todayStampKst()}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+// ============================================================================
+// [2026-07-10] 카드/분포 클릭 → 전체 세부내역 모달 (이벤트별 구매자 / 기부자 명단)
+// ============================================================================
+const DETAIL_TABS: { key: RevenueEvent | 'donation'; label: string }[] = [
+  { key: 'bazaar', label: '🛍 바자회' },
+  { key: 'auction', label: '🔨 경매' },
+  { key: 'goods', label: '🎁 굿즈' },
+  { key: 'donation', label: '💚 기부' },
+];
+
+function RevenueDetailModal({
+  event,
+  onClose,
+}: {
+  event: RevenueEvent | 'donation';
+  onClose: () => void;
+}) {
+  const [tab, setTab] = useState<RevenueEvent | 'donation'>(event);
+  const [buyers, setBuyers] = useState<EventBuyer[] | null>(null);
+  const [donors, setDonors] = useState<Array<{ name: string; dept: string | null; count: number; amount: number }> | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    setError(null);
+    setBuyers(null);
+    setDonors(null);
+    (async () => {
+      try {
+        if (tab === 'donation') {
+          const rows = await loadMoneyDonors();
+          const agg = aggregateMoneyDonors(rows).map((d) => ({
+            name: d.donor_name,
+            dept: d.donor_dept,
+            count: d.donation_count,
+            amount: d.total_amount,
+          }));
+          if (alive) setDonors(agg);
+        } else {
+          const rows = await loadEventBuyers(tab);
+          if (alive) setBuyers(rows);
+        }
+      } catch (e) {
+        if (alive) setError(e instanceof Error ? e.message : '세부내역을 불러오지 못했습니다.');
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [tab]);
+
+  const isDonation = tab === 'donation';
+  const total = isDonation
+    ? (donors ?? []).reduce((s, d) => s + d.amount, 0)
+    : (buyers ?? []).reduce((s, b) => s + b.total_amount, 0);
+  const count = isDonation ? (donors ?? []).length : (buyers ?? []).length;
+
+  const tableRows: Array<Array<string>> = isDonation
+    ? (donors ?? []).map((d) => [d.name, d.dept ?? '-', `${d.count}건`, `${d.amount.toLocaleString()}원`])
+    : (buyers ?? []).map((b) => [b.buyer_name, b.buyer_dept ?? '-', `${b.order_count}건`, `${b.total_amount.toLocaleString()}원`]);
+
+  // ← [2026-07-10] 현재 탭 명단 CSV 내보내기 (화면 표보다 컬럼 확장: 이메일/수량 포함, 금액은 숫자)
+  const tabLabel = DETAIL_TABS.find((t) => t.key === tab)?.label.replace(/^\S+\s/, '') ?? String(tab);
+  const handleDetailCsv = () => {
+    if (isDonation) {
+      const rows = donors ?? [];
+      if (rows.length === 0) return;
+      downloadCsv(
+        `기부자명단_${todayStampKst()}.csv`,
+        ['기부자', '부서', '기부건수', '기부금액'],
+        rows.map((d) => [d.name, d.dept ?? '', d.count, d.amount])
+      );
+    } else {
+      const rows = buyers ?? [];
+      if (rows.length === 0) return;
+      downloadCsv(
+        `${tabLabel}_구매자명단_${todayStampKst()}.csv`,
+        ['구매자', '부서', '이메일', '주문건수', '구매수량', '구매금액', '최종결제일시'],
+        rows.map((b) => [
+          b.buyer_name,
+          b.buyer_dept ?? '',
+          b.user_email,
+          b.order_count,
+          b.item_qty,
+          b.total_amount,
+          b.last_paid_at ? new Date(b.last_paid_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }) : '',
+        ])
+      );
+    }
+  };
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.5)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1000,
+        padding: 16,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: '#fff',
+          borderRadius: 12,
+          width: '100%',
+          maxWidth: 640,
+          maxHeight: '85vh',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+      >
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <h3 style={{ margin: 0, fontSize: 16 }}>📄 수익 세부내역</h3>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {/* ← [2026-07-10] 현재 탭 명단 CSV 내보내기 */}
+            <button
+              type="button"
+              onClick={handleDetailCsv}
+              disabled={tableRows.length === 0}
+              style={{
+                padding: '5px 10px',
+                background: '#fff',
+                border: '1px solid #ddd',
+                borderRadius: 6,
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: tableRows.length === 0 ? 'not-allowed' : 'pointer',
+                color: '#333',
+              }}
+            >
+              ⬇ CSV
+            </button>
+            <button type="button" onClick={onClose} style={{ border: 'none', background: 'transparent', fontSize: 20, cursor: 'pointer', color: '#888' }}>
+              ×
+            </button>
+          </div>
+        </div>
+
+        {/* 이벤트 탭 */}
+        <div style={{ display: 'flex', gap: 6, padding: '12px 16px 6px', flexWrap: 'wrap' }}>
+          {DETAIL_TABS.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setTab(t.key)}
+              style={{
+                padding: '6px 12px',
+                borderRadius: 6,
+                border: '1px solid',
+                borderColor: tab === t.key ? '#111' : '#e5e5e5',
+                background: tab === t.key ? '#111' : '#fff',
+                color: tab === t.key ? '#fff' : '#666',
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <div style={{ padding: '0 16px 8px', fontSize: 12, color: '#666' }}>
+          {isDonation ? '기부자' : '구매자'} {count}명 · 합계 <strong style={{ color: '#16a34a' }}>{total.toLocaleString()}원</strong>
+        </div>
+
+        <div style={{ padding: 12, overflowY: 'auto' }}>
+          {loading ? (
+            <div style={{ padding: 24, textAlign: 'center', color: '#888' }}>불러오는 중…</div>
+          ) : error ? (
+            <div style={{ padding: 12, background: '#fee2e2', color: '#991b1b', borderRadius: 8 }}>⚠️ {error}</div>
+          ) : tableRows.length === 0 ? (
+            <div style={{ padding: 24, textAlign: 'center', color: '#888' }}>내역이 없습니다.</div>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: '#f9fafb', color: '#666', textAlign: 'left' }}>
+                  <th style={{ padding: '8px 10px', fontSize: 12 }}>{isDonation ? '기부자' : '구매자'}</th>
+                  <th style={{ padding: '8px 10px', fontSize: 12 }}>부서</th>
+                  <th style={{ padding: '8px 10px', fontSize: 12, textAlign: 'right' }}>건수</th>
+                  <th style={{ padding: '8px 10px', fontSize: 12, textAlign: 'right' }}>금액</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tableRows.map((r, i) => (
+                  <tr key={i} style={{ borderTop: '1px solid #f0f0f0' }}>
+                    <td style={{ padding: '8px 10px', fontWeight: 600, color: '#111' }}>{r[0]}</td>
+                    <td style={{ padding: '8px 10px', color: '#666' }}>{r[1]}</td>
+                    <td style={{ padding: '8px 10px', textAlign: 'right', color: '#666' }}>{r[2]}</td>
+                    <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600 }}>{r[3]}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

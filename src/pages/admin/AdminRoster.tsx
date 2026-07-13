@@ -167,7 +167,7 @@ export function AdminRoster() {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-        <h2 style={{ margin: '0 0 4px' }}>📋 명단 관리</h2>
+        <h2 style={{ margin: '0 0 4px' }}>📋 참여 내역 조회</h2>{/* ← [2026-07-10] 명단 관리 → 참여 내역 조회 */}
         <button type="button" onClick={() => void reload()} disabled={loading} style={refreshBtn(loading)}>
           {loading ? '🔄 갱신 중…' : '🔄 새로고침'}
         </button>

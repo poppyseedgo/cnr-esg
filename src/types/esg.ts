@@ -553,6 +553,7 @@ export interface EsgOrderRow {
   admin_memo: string | null;
   paid_at: string | null;
   paid_by: string | null;
+  received_at: string | null; // ← [2026-07-10] 물품 수령완료 시각(관리자 토글). NULL=미수령
   cancelled_at: string | null;
   cancelled_reason: string | null;
   cancelled_by: string | null;

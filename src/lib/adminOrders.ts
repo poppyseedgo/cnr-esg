@@ -219,6 +219,22 @@ export async function updateAdminMemo(orderId: string, memo: string): Promise<vo
 }
 
 // ============================================================================
+// [2026-07-10] 물품 수령완료 토글 (RPC 없이 직접 UPDATE — 어드민 RLS 통과)
+//   received=true → received_at=now(), false → NULL. 결제 상태와 독립.
+// ============================================================================
+
+export async function setOrderReceived(orderId: string, received: boolean): Promise<void> {
+  const { error } = await supabase
+    .from('esg_orders')
+    .update({
+      received_at: received ? new Date().toISOString() : null, // ← [2026-07-10]
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', orderId);
+  if (error) throw error;
+}
+
+// ============================================================================
 // Realtime
 // ============================================================================
 

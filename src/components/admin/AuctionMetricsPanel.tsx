@@ -16,6 +16,7 @@ import {
 } from '@/lib/adminAuctions';
 import { AUCTION_STATUS_LABELS, AUCTION_STATUS_COLORS } from '@/lib/auctions';
 import { downloadCsv, todayStampKst } from '@/utils/csv';
+import { downloadSvg, buildTableSvg } from '@/utils/svgExport'; // ← [2026-07-10] 경매 지표 SVG
 import type { EsgAuctionBidRow } from '@/types/esg';
 
 const won = (n: number) => `${n.toLocaleString('ko-KR')}원`;
@@ -95,6 +96,42 @@ export function AuctionMetricsPanel() {
       ]),
     );
 
+  // ← [2026-07-10] 경매 지표 SVG 내보내기
+  const handleExportSvg = () => {
+    if (rows.length === 0) return;
+    const svg = buildTableSvg({
+      title: '경매 지표',
+      subtitle: `내보낸 시각 ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`,
+      kpis: [
+        { label: '경매 수', value: `${summary.total}건` },
+        { label: '낙찰 완료', value: `${summary.ended}건` },
+        { label: '총 입찰', value: `${summary.totalBids}회` },
+        { label: '총 낙찰가', value: won(summary.wonSum) },
+      ],
+      columns: [
+        { header: '물품명', width: 220 },
+        { header: '상태', width: 72 },
+        { header: '입찰수', width: 72, align: 'right' },
+        { header: '입찰자', width: 72, align: 'right' },
+        { header: '최고/낙찰가', width: 120, align: 'right' },
+        { header: '최종 낙찰자', width: 140 },
+      ],
+      rows: rows.map((r) => [
+        r.product_name,
+        AUCTION_STATUS_LABELS[r.status],
+        `${r.bid_count}회`,
+        `${r.unique_bidders}명`,
+        r.status === 'ended'
+          ? r.winner_final_price != null
+            ? won(r.winner_final_price)
+            : '유찰'
+          : won(r.highest_bid),
+        r.winner_name ?? (r.status === 'ended' ? '유찰' : '-'),
+      ]),
+    });
+    downloadSvg(`경매지표_${todayStampKst()}.svg`, svg);
+  };
+
   if (loading) {
     return <div style={{ padding: 48, textAlign: 'center', color: '#888' }}>지표 불러오는 중…</div>;
   }
@@ -110,8 +147,22 @@ export function AuctionMetricsPanel() {
         <SummaryChip label="낙찰 완료" value={`${summary.ended}건`} />
         <SummaryChip label="총 입찰" value={`${summary.totalBids}회`} />
         <SummaryChip label="총 낙찰가" value={won(summary.wonSum)} strong />
-        <button type="button" onClick={handleExport} style={exportBtn} disabled={rows.length === 0}>
-          ⬇ CSV 내보내기
+        <button
+          type="button"
+          onClick={handleExport}
+          style={{ ...exportBtn, marginLeft: 'auto' }}
+          disabled={rows.length === 0}
+        >
+          ⬇ CSV
+        </button>
+        {/* ← [2026-07-10] SVG 내보내기 */}
+        <button
+          type="button"
+          onClick={handleExportSvg}
+          style={{ ...exportBtn, marginLeft: 6 }}
+          disabled={rows.length === 0}
+        >
+          ⬇ SVG
         </button>
       </div>
 
@@ -302,7 +353,6 @@ function BidRows({ children }: { children: ReactNode }) {
 }
 
 const exportBtn: CSSProperties = {
-  marginLeft: 'auto',
   padding: '8px 14px',
   background: '#fff',
   border: '1px solid #ddd',

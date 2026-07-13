@@ -23,9 +23,12 @@ import {
   revertOrderPayment,
   cancelPaidOrder,
   updateAdminMemo,
+  setOrderReceived, // ← [2026-07-10] 수령완료 토글
   subscribeAllOrders,
   type LoadAllOrdersFilters,
 } from '@/lib/adminOrders';
+import { downloadSvg, buildTableSvg } from '@/utils/svgExport'; // ← [2026-07-10] SVG 내보내기
+import { downloadCsv, todayStampKst } from '@/utils/csv'; // ← [2026-07-10] CSV 내보내기 + 날짜 스탬프
 import { PAYMENT_STATUS_LABELS, PAYMENT_STATUS_COLORS, getOrderTimeLeft, formatTimeLeft } from '@/lib/orders';
 import type { OrderWithItems } from '@/lib/orders';
 import type { EsgPaymentStatus, EsgOrderType } from '@/types/esg';
@@ -155,6 +158,100 @@ export function AdminOrders() {
     .filter((o) => o.payment_status === 'paid')
     .reduce((sum, o) => sum + o.total_amount, 0);
 
+  // ← [2026-07-10] 현재 필터 결과를 SVG 표로 내보내기
+  const orderTypeLabel = (t: EsgOrderType) => (t === 'bazaar' ? '바자회' : t === 'auction' ? '경매' : '굿즈');
+  const handleExportSvg = () => {
+    if (orders.length === 0) return;
+    const svg = buildTableSvg({
+      title: '주문 / 입금 내역',
+      subtitle: `내보낸 시각 ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })} · 필터: 상태 ${statusFilter} / 유형 ${typeFilter}${searchDebounced ? ` / 검색 "${searchDebounced}"` : ''}`,
+      kpis: [
+        { label: '결과 수', value: `${orders.length}건` },
+        { label: '결제 대기', value: `${pendingCount}건` },
+        { label: '결제 완료 합계', value: `${totalAmount.toLocaleString()}원` },
+      ],
+      columns: [
+        { header: '주문번호', width: 155 },
+        { header: '유형', width: 64 },
+        { header: '구매자', width: 96 },
+        { header: '금액', width: 96, align: 'right' },
+        { header: '상태', width: 72 },
+        { header: '수령', width: 60, align: 'center' },
+        { header: '입금확인', width: 128 },
+      ],
+      rows: orders.map((o) => [
+        o.order_number,
+        orderTypeLabel(o.order_type),
+        o.user_name_snapshot,
+        `${o.total_amount.toLocaleString()}원`,
+        PAYMENT_STATUS_LABELS[o.payment_status],
+        o.received_at ? '완료' : '-',
+        o.paid_at ? fmtKstShort(o.paid_at) : '-',
+      ]),
+    });
+    downloadSvg(`주문내역_${todayStampKst()}.svg`, svg);
+  };
+
+  // ← [2026-07-10] CSV 내보내기 (주문 단위) — 엑셀 실무용. SVG보다 컬럼을 넉넉히 포함.
+  const handleExportCsv = () => {
+    if (orders.length === 0) return;
+    downloadCsv(
+      `주문내역_${todayStampKst()}.csv`,
+      [
+        '주문번호', '유형', '상태', '구매자', '부서', '이메일', '입금자명',
+        '품목수', '총수량', '금액', '수령여부', '수령일시', '입금확인일시', '취소일시', '취소사유', '어드민메모', '주문일시',
+      ],
+      orders.map((o) => [
+        o.order_number,
+        orderTypeLabel(o.order_type),
+        PAYMENT_STATUS_LABELS[o.payment_status],
+        o.user_name_snapshot,
+        o.user_dept_snapshot ?? '',
+        o.user_email,
+        o.payer_name ?? '',
+        o.items.length,
+        o.items.reduce((s, it) => s + it.quantity, 0),
+        o.total_amount, // 숫자 그대로(엑셀 집계용)
+        o.received_at ? '수령완료' : '미수령',
+        o.received_at ? fmtKstShort(o.received_at) : '',
+        o.paid_at ? fmtKstShort(o.paid_at) : '',
+        o.cancelled_at ? fmtKstShort(o.cancelled_at) : '',
+        o.cancelled_reason ?? '',
+        o.admin_memo ?? '',
+        fmtKstShort(o.created_at),
+      ])
+    );
+  };
+
+  // ← [2026-07-10] CSV 내보내기 (품목 단위) — 주문 1건이 품목 수만큼 행으로 펼쳐짐.
+  //    물품별 정산/피킹 리스트용. 주문 정보는 각 행에 반복 표기.
+  const handleExportItemsCsv = () => {
+    if (orders.length === 0) return;
+    const rows: (string | number)[][] = [];
+    for (const o of orders) {
+      for (const it of o.items) {
+        rows.push([
+          o.order_number,
+          orderTypeLabel(o.order_type),
+          PAYMENT_STATUS_LABELS[o.payment_status],
+          o.user_name_snapshot,
+          o.user_email,
+          it.product_name_snapshot,
+          it.price_snapshot,
+          it.quantity,
+          it.price_snapshot * it.quantity,
+          o.received_at ? '수령완료' : '미수령',
+          o.paid_at ? fmtKstShort(o.paid_at) : '',
+        ]);
+      }
+    }
+    downloadCsv(
+      `주문품목내역_${todayStampKst()}.csv`,
+      ['주문번호', '유형', '상태', '구매자', '이메일', '품목명', '단가', '수량', '금액', '수령여부', '입금확인일시'],
+      rows
+    );
+  };
+
   return (
     <div>
       <h2 style={{ margin: '0 0 8px' }}>💳 주문 / 입금 확인</h2>
@@ -252,6 +349,18 @@ export function AdminOrders() {
               bg="#dcfce7"
             />
           )}
+          {/* ← [2026-07-10] 현재 필터 결과 내보내기 (CSV 실무용 / SVG 이미지용) */}
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignSelf: 'center' }}>
+            <button type="button" onClick={handleExportCsv} style={exportBtnStyle}>
+              ⬇ CSV (주문)
+            </button>
+            <button type="button" onClick={handleExportItemsCsv} style={exportBtnStyle}>
+              ⬇ CSV (품목별)
+            </button>
+            <button type="button" onClick={handleExportSvg} style={exportBtnStyle}>
+              ⬇ SVG
+            </button>
+          </div>
         </div>
       )}
 
@@ -585,6 +694,10 @@ function OrderAdminCard({
               ✅ {fmtKstShort(order.paid_at)} 입금 확인됨
             </div>
           )}
+          {/* ← [2026-07-10] 수령완료 토글 — 결제완료 주문에만 노출. 결제와 독립 상태 */}
+          {order.payment_status === 'paid' && (
+            <ReceivedToggle order={order} onChange={onChange} />
+          )}
           {order.cancelled_at && (
             <div style={{ marginTop: 4, fontSize: 11, color: '#dc2626' }}>
               🚫 {fmtKstShort(order.cancelled_at)} 취소
@@ -764,6 +877,54 @@ function OrderAdminCard({
     </div>
     {detailOpen && <OrderItemsModal order={order} onClose={() => setDetailOpen(false)} />}
     </>
+  );
+}
+
+// ============================================================================
+// [2026-07-10] 수령완료 토글 — 결제완료 주문의 물품 수령 여부(관리자). 결제와 독립.
+// ============================================================================
+function ReceivedToggle({ order, onChange }: { order: OrderWithItems; onChange: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const received = !!order.received_at;
+
+  const toggle = async () => {
+    setBusy(true);
+    try {
+      await setOrderReceived(order.id, !received);
+      onChange();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '수령완료 처리에 실패했습니다.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      disabled={busy}
+      style={{
+        marginTop: 6,
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        padding: '4px 10px',
+        borderRadius: 999,
+        fontSize: 11,
+        fontWeight: 700,
+        cursor: busy ? 'wait' : 'pointer',
+        border: '1px solid',
+        borderColor: received ? '#16a34a' : '#ddd',
+        background: received ? '#dcfce7' : '#fff',
+        color: received ? '#166534' : '#888',
+      }}
+    >
+      {received ? '📦 수령완료' : '📦 미수령'}
+      <span style={{ fontSize: 10, fontWeight: 400 }}>
+        {busy ? '처리 중…' : received ? `· ${fmtKstShort(order.received_at!)}` : '· 클릭하여 완료'}
+      </span>
+    </button>
   );
 }
 
@@ -1071,6 +1232,19 @@ function ConfirmPaidModal({
 // ============================================================================
 // 공통 UI
 // ============================================================================
+
+// ← [2026-07-10] 내보내기 버튼 공용 스타일 (CSV/SVG)
+const exportBtnStyle: React.CSSProperties = {
+  padding: '8px 12px',
+  background: '#fff',
+  border: '1px solid #ddd',
+  borderRadius: 8,
+  fontSize: 12,
+  fontWeight: 600,
+  cursor: 'pointer',
+  color: '#333',
+  whiteSpace: 'nowrap',
+};
 
 const inputStyle: React.CSSProperties = {
   width: '100%',
