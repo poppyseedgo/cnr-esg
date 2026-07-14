@@ -4,6 +4,7 @@
 // 요구:
 //   - 참여자 수가 몇 명이든 한 화면(16:9)에 전부 들어가야 한다 → auto-fit.
 //   - 이름 사이에 나무 SVG(업로드 원본: 27×32, #00FF51 원 + 검정 줄기).
+//   - [2026-07-14] 익명 마스킹 없음 — 익명 기부자도 실명 표기(서버 RPC에서 실명 반환).
 //
 // 설계(임시방편 없이):
 //   1) 캔버스는 1920×1080 고정. 뷰포트에는 transform: scale(contain) 로 맞춘다.
@@ -20,6 +21,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { loadParticipants, subscribeParticipants, type Participant } from '@/lib/participants';
 import { downloadSvg, escapeXml } from '@/utils/svgExport'; // ← [2026-07-14] SVG 내보내기
+import { downloadCsv, todayStampKst } from '@/utils/csv';    // ← [2026-07-14] 이름 CSV 내보내기
 
 const CANVAS_W = 1920;
 const CANVAS_H = 1080;
@@ -113,6 +115,18 @@ export function ParticipantsPage() {
     setFontSize(finalFs);
   }, [people]);
 
+  // ── CSV 내보내기 (이름 1열) ─────────────────────────────────────────────
+  //   화면에 보이는 순서(최초 참여 순) 그대로, 헤더 1줄 + 이름 1줄씩.
+  //   부서/참여유형은 넣지 않는다(요청: "목록 이름만").
+  const exportCsv = useCallback(() => {
+    if (people.length === 0) return;
+    downloadCsv(
+      `참여자명단_${people.length}명_${todayStampKst()}.csv`,
+      ['이름'],
+      people.map((p) => [p.name])
+    );
+  }, [people]);
+
   // ── SVG 내보내기 ────────────────────────────────────────────────────────
   //   화면에 이미 auto-fit 된 "실제 레이아웃"을 그대로 좌표로 떠서 SVG 로 굽는다.
   //   (레이아웃을 SVG 안에서 다시 계산하면 브라우저 줄바꿈과 어긋난다 → 실측이 정답)
@@ -136,7 +150,7 @@ export function ParticipantsPage() {
       const fs = Math.round((parseFloat(getComputedStyle(el).fontSize) / s) * 100) / 100;
       parts.push(
         `<text x="${toX(r.left)}" y="${toY(r.top + r.height / 2)}" font-size="${fs}" font-weight="700" ` +
-          `fill="${p?.isAnonymous ? '#9ca3af' : '#111111'}" dominant-baseline="central">${escapeXml(p?.name ?? '')}</text>`
+          `fill="#111111" dominant-baseline="central">${escapeXml(p?.name ?? '')}</text>` // ← [2026-07-14] 익명 구분 없이 동일 색
       );
     });
 
@@ -240,7 +254,7 @@ export function ParticipantsPage() {
                     style={{
                       fontSize: '1em',
                       fontWeight: 700,
-                      color: p.isAnonymous ? '#9ca3af' : '#111',
+                      color: '#111', // ← [2026-07-14] 익명 마스킹/구분 표시 제거 — 전원 동일 표기
                       whiteSpace: 'nowrap',
                     }}
                   >
@@ -275,6 +289,16 @@ export function ParticipantsPage() {
           onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
           onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.25'; }}
         >
+          <button
+            type="button"
+            onClick={exportCsv}
+            style={{
+              padding: '10px 14px', background: '#fff', color: '#333', border: '1px solid #ddd',
+              borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: 'pointer',
+            }}
+          >
+            ⬇ CSV (이름)
+          </button>
           <button
             type="button"
             onClick={exportSvg}
