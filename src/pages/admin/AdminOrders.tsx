@@ -18,6 +18,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
   loadAllOrders,
+  loadOrdersForExport, // ← [2026-07-14] 필터 무관 전량(전 유형×전 상태) CSV용
   markOrderPaid,
   cancelOrderAdmin,
   revertOrderPayment,
@@ -27,6 +28,7 @@ import {
   subscribeAllOrders,
   type LoadAllOrdersFilters,
 } from '@/lib/adminOrders';
+import { FundingSummaryPanel } from '@/components/admin/FundingSummaryPanel'; // ← [2026-07-14] 굿즈 펀딩 집계
 import { downloadSvg, buildTableSvg } from '@/utils/svgExport'; // ← [2026-07-10] SVG 내보내기
 import { downloadCsv, todayStampKst } from '@/utils/csv'; // ← [2026-07-10] CSV 내보내기 + 날짜 스탬프
 import { PAYMENT_STATUS_LABELS, PAYMENT_STATUS_COLORS, getOrderTimeLeft, formatTimeLeft } from '@/lib/orders';
@@ -36,6 +38,7 @@ import type { EsgPaymentStatus, EsgOrderType } from '@/types/esg';
 // ← [2026-07-01] 상태 필터 버튼 나열용 (드롭다운 대체)
 const STATUS_TABS: { value: EsgPaymentStatus | 'all'; label: string }[] = [
   { value: 'all', label: '전체' },
+  { value: 'pledged', label: '펀딩 참여중' }, // ← [2026-07-14] 누락돼 있어 굿즈 펀딩 참여 주문이 상태 필터에서 조회 불가했음
   { value: 'pending', label: '결제 대기' },
   { value: 'paid', label: '결제 완료' },
   { value: 'cancelled', label: '취소됨' },
@@ -115,6 +118,12 @@ export function AdminOrders() {
   // 입금 확인 모달
   const [confirmTarget, setConfirmTarget] = useState<OrderWithItems | null>(null);
 
+  // ── [2026-07-14] 렌더 상한 (데이터는 전량 보유, DOM만 점진 렌더) ─────────────
+  //   전량 로드로 바뀌면서 수천 건이면 카드 렌더가 느려질 수 있어 화면만 끊어 그린다.
+  //   통계/CSV는 항상 orders 전량 기준이므로 합계가 달라지지 않는다.
+  const RENDER_STEP = 100; // ← [2026-07-14]
+  const [visibleCount, setVisibleCount] = useState(RENDER_STEP);
+
   const filters = useMemo<LoadAllOrdersFilters>(
     () => ({
       statuses: statusFilter === 'all' ? undefined : [statusFilter],
@@ -140,6 +149,7 @@ export function AdminOrders() {
 
   useEffect(() => {
     setLoading(true);
+    setVisibleCount(RENDER_STEP); // ← [2026-07-14] 필터 변경 시 렌더 상한 초기화
     void reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter, typeFilter, searchDebounced]);
@@ -154,9 +164,13 @@ export function AdminOrders() {
 
   // 통계 (현재 필터 결과 기준)
   const pendingCount = orders.filter((o) => o.payment_status === 'pending').length;
+  const pledgedCount = orders.filter((o) => o.payment_status === 'pledged').length; // ← [2026-07-14]
   const totalAmount = orders
     .filter((o) => o.payment_status === 'paid')
     .reduce((sum, o) => sum + o.total_amount, 0);
+
+  // ← [2026-07-14] 그룹핑 결과 메모이즈(렌더마다 재계산 방지)
+  const views = useMemo(() => groupAdminOrders(orders), [orders]);
 
   // ← [2026-07-10] 현재 필터 결과를 SVG 표로 내보내기
   const orderTypeLabel = (t: EsgOrderType) => (t === 'bazaar' ? '바자회' : t === 'auction' ? '경매' : '굿즈');
@@ -192,49 +206,47 @@ export function AdminOrders() {
     downloadSvg(`주문내역_${todayStampKst()}.svg`, svg);
   };
 
-  // ← [2026-07-10] CSV 내보내기 (주문 단위) — 엑셀 실무용. SVG보다 컬럼을 넉넉히 포함.
-  const handleExportCsv = () => {
-    if (orders.length === 0) return;
-    downloadCsv(
-      `주문내역_${todayStampKst()}.csv`,
-      [
-        '주문번호', '유형', '상태', '구매자', '부서', '이메일', '입금자명',
-        '품목수', '총수량', '금액', '수령여부', '수령일시', '입금확인일시', '취소일시', '취소사유', '어드민메모', '주문일시',
-      ],
-      orders.map((o) => [
-        o.order_number,
-        orderTypeLabel(o.order_type),
-        PAYMENT_STATUS_LABELS[o.payment_status],
-        o.user_name_snapshot,
-        o.user_dept_snapshot ?? '',
-        o.user_email,
-        o.payer_name ?? '',
-        o.items.length,
-        o.items.reduce((s, it) => s + it.quantity, 0),
-        o.total_amount, // 숫자 그대로(엑셀 집계용)
-        o.received_at ? '수령완료' : '미수령',
-        o.received_at ? fmtKstShort(o.received_at) : '',
-        o.paid_at ? fmtKstShort(o.paid_at) : '',
-        o.cancelled_at ? fmtKstShort(o.cancelled_at) : '',
-        o.cancelled_reason ?? '',
-        o.admin_memo ?? '',
-        fmtKstShort(o.created_at),
-      ])
-    );
-  };
+  // ── [2026-07-14] CSV 행 빌더 (내보내기 대상 배열을 인자로 받음) ─────────────
+  //   기존에는 화면 state(orders)만 내보냈고, orders 자체가 200건 하드캡 + 기본
+  //   상태필터(pending)에 묶여 있어 "생략/잘림"이 발생했다. 이제 (a) orders 는
+  //   전량 로드되고, (b) '전체' 내보내기는 필터와 무관하게 다시 전량 조회한다.
+  const ORDER_CSV_HEADERS = [
+    '주문번호', '유형', '상태', '구매자', '부서', '이메일', '입금자명',
+    '품목수', '총수량', '금액', '수령여부', '수령일시', '입금확인일시', '취소일시', '취소사유', '어드민메모', '주문일시',
+  ];
+  const orderCsvRow = (o: OrderWithItems): (string | number)[] => [ // ← [2026-07-14]
+    o.order_number,
+    orderTypeLabel(o.order_type),
+    PAYMENT_STATUS_LABELS[o.payment_status],
+    o.user_name_snapshot,
+    o.user_dept_snapshot ?? '',
+    o.user_email,
+    o.payer_name ?? '',
+    o.items.length,
+    o.items.reduce((s, it) => s + it.quantity, 0),
+    o.total_amount, // 숫자 그대로(엑셀 집계용)
+    o.received_at ? '수령완료' : '미수령',
+    o.received_at ? fmtKstShort(o.received_at) : '',
+    o.paid_at ? fmtKstShort(o.paid_at) : '',
+    o.cancelled_at ? fmtKstShort(o.cancelled_at) : '',
+    o.cancelled_reason ?? '',
+    o.admin_memo ?? '',
+    fmtKstShort(o.created_at),
+  ];
 
-  // ← [2026-07-10] CSV 내보내기 (품목 단위) — 주문 1건이 품목 수만큼 행으로 펼쳐짐.
-  //    물품별 정산/피킹 리스트용. 주문 정보는 각 행에 반복 표기.
-  const handleExportItemsCsv = () => {
-    if (orders.length === 0) return;
+  const ITEM_CSV_HEADERS = [
+    '주문번호', '유형', '상태', '구매자', '부서', '이메일', '품목명', '단가', '수량', '금액', '수령여부', '입금확인일시', '주문일시',
+  ];
+  const itemCsvRows = (list: OrderWithItems[]): (string | number)[][] => { // ← [2026-07-14]
     const rows: (string | number)[][] = [];
-    for (const o of orders) {
+    for (const o of list) {
       for (const it of o.items) {
         rows.push([
           o.order_number,
           orderTypeLabel(o.order_type),
           PAYMENT_STATUS_LABELS[o.payment_status],
           o.user_name_snapshot,
+          o.user_dept_snapshot ?? '',
           o.user_email,
           it.product_name_snapshot,
           it.price_snapshot,
@@ -242,14 +254,87 @@ export function AdminOrders() {
           it.price_snapshot * it.quantity,
           o.received_at ? '수령완료' : '미수령',
           o.paid_at ? fmtKstShort(o.paid_at) : '',
+          fmtKstShort(o.created_at),
         ]);
       }
     }
-    downloadCsv(
-      `주문품목내역_${todayStampKst()}.csv`,
-      ['주문번호', '유형', '상태', '구매자', '이메일', '품목명', '단가', '수량', '금액', '수령여부', '입금확인일시'],
-      rows
-    );
+    return rows;
+  };
+
+  // ── [2026-07-14] 유형(바자회/경매/굿즈) × 상태 피벗 요약 ────────────────────
+  const summaryCsvRows = (list: OrderWithItems[]): (string | number)[][] => {
+    const TYPES: EsgOrderType[] = ['bazaar', 'auction', 'goods'];
+    const STATUSES: EsgPaymentStatus[] = ['pledged', 'pending', 'paid', 'cancelled', 'expired', 'refunded'];
+    const rows: (string | number)[][] = [];
+    for (const t of TYPES) {
+      const ofType = list.filter((o) => o.order_type === t);
+      for (const st of STATUSES) {
+        const g = ofType.filter((o) => o.payment_status === st);
+        rows.push([
+          orderTypeLabel(t),
+          PAYMENT_STATUS_LABELS[st],
+          g.length,
+          g.reduce((s, o) => s + o.items.reduce((q, it) => q + it.quantity, 0), 0),
+          g.reduce((s, o) => s + o.total_amount, 0),
+        ]);
+      }
+      rows.push([
+        orderTypeLabel(t),
+        '소계(전체 상태)',
+        ofType.length,
+        ofType.reduce((s, o) => s + o.items.reduce((q, it) => q + it.quantity, 0), 0),
+        ofType.reduce((s, o) => s + o.total_amount, 0),
+      ]);
+    }
+    rows.push([
+      '전체',
+      '합계',
+      list.length,
+      list.reduce((s, o) => s + o.items.reduce((q, it) => q + it.quantity, 0), 0),
+      list.reduce((s, o) => s + o.total_amount, 0),
+    ]);
+    return rows;
+  };
+
+  // ← [2026-07-10 / 2026-07-14 수정] CSV (현재 필터 결과 전량)
+  const handleExportCsv = () => {
+    if (orders.length === 0) return;
+    downloadCsv(`주문내역_현재필터_${todayStampKst()}.csv`, ORDER_CSV_HEADERS, orders.map(orderCsvRow));
+  };
+
+  // ← [2026-07-10 / 2026-07-14 수정] CSV (현재 필터 · 품목 단위 전량)
+  const handleExportItemsCsv = () => {
+    if (orders.length === 0) return;
+    downloadCsv(`주문품목내역_현재필터_${todayStampKst()}.csv`, ITEM_CSV_HEADERS, itemCsvRows(orders));
+  };
+
+  // ── [2026-07-14] 전체 내보내기 — 화면 필터와 무관하게 재조회(전 유형×전 상태) ──
+  const [exporting, setExporting] = useState<null | 'orders' | 'items' | 'summary'>(null);
+
+  const exportAll = async (kind: 'orders' | 'items' | 'summary') => {
+    setExporting(kind);
+    try {
+      const all = await loadOrdersForExport(); // ← [2026-07-14] 필터 무시 전량
+      if (all.length === 0) {
+        alert('내보낼 주문이 없습니다.');
+        return;
+      }
+      if (kind === 'orders') {
+        downloadCsv(`주문내역_전체_${todayStampKst()}.csv`, ORDER_CSV_HEADERS, all.map(orderCsvRow));
+      } else if (kind === 'items') {
+        downloadCsv(`주문품목내역_전체_${todayStampKst()}.csv`, ITEM_CSV_HEADERS, itemCsvRows(all));
+      } else {
+        downloadCsv(
+          `주문요약_유형별상태별_${todayStampKst()}.csv`,
+          ['유형', '상태', '건수', '수량', '금액'],
+          summaryCsvRows(all)
+        );
+      }
+    } catch (e) {
+      alert(e instanceof Error ? e.message : '내보내기에 실패했습니다.');
+    } finally {
+      setExporting(null);
+    }
   };
 
   return (
@@ -258,6 +343,9 @@ export function AdminOrders() {
       <p style={{ fontSize: 12, color: '#888', margin: '0 0 16px' }}>
         은행 앱과 대조하여 입금을 확인하세요. 입금 확인 시 즉시 사용자에게 반영됩니다.
       </p>
+
+      {/* ← [2026-07-14] 굿즈 펀딩 집계 (입금 미완료 포함 합산 + CSV) */}
+      <FundingSummaryPanel />
 
       {/* 필터 영역 */}
       <div
@@ -309,6 +397,7 @@ export function AdminOrders() {
               <option value="all">전체</option>
               <option value="bazaar">🛍 바자회</option>
               <option value="auction">🔨 경매</option>
+              <option value="goods">🎁 굿즈</option>{/* ← [2026-07-14] 누락돼 있어 굿즈만 따로 볼 수 없었음 */}
             </select>
           </Field>
           <Field label="검색 (주문번호/이름/이메일/입금자명/상품명)">
@@ -341,6 +430,9 @@ export function AdminOrders() {
             color={pendingCount > 0 ? '#92400e' : '#888'}
             bg={pendingCount > 0 ? '#fef3c7' : '#f5f5f5'}
           />
+          {pledgedCount > 0 && (
+            <SummaryChip label="펀딩 참여중" value={`${pledgedCount}건`} color="#6d28d9" bg="#ede9fe" /> /* ← [2026-07-14] */
+          )}
           {totalAmount > 0 && (
             <SummaryChip
               label="결제 완료 합계"
@@ -349,13 +441,22 @@ export function AdminOrders() {
               bg="#dcfce7"
             />
           )}
-          {/* ← [2026-07-10] 현재 필터 결과 내보내기 (CSV 실무용 / SVG 이미지용) */}
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignSelf: 'center' }}>
+          {/* ← [2026-07-10 / 2026-07-14 확장] 내보내기: 현재 필터 전량 + 전체(전 유형×전 상태) */}
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignSelf: 'center', flexWrap: 'wrap' }}>
             <button type="button" onClick={handleExportCsv} style={exportBtnStyle}>
-              ⬇ CSV (주문)
+              ⬇ CSV (현재 필터·주문)
             </button>
             <button type="button" onClick={handleExportItemsCsv} style={exportBtnStyle}>
-              ⬇ CSV (품목별)
+              ⬇ CSV (현재 필터·품목)
+            </button>
+            <button type="button" onClick={() => void exportAll('orders')} disabled={exporting !== null} style={exportBtnStyle}>
+              {exporting === 'orders' ? '내보내는 중…' : '⬇ CSV (전체·주문)'}
+            </button>
+            <button type="button" onClick={() => void exportAll('items')} disabled={exporting !== null} style={exportBtnStyle}>
+              {exporting === 'items' ? '내보내는 중…' : '⬇ CSV (전체·품목)'}
+            </button>
+            <button type="button" onClick={() => void exportAll('summary')} disabled={exporting !== null} style={exportBtnStyle}>
+              {exporting === 'summary' ? '내보내는 중…' : '⬇ CSV (유형×상태 요약)'}
             </button>
             <button type="button" onClick={handleExportSvg} style={exportBtnStyle}>
               ⬇ SVG
@@ -389,7 +490,8 @@ export function AdminOrders() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {/* ← [2026-07-08] 굿즈 펀딩 다회 참여는 (사용자×상품) 묶음으로 표시(합산 헤더 + 개별 카드) */}
-          {groupAdminOrders(orders).map((v) =>
+          {/* ← [2026-07-14] 데이터는 전량, 화면만 visibleCount 만큼 렌더 */}
+          {views.slice(0, visibleCount).map((v) =>
             v.kind === 'single' ? (
               <OrderAdminCard
                 key={v.order.id}
@@ -426,6 +528,20 @@ export function AdminOrders() {
                 ))}
               </div>
             )
+          )}
+
+          {/* ← [2026-07-14] 더 보기 (CSV/통계는 항상 전량 기준) */}
+          {views.length > visibleCount && (
+            <button
+              type="button"
+              onClick={() => setVisibleCount((c) => c + RENDER_STEP)}
+              style={{
+                padding: '12px', background: '#fff', border: '1px solid #ddd', borderRadius: 8,
+                fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#333',
+              }}
+            >
+              더 보기 ({Math.min(visibleCount, views.length)} / {views.length}) · CSV는 전체 {orders.length}건이 모두 포함됩니다
+            </button>
           )}
         </div>
       )}
