@@ -19,6 +19,8 @@
 //   </AuthProvider>
 // ============================================================================
 
+import { Suspense } from 'react'; // ← [2026-07-14] AppLayout 밖 단독 라우트(/participants)용 Suspense 경계
+import { LoadingScreen } from '@/components/routing/LoadingScreen'; // ← [2026-07-14]
 import { lazyWithRetry } from '@/lib/lazyWithRetry'; // ← 청크 로드 실패 시 1회 자동 새로고침 래퍼
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 import { AuthProvider } from '@/hooks/useCurrentUser';
@@ -72,6 +74,10 @@ const MyPageQna = lazyWithRetry(() => import('@/pages/MyPage').then((m) => ({ de
 
 // Admin 계열 (각 파일 독립 청크)
 const AdminPage = lazyWithRetry(() => import('@/pages/AdminPage').then((m) => ({ default: m.AdminPage })));
+const ParticipantsPage = lazyWithRetry(() => import('@/pages/ParticipantsPage').then((m) => ({ default: m.ParticipantsPage }))); // ← [2026-07-14] 참여자 명단 16:9 전체화면
+
+const AdminAnalytics = lazyWithRetry(() => import('@/pages/admin/AdminAnalytics').then((m) => ({ default: m.AdminAnalytics }))); // ← [2026-07-14] 방문/이벤트 통계
+
 const AdminDashboard = lazyWithRetry(() => import('@/pages/admin/AdminDashboard').then((m) => ({ default: m.AdminDashboard })));
 const AdminSettings = lazyWithRetry(() => import('@/pages/admin/AdminSettings').then((m) => ({ default: m.AdminSettings })));
 const AdminAuctions = lazyWithRetry(() => import('@/pages/admin/AdminAuctions').then((m) => ({ default: m.AdminAuctions })));
@@ -94,6 +100,16 @@ const AdminQnaEvent = lazyWithRetry(() => import('@/pages/admin/AdminQnaEvent').
 // ============================================================================
 
 const router = createBrowserRouter([
+  // ← [2026-07-14] 참여자 명단(16:9 송출용) — 헤더/푸터 없는 전체화면이라 AppLayout 밖에 둔다
+  {
+    path: '/participants',
+    element: (
+      <Suspense fallback={<LoadingScreen />}>
+        <ParticipantsPage />
+      </Suspense>
+    ),
+    errorElement: <RouteError />,
+  },
   {
     element: <AppLayout />,
     errorElement: <RouteError />, // ← [2026-06-18] 청크/렌더 실패 시 친절한 복구 UI(모바일 대응)
@@ -205,6 +221,7 @@ const router = createBrowserRouter([
           { path: 'presale', element: <AdminPresale /> }, // ← [추가 2026-06-26] 선구매 관리
           { path: 'auctions', element: <AdminAuctions /> },
           { path: 'orders', element: <AdminOrders /> },
+          { path: 'analytics', element: <AdminAnalytics /> }, // ← [2026-07-14] 방문/이벤트 통계
           { path: 'donations', element: <AdminDonations /> },
           { path: 'roster', element: <AdminRoster /> }, // ← [추가 2026-06-16 버그#5] 명단 관리
           { path: 'settings', element: <AdminSettings /> },

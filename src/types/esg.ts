@@ -1145,6 +1145,22 @@ export interface Database {
         Args: Record<string, never>;
         Returns: EsgTagWithCount[];
       };
+      esg_participant_names: {                               // ← [2026-07-14] 참여자 명단(이름/부서/유형만)
+        Args: Record<string, never>;
+        Returns: EsgParticipantNameRow[];
+      };
+      esg_track_page_view: {                                 // ← [2026-07-14] 자체 방문 로그 기록(공개)
+        Args: { p_session_id: string; p_path: string; p_referrer?: string | null };
+        Returns: undefined;
+      };
+      esg_visit_stats: {                                     // ← [2026-07-14] 기간별 방문 집계(어드민)
+        Args: { p_from: string; p_to: string };
+        Returns: Record<string, unknown>;
+      };
+      esg_event_stats: {                                     // ← [2026-07-14] 기간별 이벤트 집계(어드민)
+        Args: { p_from: string; p_to: string };
+        Returns: Record<string, unknown>;
+      };
     };
     Enums: {
       [_ in never]: never;
@@ -1153,6 +1169,16 @@ export interface Database {
       [_ in never]: never;
     };
   };
+}
+
+/** esg_participant_names() 반환행 — 참여자 명단(금액·이메일 비노출) */ // ← [2026-07-14]
+export interface EsgParticipantNameRow {
+  person_key: string;
+  display_name: string;
+  dept: string | null;
+  is_anonymous: boolean;
+  kinds: ('purchase' | 'donation' | 'item')[] | null;
+  first_at: string;
 }
 
 // ============================================================================

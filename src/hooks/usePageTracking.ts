@@ -12,12 +12,15 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { trackPageView } from '@/lib/analytics'; // ← GA page_view 전송 함수
+import { trackVisit } from '@/lib/visits'; // ← [2026-07-14] 자체 방문 로그(어드민 집계용) — GA와 병행
 
 export function usePageTracking(): void {
   const location = useLocation(); // ← 현재 라우트 (Router 컨텍스트 필요)
 
   useEffect(() => {
     // pathname + search 포함 → ?id=123 등 쿼리까지 정확히 기록
-    trackPageView(location.pathname + location.search); // ← 경로 변경마다 PV 전송
+    const path = location.pathname + location.search;
+    trackPageView(path); // ← 경로 변경마다 GA PV 전송
+    trackVisit(path);    // ← [2026-07-14] 자체 방문 로그(esg_page_views) 기록. 실패해도 무시
   }, [location.pathname, location.search]);
 }
