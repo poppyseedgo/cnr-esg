@@ -31,8 +31,14 @@ import { downloadCsv, todayStampKst } from '@/utils/csv';
 interface Participant { name: string }
 
 const PARTICIPANT_NAMES: string[] = [
-  '고현정',
+  '윤문태',
+  '윤병인',
+  '안병진',
+  '황진희',
+  '현미숙',
+  '조숙정',
   '김기남',
+  '고현정',
   '송보람',
   '박찬희',
   '송지나',
@@ -55,8 +61,6 @@ const PARTICIPANT_NAMES: string[] = [
   '박소윤',
   '정나희',
   '박대우',
-  '황진희',
-  '윤문태',
   '한송이',
   '정명애',
   '한혜진',
@@ -64,7 +68,6 @@ const PARTICIPANT_NAMES: string[] = [
   '전인서',
   '김선영',
   '임진숙',
-  '현미숙',
   '오은숙',
   '이라영',
   '이은형',
@@ -89,7 +92,6 @@ const PARTICIPANT_NAMES: string[] = [
   '배혜인',
   '최은별',
   '이채은',
-  '조숙정',
   '최두리',
   '이상기',
   '이은주',
@@ -99,13 +101,11 @@ const PARTICIPANT_NAMES: string[] = [
   '정민경',
   '최은심',
   '정유진',
-  '윤병인',
   '안영환',
   '김채윤',
   '서현지',
   '유하나',
   '장지윤',
-  '안병진',
   '김나윤',
   '이혜진',
   '이정현',
@@ -183,7 +183,7 @@ const PARTICIPANT_NAMES: string[] = [
   '이혜련',
   '이현아',
   '오은임',
-  '김경언',
+  '김경언'
 ];
 
 const PARTICIPANTS: Participant[] = PARTICIPANT_NAMES.map((name) => ({ name }));
