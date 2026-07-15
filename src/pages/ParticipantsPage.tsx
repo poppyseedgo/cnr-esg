@@ -218,10 +218,13 @@ function Tree() {
  * 각 컬럼은 rowsPerCol 개의 이름 슬롯을 가진다. 이름을 컬럼0부터 세로로 채운다.
  */
 function layout(names: Participant[], rowsPerCol: number): Participant[][] {
+  // ← [2026-07-15] 행 우선(row-major): 맨 윗줄을 왼→오로 먼저 채운 뒤 다음 줄로.
+  //   지정 7명이 첫 "가로 줄" 왼쪽부터 나오게 하려는 요구. (이전엔 열 우선이라 첫
+  //   컬럼이 앞줄이었음.) 이름 i 는 row = floor(i/COLS), col = i%COLS 에 놓인다.
   const colsNeeded = Math.max(COLS, Math.ceil(names.length / Math.max(1, rowsPerCol)));
   const cols: Participant[][] = Array.from({ length: colsNeeded }, () => []);
   names.forEach((p, i) => {
-    const c = Math.floor(i / rowsPerCol);
+    const c = i % COLS; // 가로 위치(컬럼) = 순번 mod 컬럼수
     cols[c].push(p);
   });
   return cols;
