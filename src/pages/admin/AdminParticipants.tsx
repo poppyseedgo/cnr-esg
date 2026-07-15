@@ -13,10 +13,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   loadParticipantRoster,
+  loadNonParticipants,
   buildAllParticipants,
   ROLE_CATEGORIES,
   ROLE_LABEL,
   type RosterEntry,
+  type NonParticipant,
   type ParticipantRole,
 } from '@/lib/adminParticipants';
 import { downloadCsv, todayStampKst } from '@/utils/csv';
@@ -31,9 +33,14 @@ const fmtDate = (iso: string) => fmtKst(iso).slice(0, 10);
 
 export function AdminParticipants() {
   const [all, setAll] = useState<RosterEntry[]>([]);
+  const [nonParts, setNonParts] = useState<NonParticipant[]>([]);      // ← [2026-07-14] 미참여
+  const [nonLoaded, setNonLoaded] = useState(false);
+  const [nonLoading, setNonLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [role, setRole] = useState<ParticipantRole>('all'); // ← [2026-07-14] 기본 전체
+  // ← [2026-07-14] 'none' = 미참여(profiles 기반, roster 아님). ParticipantRole 밖의 특수 탭.
+  const [role, setRole] = useState<ParticipantRole | 'none'>('all');
   const [search, setSearch] = useState('');
   const [unpaidOnly, setUnpaidOnly] = useState(false);
 
@@ -53,6 +60,24 @@ export function AdminParticipants() {
     void load();
   }, [load]);
 
+  // 미참여 탭 최초 진입 시 1회 로드(무거우므로 지연 로드)  // ← [2026-07-14]
+  const loadNon = useCallback(async () => {
+    setNonLoading(true);
+    setError(null);
+    try {
+      setNonParts(await loadNonParticipants());
+      setNonLoaded(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '미참여 명단을 불러오지 못했습니다.');
+    } finally {
+      setNonLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (role === 'none' && !nonLoaded) void loadNon();
+  }, [role, nonLoaded, loadNon]);
+
   // 역할별 카운트(네비 뱃지)
   const countByRole = useMemo(() => {
     const m = new Map<ParticipantRole, number>();
@@ -63,6 +88,7 @@ export function AdminParticipants() {
   // ← [2026-07-14] 전체(중복 제거) 명단 — roster 를 사람 단위로 합성
   const allPeople = useMemo(() => buildAllParticipants(all), [all]);
   const isAll = role === 'all';
+  const isNone = role === 'none'; // ← [2026-07-14]
 
   // 현재 역할이 주문/기부(입금 개념 있음)인지
   const hasPaidConcept = useMemo(
@@ -85,6 +111,14 @@ export function AdminParticipants() {
       (p) => !s || p.name.toLowerCase().includes(s) || (p.dept ?? '').toLowerCase().includes(s)
     );
   }, [allPeople, search]);
+
+  // ← [2026-07-14] 미참여 명단(검색: 이름/부서/이메일)
+  const nonList = useMemo(() => {
+    const s = search.trim().toLowerCase();
+    return nonParts.filter(
+      (p) => !s || p.name.toLowerCase().includes(s) || (p.dept ?? '').toLowerCase().includes(s) || p.email.toLowerCase().includes(s)
+    );
+  }, [nonParts, search]);
 
   const paidCount = useMemo(
     () => (hasPaidConcept ? all.filter((e) => e.role === role && e.isPaid).length : 0),
@@ -110,7 +144,7 @@ export function AdminParticipants() {
     const cols = ['이름', '부서', '활동수', '최초참여', '최근참여'];
     if (hasPaidConcept) cols.splice(2, 0, '입금여부');
     downloadCsv(
-      `참여자_${roleSlug(role)}_${todayStampKst()}.csv`,
+      `참여자_${roleSlug(role as ParticipantRole)}_${todayStampKst()}.csv`,
       cols,
       list.map((e) => {
         const base = [e.name, e.dept ?? ''];
@@ -121,13 +155,45 @@ export function AdminParticipants() {
   };
 
   const exportNamesCsv = () => {
+    if (isNone) {
+      if (nonList.length === 0) return;
+      downloadCsv(`미참여_이메일만_${todayStampKst()}.csv`, ['이메일'], nonList.map((p) => [p.email]));
+      return;
+    }
     const names = isAll ? allList.map((p) => [p.name]) : list.map((e) => [e.name]);
     if (names.length === 0) return;
     downloadCsv(
-      `참여자명단_${isAll ? '전체' : roleSlug(role)}_이름만_${todayStampKst()}.csv`,
+      `참여자명단_${isAll ? '전체' : roleSlug(role as ParticipantRole)}_이름만_${todayStampKst()}.csv`,
       ['이름'],
       names
     );
+  };
+
+  // ← [2026-07-14] 미참여 상세 CSV (메일 발송용)
+  const exportNonCsv = () => {
+    if (nonList.length === 0) return;
+    downloadCsv(
+      `미참여명단_${todayStampKst()}.csv`,
+      ['이름', '부서', '이메일'],
+      nonList.map((p) => [p.name, p.dept ?? '', p.email])
+    );
+  };
+
+  // ← [2026-07-14] 이메일 전체 복사 (메일 프로그램 수신자 붙여넣기용)
+  const copyEmails = async () => {
+    if (nonList.length === 0) return;
+    const text = nonList.map((p) => p.email).join('; ');
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      // 클립보드 차단 환경 fallback: 임시 textarea
+      const ta = document.createElement('textarea');
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); setCopied(true); setTimeout(() => setCopied(false), 1800); } catch { /* noop */ }
+      document.body.removeChild(ta);
+    }
   };
 
   const th: React.CSSProperties = { textAlign: 'left', padding: '8px 10px', fontSize: 12, color: '#6b7280', fontWeight: 600, borderBottom: '1px solid #e5e7eb', whiteSpace: 'nowrap' };
@@ -181,24 +247,53 @@ export function AdminParticipants() {
               })}
             </div>
           ))}
+
+          {/* ← [2026-07-14] 미참여(profiles 기반) — roster 카테고리와 분리 */}
+          <div style={{ marginBottom: 14, borderTop: '1px solid #eee', paddingTop: 12 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '.04em', margin: '0 0 6px 4px' }}>
+              메일 발송
+            </div>
+            <button
+              type="button"
+              onClick={() => { setRole('none'); setUnpaidOnly(false); }}
+              style={{
+                display: 'flex', alignItems: 'center', width: '100%', gap: 8,
+                padding: '8px 10px', marginBottom: 2, borderRadius: 8, cursor: 'pointer',
+                border: '1px solid ' + (isNone ? '#111' : 'transparent'),
+                background: isNone ? '#111' : 'transparent',
+                color: isNone ? '#fff' : '#333', fontSize: 13, fontWeight: isNone ? 700 : 500,
+                textAlign: 'left',
+              }}
+            >
+              <span style={{ flex: 1 }}>
+                미참여자
+                <span style={{ fontSize: 10, opacity: 0.7, marginLeft: 4 }}>(재직자·전 역할 기준)</span>
+              </span>
+              <span style={{ fontSize: 11, fontWeight: 700, opacity: isNone ? 0.9 : 0.5 }}>
+                {nonLoaded ? nonParts.length : '·'}
+              </span>
+            </button>
+          </div>
         </nav>
 
         {/* 우측 명단 */}
         <div style={{ flex: 1, minWidth: 320 }}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
-            <strong style={{ fontSize: 15 }}>{ROLE_LABEL[role]}</strong>
+            <strong style={{ fontSize: 15 }}>{isNone ? '미참여자 (재직자·전 역할 기준)' : ROLE_LABEL[role]}</strong>
             <span style={{ fontSize: 13, color: '#6b7280' }}>
-              {isAll ? (
+              {isNone ? (
+                <>{nonList.length}명 · 메일 발송 대상</>
+              ) : isAll ? (
                 <>{allList.length}명 (중복 제거)</>
               ) : (
                 <>
                   {list.length}명
-                  {hasPaidConcept && <> · 입금완료 {paidCount}명 · 미입금 {(countByRole.get(role) ?? 0) - paidCount}명</>}
+                  {hasPaidConcept && <> · 입금완료 {paidCount}명 · 미입금 {(countByRole.get(role as ParticipantRole) ?? 0) - paidCount}명</>}
                 </>
               )}
             </span>
             <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-              {!isAll && hasPaidConcept && (
+              {!isAll && !isNone && hasPaidConcept && (
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#555', cursor: 'pointer' }}>
                   <input type="checkbox" checked={unpaidOnly} onChange={(e) => setUnpaidOnly(e.target.checked)} />
                   미입금만
@@ -206,18 +301,61 @@ export function AdminParticipants() {
               )}
               <input
                 type="text"
-                placeholder="이름·부서 검색"
+                placeholder={isNone ? '이름·부서·이메일 검색' : '이름·부서 검색'}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 style={{ padding: '7px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, width: 160 }}
               />
-              <button type="button" onClick={exportNamesCsv} style={btn} disabled={(isAll ? allList.length : list.length) === 0}>⬇ CSV (이름만)</button>
-              <button type="button" onClick={exportCsv} style={btn} disabled={(isAll ? allList.length : list.length) === 0}>⬇ CSV (상세)</button>
-              <button type="button" onClick={() => void load()} style={btn}>↻</button>
+              {isNone ? (
+                <>
+                  <button type="button" onClick={() => void copyEmails()} style={{ ...btn, background: copied ? '#dcfce7' : '#111', color: copied ? '#166534' : '#fff', borderColor: copied ? '#86efac' : '#111' }} disabled={nonList.length === 0}>
+                    {copied ? '✓ 복사됨' : '✉ 이메일 전체 복사'}
+                  </button>
+                  <button type="button" onClick={exportNamesCsv} style={btn} disabled={nonList.length === 0}>⬇ CSV (이메일만)</button>
+                  <button type="button" onClick={exportNonCsv} style={btn} disabled={nonList.length === 0}>⬇ CSV (상세)</button>
+                  <button type="button" onClick={() => void loadNon()} style={btn}>↻</button>
+                </>
+              ) : (
+                <>
+                  <button type="button" onClick={exportNamesCsv} style={btn} disabled={(isAll ? allList.length : list.length) === 0}>⬇ CSV (이름만)</button>
+                  <button type="button" onClick={exportCsv} style={btn} disabled={(isAll ? allList.length : list.length) === 0}>⬇ CSV (상세)</button>
+                  <button type="button" onClick={() => void load()} style={btn}>↻</button>
+                </>
+              )}
             </div>
           </div>
 
-          {loading ? (
+          {isNone ? (
+            /* ← [2026-07-14] 미참여 명단 (메일 발송용) */
+            nonLoading ? (
+              <p style={{ fontSize: 13, color: '#888' }}>불러오는 중…</p>
+            ) : nonList.length === 0 ? (
+              <p style={{ fontSize: 13, color: '#888' }}>{nonLoaded ? '미참여자가 없습니다. (전 직원이 한 번 이상 참여)' : '불러오는 중…'}</p>
+            ) : (
+              <div style={{ overflowX: 'auto', border: '1px solid #e5e7eb', borderRadius: 10 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ ...th, width: 40 }}>#</th>
+                      <th style={th}>이름</th>
+                      <th style={th}>부서</th>
+                      <th style={th}>이메일</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {nonList.map((p, i) => (
+                      <tr key={p.id}>
+                        <td style={{ ...td, color: '#9ca3af' }}>{i + 1}</td>
+                        <td style={{ ...td, fontWeight: 600 }}>{p.name}</td>
+                        <td style={{ ...td, color: '#6b7280' }}>{p.dept ?? '-'}</td>
+                        <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>{p.email}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          ) : loading ? (
             <p style={{ fontSize: 13, color: '#888' }}>불러오는 중…</p>
           ) : isAll ? (
             /* ← [2026-07-14] 전체(중복 제거) 명단 — 참여 종류를 칩으로 요약 */

@@ -48,6 +48,25 @@ type Row = {
   last_at: string;
 };
 
+/** 미참여 직원 1명 (메일 발송 대상) */             // ← [2026-07-14]
+export interface NonParticipant {
+  id: string;
+  name: string;
+  dept: string | null;
+  email: string;
+}
+
+/** 재직자 중 ESG 활동 이력이 전혀 없는 미참여 명단 (부서→이름 순). */
+export async function loadNonParticipants(): Promise<NonParticipant[]> {
+  const { data, error } = await supabase.rpc('esg_non_participants');
+  if (error) {
+    throw new Error(error.message?.includes('NOT_ADMIN') ? '관리자 권한이 필요합니다.' : error.message);
+  }
+  return ((data ?? []) as { id: string; name: string; dept: string | null; email: string }[]).map((r) => ({
+    id: r.id, name: r.name, dept: r.dept, email: r.email,
+  }));
+}
+
 /** 전체 역할별 명단 (역할 → 최초활동순). */
 export async function loadParticipantRoster(): Promise<RosterEntry[]> {
   const { data, error } = await supabase.rpc('esg_participant_roster');

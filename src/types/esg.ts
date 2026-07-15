@@ -1165,6 +1165,10 @@ export interface Database {
         Args: Record<string, never>;
         Returns: Record<string, unknown>[];
       };
+      esg_non_participants: {                                // ← [2026-07-14] 미참여 직원 명단(어드민, 메일용)
+        Args: Record<string, never>;
+        Returns: { id: string; name: string; dept: string | null; email: string }[];
+      };
     };
     Enums: {
       [_ in never]: never;
