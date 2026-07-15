@@ -1161,6 +1161,10 @@ export interface Database {
         Args: { p_from: string; p_to: string };
         Returns: Record<string, unknown>;
       };
+      esg_participant_roster: {                              // ← [2026-07-14] 참여자 역할별 명단(어드민)
+        Args: Record<string, never>;
+        Returns: Record<string, unknown>[];
+      };
     };
     Enums: {
       [_ in never]: never;

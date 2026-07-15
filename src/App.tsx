@@ -76,6 +76,8 @@ const MyPageQna = lazyWithRetry(() => import('@/pages/MyPage').then((m) => ({ de
 const AdminPage = lazyWithRetry(() => import('@/pages/AdminPage').then((m) => ({ default: m.AdminPage })));
 const ParticipantsPage = lazyWithRetry(() => import('@/pages/ParticipantsPage').then((m) => ({ default: m.ParticipantsPage }))); // ← [2026-07-14] 참여자 명단 16:9 전체화면
 
+const AdminParticipants = lazyWithRetry(() => import('@/pages/admin/AdminParticipants').then((m) => ({ default: m.AdminParticipants }))); // ← [2026-07-14] 참여자 명단(종류별)
+
 const AdminAnalytics = lazyWithRetry(() => import('@/pages/admin/AdminAnalytics').then((m) => ({ default: m.AdminAnalytics }))); // ← [2026-07-14] 방문/이벤트 통계
 
 const AdminDashboard = lazyWithRetry(() => import('@/pages/admin/AdminDashboard').then((m) => ({ default: m.AdminDashboard })));
@@ -222,6 +224,7 @@ const router = createBrowserRouter([
           { path: 'auctions', element: <AdminAuctions /> },
           { path: 'orders', element: <AdminOrders /> },
           { path: 'analytics', element: <AdminAnalytics /> }, // ← [2026-07-14] 방문/이벤트 통계
+          { path: 'participants', element: <AdminParticipants /> }, // ← [2026-07-14] 참여자 명단(종류별)
           { path: 'donations', element: <AdminDonations /> },
           { path: 'roster', element: <AdminRoster /> }, // ← [추가 2026-06-16 버그#5] 명단 관리
           { path: 'settings', element: <AdminSettings /> },
