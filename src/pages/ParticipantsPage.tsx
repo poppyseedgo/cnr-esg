@@ -21,9 +21,172 @@
 // ============================================================================
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { loadParticipants, subscribeParticipants, type Participant } from '@/lib/participants';
 import { downloadSvg, escapeXml } from '@/utils/svgExport';
 import { downloadCsv, todayStampKst } from '@/utils/csv';
+
+// ── [2026-07-15] 하드코딩 명단 ──────────────────────────────────────────────
+//   한글 이름 통일이 필요해 DB(esg_participant_names) 대신 고정 배열을 쓴다.
+//   명단을 갱신하려면 아래 PARTICIPANT_NAMES 배열만 수정하면 된다(순서 = 표시 순서).
+//   원본 순서·중복(동명이인 가능) 그대로 유지한다.
+interface Participant { name: string }
+
+const PARTICIPANT_NAMES: string[] = [
+  '고현정',
+  '김기남',
+  '송보람',
+  '박찬희',
+  '송지나',
+  '임지원',
+  '임지영',
+  '김성연',
+  '안나영',
+  '김수빈',
+  '임소희',
+  '서예지',
+  '허담',
+  '민은영',
+  '장소연',
+  '김동혁',
+  '이호진',
+  '김한나',
+  '조현자',
+  '박설희',
+  '한다운',
+  '박소윤',
+  '정나희',
+  '박대우',
+  '황진희',
+  '윤문태',
+  '한송이',
+  '정명애',
+  '한혜진',
+  '김수웅',
+  '전인서',
+  '김선영',
+  '임진숙',
+  '현미숙',
+  '오은숙',
+  '이라영',
+  '이은형',
+  '양영주',
+  '문창호',
+  '최주연',
+  '최동은',
+  '민희원',
+  '조아라',
+  '김진경',
+  '김아현',
+  '조윤진',
+  '강예림',
+  '변은미',
+  '김현지',
+  '방수진',
+  '권미연',
+  '안정수',
+  '강수진',
+  '이진',
+  '김덕현',
+  '배혜인',
+  '최은별',
+  '이채은',
+  '조숙정',
+  '최두리',
+  '이상기',
+  '이은주',
+  '임혜민',
+  '이정현',
+  '양고운',
+  '정민경',
+  '최은심',
+  '정유진',
+  '윤병인',
+  '안영환',
+  '김채윤',
+  '서현지',
+  '유하나',
+  '장지윤',
+  '안병진',
+  '김나윤',
+  '이혜진',
+  '이정현',
+  '임은수',
+  '이주영',
+  '전재은',
+  '박병관',
+  '박경석',
+  '최윤정',
+  '김나영',
+  '박나현',
+  '허수진',
+  '김현경',
+  '최혜림',
+  '백수지',
+  '문규선',
+  '황유나',
+  '이나영',
+  '박재민',
+  '김상숙',
+  '박경희',
+  '하헌철',
+  '김선재',
+  '장은혜',
+  '강소영',
+  '백도형',
+  '장정임',
+  '구명연',
+  '박수경',
+  '이정석',
+  '김윤호',
+  '안수민',
+  '서혜림',
+  '천현지',
+  '전시온',
+  '김은지',
+  '모예린',
+  '이승미',
+  '권순호',
+  '김나영',
+  '오주은',
+  '마보경',
+  '황선익',
+  '김연지',
+  '김효원',
+  '배수호',
+  '민병문',
+  '박소은',
+  '이시현',
+  '차예인',
+  '장나영',
+  '이경채',
+  '김현선',
+  '이주은',
+  '김진학',
+  '정유진',
+  '이은혜',
+  '곽수현',
+  '주혜경',
+  '박은석',
+  '강소정',
+  '김빛아름',
+  '유민정',
+  '유슬기',
+  '손모아',
+  '남기은',
+  '김한나',
+  '최희주',
+  '이민지',
+  '장건희',
+  '박희려',
+  '송주현',
+  '김효인',
+  '이화진',
+  '이혜련',
+  '이현아',
+  '오은임',
+  '김경언',
+];
+
+const PARTICIPANTS: Participant[] = PARTICIPANT_NAMES.map((name) => ({ name }));
 
 // ── Figma 실측 상수 (1920 캔버스 좌표계) ────────────────────────────────────
 const CANVAS_W = 1920;
@@ -65,28 +228,11 @@ function layout(names: Participant[], rowsPerCol: number): Participant[][] {
 }
 
 export function ParticipantsPage() {
-  const [people, setPeople] = useState<Participant[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // [2026-07-15] 하드코딩 명단 — 로딩/에러/구독 없음
+  const people = PARTICIPANTS;
   const [scale, setScale] = useState(1);
 
   const canvasRef = useRef<HTMLDivElement>(null);
-
-  const load = useCallback(async () => {
-    try {
-      setError(null);
-      setPeople(await loadParticipants());
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '참여자 명단을 불러오지 못했습니다.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void load();
-    return subscribeParticipants(() => void load());
-  }, [load]);
 
   // 뷰포트 폭에 맞춰 가로만 축소(1920 초과 방지). 세로는 내용대로 확장.
   useEffect(() => {
@@ -187,18 +333,12 @@ export function ParticipantsPage() {
           {/* 제목 */}
           <div style={{ position: 'absolute', left: 0, right: 0, top: 40, textAlign: 'center' }}>
             <span style={{ fontSize: 56, fontWeight: 800, color: '#111', letterSpacing: '-1px' }}>참여해 주신 분들</span>
-            {!loading && !error && (
-              <span style={{ fontSize: 22, color: '#999', marginLeft: 16, verticalAlign: 'middle' }}>총 {people.length}명</span>
-            )}
+            <span style={{ fontSize: 22, color: '#999', marginLeft: 16, verticalAlign: 'middle' }}>총 {people.length}명</span>
           </div>
 
           {/* 명단 그리드 */}
           <div style={{ position: 'absolute', left: PAD_X, top: PAD_TOP, width: GRID_W }}>
-            {loading ? (
-              <p style={{ fontSize: 24, color: '#aaa' }}>불러오는 중…</p>
-            ) : error ? (
-              <p style={{ fontSize: 24, color: '#dc2626' }}>⚠️ {error}</p>
-            ) : people.length === 0 ? (
+            {people.length === 0 ? (
               <p style={{ fontSize: 24, color: '#aaa' }}>아직 참여자가 없습니다.</p>
             ) : (
               <div style={{ display: 'flex', gap: COL_GAP, alignItems: 'flex-start' }}>
@@ -260,7 +400,7 @@ export function ParticipantsPage() {
       </div>
 
       {/* 툴바 — 우하단 고정(뷰포트 기준). SVG/CSV 결과물엔 미포함 */}
-      {!loading && !error && people.length > 0 && (
+      {people.length > 0 && (
         <div
           style={{ position: 'fixed', right: 20, bottom: 20, display: 'flex', gap: 8, opacity: 0.25, transition: 'opacity .2s', zIndex: 10 }}
           onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
