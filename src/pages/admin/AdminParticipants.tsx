@@ -108,9 +108,15 @@ export function AdminParticipants() {
   const allList = useMemo(() => {
     const s = search.trim().toLowerCase();
     return allPeople.filter(
-      (p) => !s || p.name.toLowerCase().includes(s) || (p.dept ?? '').toLowerCase().includes(s)
+      (p) => !s || p.name.toLowerCase().includes(s) || (p.dept ?? '').toLowerCase().includes(s) || (p.email ?? '').toLowerCase().includes(s)
     );
   }, [allPeople, search]);
+
+  // ← [2026-07-14] 전체 명단 중 이메일 보유 인원(복사/발송 가능 대상 수)
+  const allEmailCount = useMemo(
+    () => new Set(allList.map((p) => p.email).filter((e): e is string => !!e && e.trim() !== '')).size,
+    [allList]
+  );
 
   // ← [2026-07-14] 미참여 명단(검색: 이름/부서/이메일)
   const nonList = useMemo(() => {
@@ -132,9 +138,9 @@ export function AdminParticipants() {
       if (allList.length === 0) return;
       downloadCsv(
         `참여자_전체_${todayStampKst()}.csv`,
-        ['이름', '부서', '참여종류', '총활동수', '입금(주문/기부)', '최초참여', '최근참여'],
+        ['이름', '부서', '이메일', '참여종류', '총활동수', '입금(주문/기부)', '최초참여', '최근참여'],
         allList.map((p) => [
-          p.name, p.dept ?? '', p.categories.join('/'),
+          p.name, p.dept ?? '', p.email ?? '', p.categories.join('/'),
           p.totalActivity, p.isPaidAny ? '있음' : '', fmtDate(p.firstAt), fmtDate(p.lastAt),
         ])
       );
@@ -180,9 +186,11 @@ export function AdminParticipants() {
   };
 
   // ← [2026-07-14] 이메일 전체 복사 (메일 프로그램 수신자 붙여넣기용)
-  const copyEmails = async () => {
-    if (nonList.length === 0) return;
-    const text = nonList.map((p) => p.email).join('; ');
+  //   [2026-07-14 확장] 미참여자·전체 명단 공용. null/빈 이메일은 제외.
+  const copyEmailList = async (emails: (string | null)[]) => {
+    const list = emails.filter((e): e is string => !!e && e.trim() !== '');
+    if (list.length === 0) return;
+    const text = [...new Set(list)].join('; ');
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
@@ -195,6 +203,8 @@ export function AdminParticipants() {
       document.body.removeChild(ta);
     }
   };
+  const copyEmails = () => void copyEmailList(nonList.map((p) => p.email));
+  const copyAllEmails = () => void copyEmailList(allList.map((p) => p.email)); // ← [2026-07-14] 전체 명단
 
   const th: React.CSSProperties = { textAlign: 'left', padding: '8px 10px', fontSize: 12, color: '#6b7280', fontWeight: 600, borderBottom: '1px solid #e5e7eb', whiteSpace: 'nowrap' };
   const td: React.CSSProperties = { padding: '9px 10px', fontSize: 13, color: '#111', borderBottom: '1px solid #f3f4f6' };
@@ -284,7 +294,7 @@ export function AdminParticipants() {
               {isNone ? (
                 <>{nonList.length}명 · 메일 발송 대상</>
               ) : isAll ? (
-                <>{allList.length}명 (중복 제거)</>
+                <>{allList.length}명 (중복 제거) · 이메일 {allEmailCount}명</>
               ) : (
                 <>
                   {list.length}명
@@ -308,17 +318,27 @@ export function AdminParticipants() {
               />
               {isNone ? (
                 <>
-                  <button type="button" onClick={() => void copyEmails()} style={{ ...btn, background: copied ? '#dcfce7' : '#111', color: copied ? '#166534' : '#fff', borderColor: copied ? '#86efac' : '#111' }} disabled={nonList.length === 0}>
+                  <button type="button" onClick={copyEmails} style={{ ...btn, background: copied ? '#dcfce7' : '#111', color: copied ? '#166534' : '#fff', borderColor: copied ? '#86efac' : '#111' }} disabled={nonList.length === 0}>
                     {copied ? '✓ 복사됨' : '✉ 이메일 전체 복사'}
                   </button>
                   <button type="button" onClick={exportNamesCsv} style={btn} disabled={nonList.length === 0}>⬇ CSV (이메일만)</button>
                   <button type="button" onClick={exportNonCsv} style={btn} disabled={nonList.length === 0}>⬇ CSV (상세)</button>
                   <button type="button" onClick={() => void loadNon()} style={btn}>↻</button>
                 </>
+              ) : isAll ? (
+                <>
+                  {/* ← [2026-07-14] 전체 명단 이메일 복사 (미참여자 탭과 동일 기능) */}
+                  <button type="button" onClick={copyAllEmails} style={{ ...btn, background: copied ? '#dcfce7' : '#111', color: copied ? '#166534' : '#fff', borderColor: copied ? '#86efac' : '#111' }} disabled={allEmailCount === 0}>
+                    {copied ? '✓ 복사됨' : `✉ 이메일 전체 복사 (${allEmailCount})`}
+                  </button>
+                  <button type="button" onClick={exportNamesCsv} style={btn} disabled={allList.length === 0}>⬇ CSV (이름만)</button>
+                  <button type="button" onClick={exportCsv} style={btn} disabled={allList.length === 0}>⬇ CSV (상세)</button>
+                  <button type="button" onClick={() => void load()} style={btn}>↻</button>
+                </>
               ) : (
                 <>
-                  <button type="button" onClick={exportNamesCsv} style={btn} disabled={(isAll ? allList.length : list.length) === 0}>⬇ CSV (이름만)</button>
-                  <button type="button" onClick={exportCsv} style={btn} disabled={(isAll ? allList.length : list.length) === 0}>⬇ CSV (상세)</button>
+                  <button type="button" onClick={exportNamesCsv} style={btn} disabled={list.length === 0}>⬇ CSV (이름만)</button>
+                  <button type="button" onClick={exportCsv} style={btn} disabled={list.length === 0}>⬇ CSV (상세)</button>
                   <button type="button" onClick={() => void load()} style={btn}>↻</button>
                 </>
               )}
@@ -369,6 +389,7 @@ export function AdminParticipants() {
                       <th style={{ ...th, width: 40 }}>#</th>
                       <th style={th}>이름</th>
                       <th style={th}>부서</th>
+                      <th style={th}>이메일</th>
                       <th style={th}>참여 종류</th>
                       <th style={{ ...th, textAlign: 'right' }}>총 활동수</th>
                       <th style={th}>최초참여</th>
@@ -381,6 +402,7 @@ export function AdminParticipants() {
                         <td style={{ ...td, color: '#9ca3af' }}>{i + 1}</td>
                         <td style={{ ...td, fontWeight: 600 }}>{p.name}</td>
                         <td style={{ ...td, color: '#6b7280' }}>{p.dept ?? '-'}</td>
+                        <td style={{ ...td, fontFamily: 'monospace', fontSize: 12, color: p.email ? '#111' : '#c00' }}>{p.email ?? '(없음)'}</td>
                         <td style={td}>
                           <span style={{ display: 'inline-flex', gap: 4, flexWrap: 'wrap' }}>
                             {p.categories.map((c) => (

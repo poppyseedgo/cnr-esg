@@ -29,6 +29,7 @@ export interface RosterEntry {
   key: string;
   name: string;
   dept: string | null;
+  email: string | null;   // ← [2026-07-14] 물품기부 외부인은 null
   isAnonymous: boolean;
   isPaid: boolean;        // 주문/기부: 입금 완료 여부. 그 외 역할은 true
   activityCount: number;  // 이 역할에서의 활동 수
@@ -41,6 +42,7 @@ type Row = {
   person_key: string;
   display_name: string;
   dept: string | null;
+  email: string | null;
   is_anonymous: boolean;
   is_paid: boolean;
   activity_count: number;
@@ -78,6 +80,7 @@ export async function loadParticipantRoster(): Promise<RosterEntry[]> {
     key: r.person_key,
     name: r.display_name,
     dept: r.dept,
+    email: r.email,
     isAnonymous: r.is_anonymous,
     isPaid: r.is_paid,
     activityCount: Number(r.activity_count) || 0,
@@ -91,6 +94,7 @@ export interface RosterPerson {
   key: string;
   name: string;
   dept: string | null;
+  email: string | null;       // ← [2026-07-14] 대표 이메일(없으면 null)
   roles: ParticipantRole[];   // 이 사람이 가진 역할들(중복 없음, 'all' 제외)
   categories: string[];       // 참여 카테고리(게시판/경매/바자회/기부금/굿즈) — 중복 없음
   totalActivity: number;      // 전 역할 활동수 합
@@ -124,12 +128,13 @@ export function buildAllParticipants(roster: RosterEntry[]): RosterPerson[] {
 
   for (const e of roster) {
     const p = map.get(e.key) ?? {
-      key: e.key, name: e.name, dept: e.dept,
+      key: e.key, name: e.name, dept: e.dept, email: e.email,
       roles: [], categories: [], totalActivity: 0, isPaidAny: false,
       firstAt: e.firstAt, lastAt: e.lastAt,
     };
     if (!p.roles.includes(e.role)) p.roles.push(e.role);
     if (!p.dept && e.dept) p.dept = e.dept;
+    if (!p.email && e.email) p.email = e.email; // ← [2026-07-14] 대표 이메일(첫 non-null)
     // 최신 이름 우선(더 최근 활동의 이름 스냅샷 채택)
     if (e.lastAt >= p.lastAt) p.name = e.name;
 
