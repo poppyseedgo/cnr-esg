@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   loadParticipantRoster,
+  buildAllParticipants,
   ROLE_CATEGORIES,
   ROLE_LABEL,
   type RosterEntry,
@@ -32,7 +33,7 @@ export function AdminParticipants() {
   const [all, setAll] = useState<RosterEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [role, setRole] = useState<ParticipantRole>('post_author');
+  const [role, setRole] = useState<ParticipantRole>('all'); // ← [2026-07-14] 기본 전체
   const [search, setSearch] = useState('');
   const [unpaidOnly, setUnpaidOnly] = useState(false);
 
@@ -59,6 +60,10 @@ export function AdminParticipants() {
     return m;
   }, [all]);
 
+  // ← [2026-07-14] 전체(중복 제거) 명단 — roster 를 사람 단위로 합성
+  const allPeople = useMemo(() => buildAllParticipants(all), [all]);
+  const isAll = role === 'all';
+
   // 현재 역할이 주문/기부(입금 개념 있음)인지
   const hasPaidConcept = useMemo(
     () => ['auction_buyer', 'bazaar_buyer', 'money_donor', 'goods_backer', 'auction_participant'].includes(role),
@@ -73,17 +78,39 @@ export function AdminParticipants() {
       .filter((e) => !s || e.name.toLowerCase().includes(s) || (e.dept ?? '').toLowerCase().includes(s));
   }, [all, role, search, unpaidOnly, hasPaidConcept]);
 
+  // ← [2026-07-14] 전체 명단(검색 필터 적용)
+  const allList = useMemo(() => {
+    const s = search.trim().toLowerCase();
+    return allPeople.filter(
+      (p) => !s || p.name.toLowerCase().includes(s) || (p.dept ?? '').toLowerCase().includes(s)
+    );
+  }, [allPeople, search]);
+
   const paidCount = useMemo(
     () => (hasPaidConcept ? all.filter((e) => e.role === role && e.isPaid).length : 0),
     [all, role, hasPaidConcept]
   );
 
+  const roleSlug = (r: ParticipantRole) => ROLE_LABEL[r].replace(/[·\s]+/g, '_');
+
   const exportCsv = () => {
+    if (isAll) {
+      if (allList.length === 0) return;
+      downloadCsv(
+        `참여자_전체_${todayStampKst()}.csv`,
+        ['이름', '부서', '참여종류', '총활동수', '입금(주문/기부)', '최초참여', '최근참여'],
+        allList.map((p) => [
+          p.name, p.dept ?? '', p.categories.join('/'),
+          p.totalActivity, p.isPaidAny ? '있음' : '', fmtDate(p.firstAt), fmtDate(p.lastAt),
+        ])
+      );
+      return;
+    }
     if (list.length === 0) return;
     const cols = ['이름', '부서', '활동수', '최초참여', '최근참여'];
     if (hasPaidConcept) cols.splice(2, 0, '입금여부');
     downloadCsv(
-      `참여자_${ROLE_LABEL[role].replace(/[·\s]+/g, '_')}_${todayStampKst()}.csv`,
+      `참여자_${roleSlug(role)}_${todayStampKst()}.csv`,
       cols,
       list.map((e) => {
         const base = [e.name, e.dept ?? ''];
@@ -94,11 +121,12 @@ export function AdminParticipants() {
   };
 
   const exportNamesCsv = () => {
-    if (list.length === 0) return;
+    const names = isAll ? allList.map((p) => [p.name]) : list.map((e) => [e.name]);
+    if (names.length === 0) return;
     downloadCsv(
-      `참여자명단_${ROLE_LABEL[role].replace(/[·\s]+/g, '_')}_이름만_${todayStampKst()}.csv`,
+      `참여자명단_${isAll ? '전체' : roleSlug(role)}_이름만_${todayStampKst()}.csv`,
       ['이름'],
-      list.map((e) => [e.name])
+      names
     );
   };
 
@@ -146,7 +174,7 @@ export function AdminParticipants() {
                       {r.hint && <span style={{ fontSize: 10, opacity: 0.7, marginLeft: 4 }}>({r.hint})</span>}
                     </span>
                     <span style={{ fontSize: 11, fontWeight: 700, opacity: active ? 0.9 : 0.5 }}>
-                      {countByRole.get(r.role) ?? 0}
+                      {r.role === 'all' ? allPeople.length : (countByRole.get(r.role) ?? 0)}
                     </span>
                   </button>
                 );
@@ -160,11 +188,17 @@ export function AdminParticipants() {
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
             <strong style={{ fontSize: 15 }}>{ROLE_LABEL[role]}</strong>
             <span style={{ fontSize: 13, color: '#6b7280' }}>
-              {list.length}명
-              {hasPaidConcept && <> · 입금완료 {paidCount}명 · 미입금 {(countByRole.get(role) ?? 0) - paidCount}명</>}
+              {isAll ? (
+                <>{allList.length}명 (중복 제거)</>
+              ) : (
+                <>
+                  {list.length}명
+                  {hasPaidConcept && <> · 입금완료 {paidCount}명 · 미입금 {(countByRole.get(role) ?? 0) - paidCount}명</>}
+                </>
+              )}
             </span>
             <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-              {hasPaidConcept && (
+              {!isAll && hasPaidConcept && (
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#555', cursor: 'pointer' }}>
                   <input type="checkbox" checked={unpaidOnly} onChange={(e) => setUnpaidOnly(e.target.checked)} />
                   미입금만
@@ -177,14 +211,59 @@ export function AdminParticipants() {
                 onChange={(e) => setSearch(e.target.value)}
                 style={{ padding: '7px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, width: 160 }}
               />
-              <button type="button" onClick={exportNamesCsv} style={btn} disabled={list.length === 0}>⬇ CSV (이름만)</button>
-              <button type="button" onClick={exportCsv} style={btn} disabled={list.length === 0}>⬇ CSV (상세)</button>
+              <button type="button" onClick={exportNamesCsv} style={btn} disabled={(isAll ? allList.length : list.length) === 0}>⬇ CSV (이름만)</button>
+              <button type="button" onClick={exportCsv} style={btn} disabled={(isAll ? allList.length : list.length) === 0}>⬇ CSV (상세)</button>
               <button type="button" onClick={() => void load()} style={btn}>↻</button>
             </div>
           </div>
 
           {loading ? (
             <p style={{ fontSize: 13, color: '#888' }}>불러오는 중…</p>
+          ) : isAll ? (
+            /* ← [2026-07-14] 전체(중복 제거) 명단 — 참여 종류를 칩으로 요약 */
+            allList.length === 0 ? (
+              <p style={{ fontSize: 13, color: '#888' }}>참여자가 없습니다.</p>
+            ) : (
+              <div style={{ overflowX: 'auto', border: '1px solid #e5e7eb', borderRadius: 10 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ ...th, width: 40 }}>#</th>
+                      <th style={th}>이름</th>
+                      <th style={th}>부서</th>
+                      <th style={th}>참여 종류</th>
+                      <th style={{ ...th, textAlign: 'right' }}>총 활동수</th>
+                      <th style={th}>최초참여</th>
+                      <th style={th}>최근참여</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allList.map((p, i) => (
+                      <tr key={p.key}>
+                        <td style={{ ...td, color: '#9ca3af' }}>{i + 1}</td>
+                        <td style={{ ...td, fontWeight: 600 }}>{p.name}</td>
+                        <td style={{ ...td, color: '#6b7280' }}>{p.dept ?? '-'}</td>
+                        <td style={td}>
+                          <span style={{ display: 'inline-flex', gap: 4, flexWrap: 'wrap' }}>
+                            {p.categories.map((c) => (
+                              <span
+                                key={c}
+                                style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: '#f3f4f6', color: '#374151' }}
+                              >
+                                {c}
+                              </span>
+                            ))}
+                          </span>
+                        </td>
+                        <td style={{ ...td, textAlign: 'right' }}>{p.totalActivity}</td>
+                        <td style={{ ...td, color: '#6b7280' }}>{fmtDate(p.firstAt)}</td>
+                        <td style={{ ...td, color: '#6b7280' }}>{fmtDate(p.lastAt)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
           ) : list.length === 0 ? (
             <p style={{ fontSize: 13, color: '#888' }}>해당 종류의 참여자가 없습니다.</p>
           ) : (
