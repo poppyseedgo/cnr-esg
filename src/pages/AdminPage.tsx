@@ -11,6 +11,7 @@ const adminTabs = [
   // ← [2026-07-10] 탭 순서 재정렬 + '명단 관리' → '참여 내역 조회' 개명
   { to: '/admin/dashboard', label: '대시보드', icon: '📊' },
   { to: '/admin/orders', label: '주문/입금확인', icon: '💳' },
+  { to: '/admin/goods-pickup', label: '굿즈 수령 확인', icon: '✅' }, // ← [2026-08-10] 데스크 수령 체크 전용
   { to: '/admin/analytics', label: '방문/이벤트 통계', icon: '📈' }, // ← [2026-07-14]
   { to: '/admin/participants', label: '참여자 명단(종류별)', icon: '👥' }, // ← [2026-07-14]
   { to: '/admin/roster', label: '참여 내역 조회', icon: '📋' }, // ← [2026-07-10] 개명(명단 관리) + 3번째
